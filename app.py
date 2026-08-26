@@ -928,13 +928,12 @@ st.markdown(
 if menu == "🏠 Resumen":
 
     st.subheader("Resumen operativo")
-
     st.caption(
-        "Seguimiento general del cumplimiento "
-        "mensual del equipo."
+        "Seguimiento general del cumplimiento mensual del equipo."
     )
 
     resultado = st.session_state.resultado_operadores
+    jornadas_info = calcular_jornadas()
 
     if resultado is None:
 
@@ -944,14 +943,14 @@ if menu == "🏠 Resumen":
             st.metric(
                 "Gestiones",
                 "0",
-                f"Meta: {formato_entero(META_GESTIONES)}",
+                f"Meta por operador: {formato_entero(META_GESTIONES)}",
             )
 
         with col2:
             st.metric(
                 "Compromisos",
                 "0",
-                f"Meta: {formato_entero(META_COMPROMISOS)}",
+                f"Meta por operador: {formato_entero(META_COMPROMISOS)}",
             )
 
         with col3:
@@ -968,50 +967,206 @@ if menu == "🏠 Resumen":
 
     else:
 
-        promedio_gestiones = resultado[
-            "% Gestiones"
-        ].mean()
+        esperado = jornadas_info["esperado_pct"]
 
-        promedio_compromisos = resultado[
-            "% Compromisos"
-        ].mean()
+        promedio_gestiones = float(
+            resultado["% Gestiones"].mean()
+        )
+        promedio_compromisos = float(
+            resultado["% Compromisos"].mean()
+        )
+        promedio_recuperacion = float(
+            resultado["% Recuperación"].mean()
+        )
 
-        promedio_recuperacion = resultado[
-            "% Recuperación"
-        ].mean()
+        total_gestiones = int(
+            resultado["Gestiones"].sum()
+        )
+        total_compromisos = int(
+            resultado["Compromisos"].sum()
+        )
+        total_recuperacion = float(
+            resultado["Recuperación acumulada"].sum()
+        )
 
-        col1, col2, col3 = st.columns(3)
+        meta_equipo_gestiones = (
+            META_GESTIONES * CANTIDAD_OPERADORES
+        )
+        meta_equipo_compromisos = (
+            META_COMPROMISOS * CANTIDAD_OPERADORES
+        )
+        meta_equipo_recuperacion = (
+            META_RECUPERACION * CANTIDAD_OPERADORES
+        )
 
-        with col1:
+        # -------------------------------------------------
+        # ESTADO GENERAL
+        # -------------------------------------------------
+
+        indicadores_promedio = [
+            promedio_gestiones,
+            promedio_compromisos,
+            promedio_recuperacion,
+        ]
+
+        brecha_promedio = (
+            sum(indicadores_promedio) / len(indicadores_promedio)
+        ) - esperado
+
+        if brecha_promedio >= 3:
+            estado_general = "🟢 Equipo adelantado"
+        elif brecha_promedio >= -3:
+            estado_general = "🟡 Equipo dentro de lo esperado"
+        elif brecha_promedio >= -10:
+            estado_general = "🟠 Equipo en seguimiento"
+        else:
+            estado_general = "🔴 Reforzar ritmo del equipo"
+
+        st.markdown(f"### {estado_general}")
+
+        # -------------------------------------------------
+        # TARJETAS PRINCIPALES
+        # -------------------------------------------------
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        with c1:
             st.metric(
-                "Gestiones · cumplimiento promedio",
-                formato_porcentaje(
-                    promedio_gestiones
+                "Gestiones",
+                formato_entero(total_gestiones),
+                (
+                    f"{formato_porcentaje(promedio_gestiones)} "
+                    f"del promedio individual"
                 ),
             )
-
-        with col2:
-            st.metric(
-                "Compromisos · cumplimiento promedio",
-                formato_porcentaje(
-                    promedio_compromisos
-                ),
+            st.caption(
+                f"Meta equipo: {formato_entero(meta_equipo_gestiones)}"
             )
 
-        with col3:
+        with c2:
             st.metric(
-                "Recuperación · cumplimiento promedio",
-                formato_porcentaje(
-                    promedio_recuperacion
+                "Compromisos",
+                formato_entero(total_compromisos),
+                (
+                    f"{formato_porcentaje(promedio_compromisos)} "
+                    f"del promedio individual"
                 ),
+            )
+            st.caption(
+                f"Meta equipo: {formato_entero(meta_equipo_compromisos)}"
+            )
+
+        with c3:
+            st.metric(
+                "Recuperación",
+                formato_bs(total_recuperacion),
+                formato_porcentaje(promedio_recuperacion),
+            )
+            st.caption(
+                f"Meta equipo: {formato_bs(meta_equipo_recuperacion)}"
+            )
+
+        with c4:
+            st.metric(
+                "Avance esperado",
+                formato_porcentaje(esperado),
+                f"{jornadas_info['transcurridas']} jornadas transcurridas",
+            )
+            st.caption(
+                f"{jornadas_info['disponibles']} jornadas disponibles contando hoy"
             )
 
         st.write("")
 
-        st.subheader("Avance por operador")
+        # -------------------------------------------------
+        # COMPARACIÓN REAL VS ESPERADO
+        # -------------------------------------------------
 
-        tabla = resultado[
+        st.markdown("### Real vs esperado a la fecha")
+
+        comparativo = pd.DataFrame(
+            {
+                "Indicador": [
+                    "Gestiones",
+                    "Compromisos",
+                    "Recuperación",
+                ],
+                "Real": [
+                    promedio_gestiones,
+                    promedio_compromisos,
+                    promedio_recuperacion,
+                ],
+                "Esperado": [
+                    esperado,
+                    esperado,
+                    esperado,
+                ],
+            }
+        )
+
+        comparativo["Brecha"] = (
+            comparativo["Real"]
+            - comparativo["Esperado"]
+        )
+
+        vista_comp = comparativo.copy()
+        vista_comp["Real"] = vista_comp[
+            "Real"
+        ].apply(formato_porcentaje)
+        vista_comp["Esperado"] = vista_comp[
+            "Esperado"
+        ].apply(formato_porcentaje)
+        vista_comp["Brecha"] = vista_comp[
+            "Brecha"
+        ].apply(
+            lambda x: (
+                f"+{formato_porcentaje(x)}"
+                if x >= 0
+                else formato_porcentaje(x)
+            )
+        )
+
+        st.dataframe(
+            vista_comp,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.write("")
+
+        # -------------------------------------------------
+        # RANKING GENERAL
+        # -------------------------------------------------
+
+        st.markdown("### Ranking de operadores")
+
+        ranking = resultado.copy()
+
+        ranking["Puntaje"] = (
+            ranking["% Gestiones"]
+            + ranking["% Compromisos"]
+            + ranking["% Recuperación"]
+        ) / 3
+
+        ranking["Estado"] = ranking["Puntaje"].apply(
+            lambda pct: clasificar_avance(
+                pct,
+                esperado,
+            )
+        )
+
+        ranking = ranking.sort_values(
+            "Puntaje",
+            ascending=False,
+        ).reset_index(drop=True)
+
+        ranking["Posición"] = (
+            ranking.index + 1
+        )
+
+        ranking_vista = ranking[
             [
+                "Posición",
                 "Operador",
                 "Gestiones",
                 "% Gestiones",
@@ -1019,29 +1174,122 @@ if menu == "🏠 Resumen":
                 "% Compromisos",
                 "Recuperación acumulada",
                 "% Recuperación",
+                "Puntaje",
+                "Estado",
             ]
         ].copy()
 
-        tabla["% Gestiones"] = tabla[
+        ranking_vista["% Gestiones"] = ranking_vista[
             "% Gestiones"
         ].apply(formato_porcentaje)
 
-        tabla["% Compromisos"] = tabla[
+        ranking_vista["% Compromisos"] = ranking_vista[
             "% Compromisos"
         ].apply(formato_porcentaje)
 
-        tabla["Recuperación acumulada"] = tabla[
+        ranking_vista["Recuperación acumulada"] = ranking_vista[
             "Recuperación acumulada"
         ].apply(formato_bs)
 
-        tabla["% Recuperación"] = tabla[
+        ranking_vista["% Recuperación"] = ranking_vista[
             "% Recuperación"
         ].apply(formato_porcentaje)
 
+        ranking_vista["Puntaje"] = ranking_vista[
+            "Puntaje"
+        ].apply(formato_porcentaje)
+
         st.dataframe(
-            tabla,
+            ranking_vista,
             use_container_width=True,
             hide_index=True,
+        )
+
+        st.write("")
+
+        # -------------------------------------------------
+        # SEMÁFORO POR OPERADOR
+        # -------------------------------------------------
+
+        st.markdown("### Semáforo por operador")
+
+        semaforo = resultado[
+            [
+                "Operador",
+                "% Gestiones",
+                "% Compromisos",
+                "% Recuperación",
+            ]
+        ].copy()
+
+        semaforo["Gestiones"] = semaforo[
+            "% Gestiones"
+        ].apply(
+            lambda x: clasificar_avance(
+                float(x),
+                esperado,
+            )
+        )
+
+        semaforo["Compromisos"] = semaforo[
+            "% Compromisos"
+        ].apply(
+            lambda x: clasificar_avance(
+                float(x),
+                esperado,
+            )
+        )
+
+        semaforo["Recuperación"] = semaforo[
+            "% Recuperación"
+        ].apply(
+            lambda x: clasificar_avance(
+                float(x),
+                esperado,
+            )
+        )
+
+        semaforo = semaforo[
+            [
+                "Operador",
+                "Gestiones",
+                "Compromisos",
+                "Recuperación",
+            ]
+        ]
+
+        st.dataframe(
+            semaforo,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.write("")
+
+        # -------------------------------------------------
+        # AVANCE VISUAL
+        # -------------------------------------------------
+
+        st.markdown("### Cumplimiento promedio del equipo")
+
+        grafico = pd.DataFrame(
+            {
+                "Indicador": [
+                    "Gestiones",
+                    "Compromisos",
+                    "Recuperación",
+                ],
+                "Cumplimiento": [
+                    promedio_gestiones,
+                    promedio_compromisos,
+                    promedio_recuperacion,
+                ],
+            }
+        ).set_index("Indicador")
+
+        st.bar_chart(
+            grafico,
+            use_container_width=True,
         )
 
 
