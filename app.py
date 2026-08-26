@@ -1655,7 +1655,7 @@ if menu == "🏠 Resumen":
         <div class="hero-card">
             <div class="hero-title">Centro de control operativo</div>
             <div class="hero-subtitle">
-                Seguimiento de metas, brechas y recuperación ·
+                Seguimiento de metas y brechas ·
                 {fecha_local_actual().strftime("%d/%m/%Y")}
             </div>
         </div>
@@ -1666,52 +1666,8 @@ if menu == "🏠 Resumen":
     if resultado is None:
         st.info(
             "Carga el reporte de Promesas de Pago para visualizar "
-            "el tablero operativo real."
+            "el tablero operativo."
         )
-
-        c1, c2, c3 = st.columns(3)
-
-        with c1:
-            st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-title">Gestiones</div>
-                    <div class="kpi-value">0</div>
-                    <div class="kpi-foot">
-                        Meta por operador: {formato_entero(st.session_state.meta_gestiones_cfg)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with c2:
-            st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-title">Compromisos</div>
-                    <div class="kpi-value">0</div>
-                    <div class="kpi-foot">
-                        Meta por operador: {formato_entero(st.session_state.meta_compromisos_cfg)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with c3:
-            st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-title">Recuperación</div>
-                    <div class="kpi-value">0,00%</div>
-                    <div class="kpi-foot">
-                        Meta por operador: {formato_bs(st.session_state.meta_recuperacion_cfg)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
     else:
         esperado = jornadas_info["esperado_pct"]
@@ -1764,149 +1720,188 @@ if menu == "🏠 Resumen":
         else:
             estado_general = "🔴 Reforzar ritmo"
 
-        st.markdown(
-            f"### {estado_general}"
-        )
+        st.markdown(f"### {estado_general}")
+
+        # -------------------------------------------------
+        # KPI PRINCIPALES
+        # -------------------------------------------------
 
         c1, c2, c3, c4 = st.columns(4)
 
         with c1:
-            st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-title">Gestiones equipo</div>
-                    <div class="kpi-value">{formato_entero(total_gestiones)}</div>
-                    <div class="kpi-foot">
-                        {formato_porcentaje(promedio_gestiones)} · Meta {formato_entero(meta_equipo_gestiones)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+            st.metric(
+                "Gestiones",
+                formato_entero(total_gestiones),
+                formato_porcentaje(promedio_gestiones),
+            )
+            st.caption(
+                f"Meta equipo: {formato_entero(meta_equipo_gestiones)}"
             )
 
         with c2:
-            st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-title">Compromisos equipo</div>
-                    <div class="kpi-value">{formato_entero(total_compromisos)}</div>
-                    <div class="kpi-foot">
-                        {formato_porcentaje(promedio_compromisos)} · Meta {formato_entero(meta_equipo_compromisos)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+            st.metric(
+                "Compromisos",
+                formato_entero(total_compromisos),
+                formato_porcentaje(promedio_compromisos),
+            )
+            st.caption(
+                f"Meta equipo: {formato_entero(meta_equipo_compromisos)}"
             )
 
         with c3:
-            st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-title">Recuperación equipo</div>
-                    <div class="kpi-value">{formato_bs(total_recuperacion)}</div>
-                    <div class="kpi-foot">
-                        {formato_porcentaje(promedio_recuperacion)} · Meta {formato_bs(meta_equipo_recuperacion)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+            st.metric(
+                "Recuperación",
+                formato_bs(total_recuperacion),
+                formato_porcentaje(promedio_recuperacion),
+            )
+            st.caption(
+                f"Meta equipo: {formato_bs(meta_equipo_recuperacion)}"
             )
 
         with c4:
-            st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-title">Esperado a la fecha</div>
-                    <div class="kpi-value">{formato_porcentaje(esperado)}</div>
-                    <div class="kpi-foot">
-                        {jornadas_info['disponibles']} jornadas disponibles contando hoy
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+            st.metric(
+                "Esperado a la fecha",
+                formato_porcentaje(esperado),
+            )
+            st.caption(
+                f"{jornadas_info['disponibles']} jornadas disponibles contando hoy"
             )
 
         st.write("")
-        st.markdown(
-            '<div class="section-title">Avance por operador</div>',
-            unsafe_allow_html=True,
-        )
 
-        resumen = resultado.copy()
+        # -------------------------------------------------
+        # AVANCE VS ESPERADO SIN REPETIR TABLA + GRÁFICO
+        # -------------------------------------------------
 
-        resumen["Puntaje"] = (
-            resumen["% Gestiones"]
-            + resumen["% Compromisos"]
-            + resumen["% Recuperación"]
+        st.markdown("### Avance vs esperado")
+
+        indicadores = [
+            ("Gestiones", promedio_gestiones),
+            ("Compromisos", promedio_compromisos),
+            ("Recuperación", promedio_recuperacion),
+        ]
+
+        for nombre_indicador, valor in indicadores:
+            brecha = valor - esperado
+
+            c1, c2, c3 = st.columns([2, 1, 1])
+
+            with c1:
+                st.progress(
+                    min(max(valor / 100, 0), 1),
+                    text=(
+                        f"{nombre_indicador}: "
+                        f"{formato_porcentaje(valor)}"
+                    ),
+                )
+
+            with c2:
+                st.caption(
+                    f"Esperado: {formato_porcentaje(esperado)}"
+                )
+
+            with c3:
+                texto_brecha = (
+                    f"+{formato_porcentaje(brecha)}"
+                    if brecha >= 0
+                    else formato_porcentaje(brecha)
+                )
+                st.caption(
+                    f"Brecha: {texto_brecha}"
+                )
+
+        st.write("")
+
+        # -------------------------------------------------
+        # RANKING SIMPLIFICADO
+        # -------------------------------------------------
+
+        st.markdown("### Ranking de operadores")
+
+        ranking = resultado.copy()
+
+        ranking["Puntaje"] = (
+            ranking["% Gestiones"]
+            + ranking["% Compromisos"]
+            + ranking["% Recuperación"]
         ) / 3
 
-        resumen["Estado"] = resumen["Puntaje"].apply(
+        ranking["Estado"] = ranking["Puntaje"].apply(
             lambda x: clasificar_avance(
                 float(x),
                 esperado,
             )
         )
 
-        resumen = controles_ordenamiento(
-            resumen,
-            [
-                "% Recuperación",
-                "Recuperación acumulada",
-                "Puntaje",
-                "Gestiones",
-                "% Gestiones",
-                "Compromisos",
-                "% Compromisos",
-                "Operador",
-            ],
-            key_prefix="resumen_v14",
-            columna_default="% Recuperación",
-            descendente_default=True,
-            etiquetas={
-                "% Recuperación": "% Recuperación",
-                "Recuperación acumulada": "Recuperación Bs",
-                "Puntaje": "Cumplimiento general",
-                "Gestiones": "Gestiones",
-                "% Gestiones": "% Gestiones",
-                "Compromisos": "Compromisos",
-                "% Compromisos": "% Compromisos",
-                "Operador": "Operador (A-Z / Z-A)",
-            },
+        c1, c2 = st.columns([3, 1])
+
+        with c1:
+            criterio = st.selectbox(
+                "Ranking por",
+                [
+                    "Recuperación",
+                    "Gestiones",
+                    "Compromisos",
+                    "Cumplimiento general",
+                ],
+                key="ranking_simple_v15",
+            )
+
+        with c2:
+            menor_primero = st.checkbox(
+                "Menor primero",
+                value=False,
+                key="ranking_menor_v15",
+            )
+
+        mapa_criterio = {
+            "Recuperación": "% Recuperación",
+            "Gestiones": "% Gestiones",
+            "Compromisos": "% Compromisos",
+            "Cumplimiento general": "Puntaje",
+        }
+
+        columna_orden = mapa_criterio[criterio]
+
+        ranking = ranking.sort_values(
+            columna_orden,
+            ascending=menor_primero,
+            kind="stable",
+        ).reset_index(drop=True)
+
+        ranking["Posición"] = ranking.index + 1
+
+        vista = pd.DataFrame(
+            {
+                "#": ranking["Posición"],
+                "Operador": ranking["Operador"],
+                "Gestiones": ranking.apply(
+                    lambda r: (
+                        f"{formato_entero(r['Gestiones'])} · "
+                        f"{formato_porcentaje(r['% Gestiones'])}"
+                    ),
+                    axis=1,
+                ),
+                "Compromisos": ranking.apply(
+                    lambda r: (
+                        f"{formato_entero(r['Compromisos'])} · "
+                        f"{formato_porcentaje(r['% Compromisos'])}"
+                    ),
+                    axis=1,
+                ),
+                "Recuperación": ranking.apply(
+                    lambda r: (
+                        f"{formato_bs(r['Recuperación acumulada'])} · "
+                        f"{formato_porcentaje(r['% Recuperación'])}"
+                    ),
+                    axis=1,
+                ),
+                "Cumplimiento": ranking[
+                    "Puntaje"
+                ].apply(formato_porcentaje),
+                "Estado": ranking["Estado"],
+            }
         )
-
-        vista = resumen[
-            [
-                "Operador",
-                "Gestiones",
-                "% Gestiones",
-                "Compromisos",
-                "% Compromisos",
-                "Recuperación acumulada",
-                "% Recuperación",
-                "Puntaje",
-                "Estado",
-            ]
-        ].copy()
-
-        vista["% Gestiones"] = vista[
-            "% Gestiones"
-        ].apply(formato_porcentaje)
-
-        vista["% Compromisos"] = vista[
-            "% Compromisos"
-        ].apply(formato_porcentaje)
-
-        vista["Recuperación acumulada"] = vista[
-            "Recuperación acumulada"
-        ].apply(formato_bs)
-
-        vista["% Recuperación"] = vista[
-            "% Recuperación"
-        ].apply(formato_porcentaje)
-
-        vista["Puntaje"] = vista[
-            "Puntaje"
-        ].apply(formato_porcentaje)
 
         st.dataframe(
             vista,
@@ -1915,87 +1910,16 @@ if menu == "🏠 Resumen":
         )
 
         st.write("")
-        st.markdown(
-            '<div class="section-title">Real vs esperado</div>',
-            unsafe_allow_html=True,
-        )
 
-        comparativo = pd.DataFrame(
-            {
-                "Indicador": [
-                    "Gestiones",
-                    "Compromisos",
-                    "Recuperación",
-                ],
-                "Real": [
-                    promedio_gestiones,
-                    promedio_compromisos,
-                    promedio_recuperacion,
-                ],
-                "Esperado": [
-                    esperado,
-                    esperado,
-                    esperado,
-                ],
-            }
-        )
+        # -------------------------------------------------
+        # ALERTAS: SOLO MOSTRAR SI REALMENTE HAY BRECHAS
+        # -------------------------------------------------
 
-        comparativo["Brecha"] = (
-            comparativo["Real"]
-            - comparativo["Esperado"]
-        )
-
-        c1, c2 = st.columns([1, 1])
-
-        with c1:
-            tabla_comp = comparativo.copy()
-
-            tabla_comp["Real"] = tabla_comp[
-                "Real"
-            ].apply(formato_porcentaje)
-
-            tabla_comp["Esperado"] = tabla_comp[
-                "Esperado"
-            ].apply(formato_porcentaje)
-
-            tabla_comp["Brecha"] = tabla_comp[
-                "Brecha"
-            ].apply(
-                lambda x: (
-                    f"+{formato_porcentaje(x)}"
-                    if x >= 0
-                    else formato_porcentaje(x)
-                )
-            )
-
-            st.dataframe(
-                tabla_comp,
-                use_container_width=True,
-                hide_index=True,
-            )
-
-        with c2:
-            grafico = comparativo[
-                [
-                    "Indicador",
-                    "Real",
-                ]
-            ].set_index("Indicador")
-
-            st.bar_chart(
-                grafico,
-                use_container_width=True,
-            )
-
-        st.write("")
-        st.markdown(
-            '<div class="section-title">Alertas operativas</div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown("### Alertas")
 
         alertas = []
 
-        for _, fila in resumen.iterrows():
+        for _, fila in ranking.iterrows():
             problemas = []
 
             if float(fila["% Gestiones"]) < esperado - 10:
@@ -2009,9 +1933,8 @@ if menu == "🏠 Resumen":
 
             if problemas:
                 alertas.append(
-                    f"**{fila['Operador']}**: reforzar "
+                    f"**{fila['Operador']}** · reforzar "
                     + ", ".join(problemas)
-                    + "."
                 )
 
         if alertas:
@@ -2019,8 +1942,7 @@ if menu == "🏠 Resumen":
                 st.warning(alerta)
         else:
             st.success(
-                "No hay operadores con brechas críticas según "
-                "el avance esperado a la fecha."
+                "No hay brechas críticas en el equipo."
             )
 
 
@@ -2664,35 +2586,8 @@ elif menu == "📥 Cargar reportes":
         if promesas_procesadas:
             st.success(
                 "Promesas de Pago procesado correctamente. "
-                "Revisa Resumen o Mensajes diarios para ver los resultados."
+                "Los resultados ya están disponibles en Resumen y Mensajes diarios."
             )
-
-            c1, c2, c3 = st.columns(3)
-
-            with c1:
-                st.metric(
-                    "Monto sin usuario",
-                    formato_bs(
-                        st.session_state.monto_sin_usuario
-                    ),
-                )
-
-            with c2:
-                st.metric(
-                    "Distribución por operador",
-                    formato_bs(
-                        st.session_state.distribucion_sin_usuario
-                    ),
-                    "Sin usuario ÷ 8",
-                )
-
-            with c3:
-                st.metric(
-                    "Meta recuperación",
-                    formato_bs(
-                        st.session_state.meta_recuperacion_cfg
-                    ),
-                )
 
         if callcenter_procesado:
             st.success(
