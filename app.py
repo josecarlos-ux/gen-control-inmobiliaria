@@ -2062,8 +2062,7 @@ elif menu == "✉️ Mensajes diarios":
     jornadas_info = jornadas_configuradas()
 
     st.caption(
-        f"{jornadas_info['disponibles']} jornadas disponibles "
-        "contando hoy · lunes a sábado"
+        f"{jornadas_info['disponibles']} jornadas disponibles contando hoy · calendario configurado"
     )
 
     resultado = st.session_state.resultado_operadores
@@ -2897,33 +2896,62 @@ elif menu == "⚙️ Configuración":
         ]
 
         st.markdown(
-            "**Selecciona/deselecciona los días laborales:**"
+            "**Calendario laboral del mes**"
+        )
+        st.caption(
+            "Activa únicamente los días que cuentan como jornada laboral. "
+            "Los domingos vienen desmarcados por defecto."
         )
 
-        for semana_inicio in range(1, dias_mes + 1, 7):
-            columnas = st.columns(7)
-
-            for offset in range(7):
-                dia = semana_inicio + offset
-
-                if dia > dias_mes:
-                    continue
-
-                fecha_dia = date(
-                    int(anio_sel),
-                    int(mes_sel),
-                    dia,
+        encabezado = st.columns(7)
+        for idx, nombre_dia in enumerate(
+            ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+        ):
+            with encabezado[idx]:
+                st.markdown(
+                    f"<div style='text-align:center;font-weight:700;'>{nombre_dia}</div>",
+                    unsafe_allow_html=True,
                 )
 
-                with columnas[offset]:
+        cal = calendar.Calendar(firstweekday=0)
+        semanas = cal.monthdayscalendar(
+            int(anio_sel),
+            int(mes_sel),
+        )
+
+        for semana in semanas:
+            columnas = st.columns(7)
+
+            for idx, dia in enumerate(semana):
+                with columnas[idx]:
+                    if dia == 0:
+                        st.markdown("&nbsp;", unsafe_allow_html=True)
+                        continue
+
+                    fecha_dia = date(
+                        int(anio_sel),
+                        int(mes_sel),
+                        dia,
+                    )
+
+                    es_hoy = fecha_dia == fecha_local_actual()
+                    etiqueta = (
+                        f"⭐ {dia}"
+                        if es_hoy
+                        else str(dia)
+                    )
+
                     valor = st.checkbox(
-                        f"{nombres_dia[fecha_dia.weekday()]} {dia}",
+                        etiqueta,
                         value=calendario_mes.get(
                             dia,
                             fecha_dia.weekday() != 6,
                         ),
                         key=(
                             f"cal_{anio_sel}_{mes_sel}_{dia}"
+                        ),
+                        help=(
+                            fecha_dia.strftime("%d/%m/%Y")
                         ),
                     )
 
@@ -2975,25 +3003,49 @@ elif menu == "⚙️ Configuración":
 
         resultado = st.session_state.resultado_operadores
 
-        c1, c2, c3 = st.columns(3)
+        hoy_es_laboral = (
+            hoy in jornadas["dias"]
+        )
+
+        jornadas_antes_hoy = len(
+            [d for d in jornadas["dias"] if d < hoy]
+        )
+
+        jornadas_despues_hoy = len(
+            [d for d in jornadas["dias"] if d > hoy]
+        )
+
+        c1, c2, c3, c4 = st.columns(4)
 
         with c1:
             st.metric(
-                "Jornadas laborales del mes",
+                "Jornadas del mes",
                 jornadas["total"],
             )
 
         with c2:
             st.metric(
-                "Jornadas transcurridas",
-                jornadas["transcurridas"],
+                "Completadas antes de hoy",
+                jornadas_antes_hoy,
             )
 
         with c3:
             st.metric(
-                "Jornadas disponibles",
-                jornadas["disponibles"],
+                "Hoy",
+                "Laboral" if hoy_es_laboral else "No laboral",
             )
+
+        with c4:
+            st.metric(
+                "Pendientes después de hoy",
+                jornadas_despues_hoy,
+            )
+
+        st.info(
+            f"Para calcular la meta de cierre de hoy se consideran "
+            f"{jornadas['disponibles']} jornadas disponibles contando hoy. "
+            f"Después de hoy quedan {jornadas_despues_hoy}."
+        )
 
         if resultado is not None and not resultado.empty:
 
