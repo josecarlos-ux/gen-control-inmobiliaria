@@ -1,9 +1,11 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import re
 import unicodedata
 import math
 import calendar
+import base64
 from io import BytesIO
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
@@ -929,6 +931,96 @@ def procesar_promesas(df):
         distribucion_por_operador,
     )
 
+
+
+
+def mostrar_boton_copiar_imagen(imagen_bytes):
+    """
+    Renderiza un botón que intenta copiar el PNG directamente
+    al portapapeles del navegador para pegarlo con Ctrl+V.
+    """
+    if hasattr(imagen_bytes, "getvalue"):
+        raw = imagen_bytes.getvalue()
+    else:
+        raw = imagen_bytes
+
+    imagen_b64 = base64.b64encode(raw).decode("utf-8")
+
+    html = f"""
+    <div style="font-family:Arial,sans-serif;">
+      <button
+        id="copy-image-btn"
+        style="
+          width:100%;
+          padding:0.62rem 1rem;
+          border:1px solid #d0d5dd;
+          border-radius:0.5rem;
+          background:#ffffff;
+          color:#101828;
+          font-size:14px;
+          font-weight:600;
+          cursor:pointer;
+        "
+      >
+        📋 Copiar imagen
+      </button>
+
+      <div
+        id="copy-status"
+        style="
+          margin-top:6px;
+          font-size:12px;
+          min-height:18px;
+          color:#475467;
+        "
+      ></div>
+    </div>
+
+    <script>
+      const btn = document.getElementById("copy-image-btn");
+      const status = document.getElementById("copy-status");
+
+      btn.addEventListener("click", async () => {{
+        try {{
+          status.textContent = "Copiando imagen...";
+
+          const response = await fetch(
+            "data:image/png;base64,{imagen_b64}"
+          );
+
+          const blob = await response.blob();
+
+          if (!navigator.clipboard || !window.ClipboardItem) {{
+            throw new Error(
+              "Tu navegador no permite copiar imágenes directamente."
+            );
+          }}
+
+          await navigator.clipboard.write([
+            new ClipboardItem({{
+              "image/png": blob
+            }})
+          ]);
+
+          status.textContent =
+            "✅ Imagen copiada. Ya puedes pegarla con Ctrl + V.";
+          status.style.color = "#067647";
+
+        }} catch (error) {{
+          console.error(error);
+          status.textContent =
+            "⚠️ El navegador bloqueó el portapapeles. Usa Descargar imagen como alternativa.";
+          status.style.color = "#b54708";
+        }}
+      }});
+    </script>
+    """
+
+    components.html(
+        html,
+        height=92,
+        scrolling=False,
+    )
 
 
 # =========================================================
@@ -2573,15 +2665,28 @@ elif menu == "✉️ Mensajes diarios":
             use_container_width=True,
         )
 
-        st.download_button(
-            "🖼️ Descargar imagen de recuperación",
-            data=imagen_recuperacion,
-            file_name=(
-                f"avance_recuperacion_"
-                f"{fecha_local_actual().isoformat()}.png"
-            ),
-            mime="image/png",
-            use_container_width=True,
+        col_img1, col_img2 = st.columns(2)
+
+        with col_img1:
+            mostrar_boton_copiar_imagen(
+                imagen_recuperacion
+            )
+
+        with col_img2:
+            st.download_button(
+                "🖼️ Descargar imagen",
+                data=imagen_recuperacion,
+                file_name=(
+                    f"avance_recuperacion_"
+                    f"{fecha_local_actual().isoformat()}.png"
+                ),
+                mime="image/png",
+                use_container_width=True,
+            )
+
+        st.caption(
+            "Usa “Copiar imagen” y luego Ctrl + V en Outlook o WhatsApp. "
+            "Si el navegador bloquea el portapapeles, utiliza Descargar imagen."
         )
 
         # Correo general oficial de Cobranzas:
