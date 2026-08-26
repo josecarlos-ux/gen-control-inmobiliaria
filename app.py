@@ -1365,6 +1365,9 @@ if "config_supabase_cargada" not in st.session_state:
 if "operadores_supabase_cargados" not in st.session_state:
     st.session_state.operadores_supabase_cargados = False
 
+if "operador_guardado_ok" not in st.session_state:
+    st.session_state.operador_guardado_ok = False
+
 if not st.session_state.config_supabase_cargada:
     cargar_configuracion_supabase()
     st.session_state.config_supabase_cargada = True
@@ -1375,6 +1378,27 @@ if (
 ):
     sincronizar_operadores_base()
     st.session_state.operadores_supabase_cargados = True
+
+
+# =========================================================
+# TELÉFONOS
+# =========================================================
+
+def normalizar_telefono_whatsapp(valor):
+    numero = re.sub(
+        r"\D",
+        "",
+        str(valor or ""),
+    )
+
+    if not numero:
+        return ""
+
+    # Bolivia: si se ingresan 8 dígitos, agregar automáticamente 591.
+    if len(numero) == 8:
+        numero = "591" + numero
+
+    return numero
 
 
 # =========================================================
@@ -2335,10 +2359,10 @@ elif menu == "✉️ Mensajes diarios":
                     .get("telefono", "")
                 )
 
-                telefono_limpio = re.sub(
-                    r"\D",
-                    "",
-                    str(telefono),
+                telefono_limpio = (
+                    normalizar_telefono_whatsapp(
+                        telefono
+                    )
                 )
 
                 col_mail, col_whatsapp = st.columns(2)
@@ -2810,6 +2834,12 @@ elif menu == "👥 Equipo":
         "Datos de contacto y configuración de los 8 operadores."
     )
 
+    if st.session_state.operador_guardado_ok:
+        st.success(
+            "Datos del operador actualizados correctamente."
+        )
+        st.session_state.operador_guardado_ok = False
+
     operadores_db = cargar_operadores_supabase()
 
     if operadores_db is None or operadores_db.empty:
@@ -2861,6 +2891,11 @@ elif menu == "👥 Equipo":
             hide_index=True,
         )
 
+        st.caption(
+            "Los cambios guardados se reflejan inmediatamente "
+            "en esta tabla y en Mensajes diarios."
+        )
+
         st.divider()
         st.markdown("### Editar operador")
 
@@ -2908,7 +2943,8 @@ elif menu == "👥 Equipo":
                     fila_op.get("telefono") or ""
                 ),
                 help=(
-                    "Usa código de país. Ejemplo Bolivia: 5917XXXXXXX"
+                    "Puedes escribir 8 dígitos. GEN Control agregará "
+                    "automáticamente el código 591 para Bolivia."
                 ),
             )
 
@@ -2923,12 +2959,18 @@ elif menu == "👥 Equipo":
             "💾 Guardar operador",
             type="primary",
         ):
+            telefono_normalizado = (
+                normalizar_telefono_whatsapp(
+                    telefono_op
+                )
+            )
+
             payload = {
                 "usuario": seleccion,
                 "nombre": nombre_op.strip(),
                 "nombre_mensaje": nombre_mensaje_op.strip(),
                 "correo": correo_op.strip(),
-                "telefono": telefono_op.strip(),
+                "telefono": telefono_normalizado,
                 "activo": bool(activo_op),
                 "updated_at": datetime.now(
                     ZoneInfo("America/La_Paz")
@@ -2940,10 +2982,9 @@ elif menu == "👥 Equipo":
             )
 
             if ok:
-                st.success(
-                    "Datos del operador guardados permanentemente."
-                )
                 st.session_state.operadores_supabase_cargados = False
+                st.session_state.operador_guardado_ok = True
+                st.rerun()
             else:
                 st.error(
                     f"No se pudo guardar: {mensaje}"
