@@ -2272,6 +2272,195 @@ elif menu == "✉️ Mensajes diarios":
                 jornadas_info["disponibles"],
             )
 
+        # -------------------------------------------------
+        # MENSAJE GENERAL DEL EQUIPO
+        # -------------------------------------------------
+
+        total_gestiones_equipo = int(
+            resultado["Gestiones"].sum()
+        )
+        total_compromisos_equipo = int(
+            resultado["Compromisos"].sum()
+        )
+        total_recuperacion_equipo = float(
+            resultado["Recuperación acumulada"].sum()
+        )
+
+        meta_gestiones_equipo = (
+            st.session_state.meta_gestiones_cfg
+            * CANTIDAD_OPERADORES
+        )
+        meta_compromisos_equipo = (
+            st.session_state.meta_compromisos_cfg
+            * CANTIDAD_OPERADORES
+        )
+        meta_recuperacion_equipo = (
+            st.session_state.meta_recuperacion_cfg
+            * CANTIDAD_OPERADORES
+        )
+
+        pct_g_equipo = (
+            total_gestiones_equipo
+            / meta_gestiones_equipo
+            * 100
+            if meta_gestiones_equipo
+            else 0
+        )
+
+        pct_c_equipo = (
+            total_compromisos_equipo
+            / meta_compromisos_equipo
+            * 100
+            if meta_compromisos_equipo
+            else 0
+        )
+
+        pct_r_equipo = (
+            total_recuperacion_equipo
+            / meta_recuperacion_equipo
+            * 100
+            if meta_recuperacion_equipo
+            else 0
+        )
+
+        objetivo_g_equipo = max(
+            sum(
+                objetivo_hoy_gestiones(
+                    int(fila["Gestiones"]),
+                    jornadas_info["disponibles"],
+                )
+                for _, fila in resultado.iterrows()
+            ),
+            0,
+        )
+
+        objetivo_c_equipo = max(
+            sum(
+                objetivo_hoy_compromisos(
+                    int(fila["Compromisos"]),
+                    jornadas_info["disponibles"],
+                )
+                for _, fila in resultado.iterrows()
+            ),
+            0,
+        )
+
+        faltante_r_equipo = max(
+            meta_recuperacion_equipo
+            - total_recuperacion_equipo,
+            0,
+        )
+
+        mensaje_general = (
+            "Buenos días, equipo. 👋\n\n"
+            "Este es nuestro avance acumulado a la fecha:\n\n"
+            f"🔹 Gestiones: {formato_entero(total_gestiones_equipo)} "
+            f"({formato_porcentaje(pct_g_equipo)})"
+            + (
+                f" | objetivo de hoy: {formato_entero(objetivo_g_equipo)}"
+                if objetivo_g_equipo > 0
+                else " | meta cumplida"
+            )
+            + "\n"
+            f"🔹 Compromisos: {formato_entero(total_compromisos_equipo)} "
+            f"({formato_porcentaje(pct_c_equipo)})"
+            + (
+                f" | objetivo de hoy: {formato_entero(objetivo_c_equipo)}"
+                if objetivo_c_equipo > 0
+                else " | meta cumplida"
+            )
+            + "\n"
+            f"🔹 Recuperación: {formato_bs(total_recuperacion_equipo)} "
+            f"({formato_porcentaje(pct_r_equipo)})"
+            + (
+                f" | faltan {formato_bs(faltante_r_equipo)}"
+                if faltante_r_equipo > 0
+                else " | meta cumplida"
+            )
+            + "\n\n"
+            "Mantengamos el ritmo y enfoquémonos en las brechas "
+            "pendientes para cerrar el mes dentro de objetivo. ¡Vamos con todo! 💪"
+        )
+
+        st.markdown("### 📣 Mensaje general del equipo")
+
+        g1, g2, g3 = st.columns(3)
+
+        with g1:
+            st.metric(
+                "Gestiones equipo",
+                formato_entero(total_gestiones_equipo),
+                formato_porcentaje(pct_g_equipo),
+            )
+
+        with g2:
+            st.metric(
+                "Compromisos equipo",
+                formato_entero(total_compromisos_equipo),
+                formato_porcentaje(pct_c_equipo),
+            )
+
+        with g3:
+            st.metric(
+                "Recuperación equipo",
+                formato_bs(total_recuperacion_equipo),
+                formato_porcentaje(pct_r_equipo),
+            )
+
+        st.text_area(
+            "Mensaje general",
+            value=mensaje_general,
+            height=220,
+            key="mensaje_general_equipo",
+            label_visibility="collapsed",
+        )
+
+        correos_generales = [
+            str(c).strip()
+            for c in resultado["Correo"].tolist()
+            if str(c).strip()
+        ]
+
+        cg1, cg2, cg3 = st.columns(3)
+
+        with cg1:
+            if correos_generales:
+                bcc_general = ",".join(
+                    sorted(set(correos_generales))
+                )
+                mailto_general = (
+                    f"mailto:?bcc={quote(bcc_general)}"
+                    f"&subject={quote('Avance general del equipo')}"
+                    f"&body={quote(mensaje_general)}"
+                )
+                st.link_button(
+                    "✉️ Enviar correo general",
+                    mailto_general,
+                    use_container_width=True,
+                )
+
+        with cg2:
+            st.download_button(
+                "📋 Descargar mensaje general",
+                data=mensaje_general,
+                file_name=(
+                    f"mensaje_general_equipo_"
+                    f"{fecha_local_actual().isoformat()}.txt"
+                ),
+                mime="text/plain",
+                use_container_width=True,
+            )
+
+        with cg3:
+            st.link_button(
+                "💬 Abrir WhatsApp Web",
+                "https://web.whatsapp.com/",
+                use_container_width=True,
+            )
+
+        st.divider()
+        st.markdown("### Mensajes individuales")
+
         mensajes_todos = []
         correos_todos = []
 
