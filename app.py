@@ -1217,6 +1217,86 @@ def guardar_resultados_supabase(
         return False, str(e)
 
 
+def cargar_operadores_supabase():
+    sb = get_supabase()
+
+    if sb is None:
+        return None
+
+    try:
+        resp = (
+            sb.table("operadores")
+            .select("*")
+            .eq("activo", True)
+            .order("nombre")
+            .execute()
+        )
+
+        if not resp.data:
+            return None
+
+        return pd.DataFrame(resp.data)
+
+    except Exception:
+        return None
+
+
+def guardar_operador_supabase(payload):
+    sb = get_supabase()
+
+    if sb is None:
+        return False, "Supabase no está conectado."
+
+    try:
+        (
+            sb.table("operadores")
+            .upsert(
+                payload,
+                on_conflict="usuario",
+            )
+            .execute()
+        )
+        return True, "Operador guardado."
+    except Exception as e:
+        return False, str(e)
+
+
+def sincronizar_operadores_base():
+    sb = get_supabase()
+
+    if sb is None:
+        return
+
+    registros = []
+
+    for usuario, datos in OPERADORES.items():
+        registros.append(
+            {
+                "usuario": usuario,
+                "nombre": datos["nombre"],
+                "nombre_mensaje": datos.get(
+                    "nombre_mensaje",
+                    datos["nombre"].split()[0],
+                ),
+                "correo": datos.get("correo", ""),
+                "telefono": datos.get("telefono", ""),
+                "activo": True,
+            }
+        )
+
+    try:
+        (
+            sb.table("operadores")
+            .upsert(
+                registros,
+                on_conflict="usuario",
+            )
+            .execute()
+        )
+    except Exception:
+        pass
+
+
 def guardar_carga_supabase(
     nombre_archivo,
     tipo,
@@ -1282,9 +1362,19 @@ if "calendario_laboral" not in st.session_state:
 if "config_supabase_cargada" not in st.session_state:
     st.session_state.config_supabase_cargada = False
 
+if "operadores_supabase_cargados" not in st.session_state:
+    st.session_state.operadores_supabase_cargados = False
+
 if not st.session_state.config_supabase_cargada:
     cargar_configuracion_supabase()
     st.session_state.config_supabase_cargada = True
+
+if (
+    supabase_disponible()
+    and not st.session_state.operadores_supabase_cargados
+):
+    sincronizar_operadores_base()
+    st.session_state.operadores_supabase_cargados = True
 
 
 # =========================================================
@@ -2062,7 +2152,8 @@ elif menu == "✉️ Mensajes diarios":
     jornadas_info = jornadas_configuradas()
 
     st.caption(
-        f"{jornadas_info['disponibles']} jornadas disponibles contando hoy · calendario configurado"
+        f"{jornadas_info['disponibles']} jornadas disponibles contando hoy · "
+        "calendario configurado"
     )
 
     resultado = st.session_state.resultado_operadores
@@ -2073,6 +2164,22 @@ elif menu == "✉️ Mensajes diarios":
         )
 
     else:
+        operadores_db = cargar_operadores_supabase()
+
+        datos_contacto = {}
+
+        if operadores_db is not None and not operadores_db.empty:
+            for _, op in operadores_db.iterrows():
+                datos_contacto[str(op["usuario"])] = {
+                    "correo": str(op.get("correo") or ""),
+                    "telefono": str(op.get("telefono") or ""),
+                    "nombre_mensaje": str(
+                        op.get("nombre_mensaje")
+                        or op.get("nombre")
+                        or ""
+                    ),
+                }
+
         col_a, col_b, col_c = st.columns(3)
 
         with col_a:
@@ -2083,25 +2190,51 @@ elif menu == "✉️ Mensajes diarios":
 
         with col_b:
             st.metric(
-                "Jornadas transcurridas",
-                jornadas_info["transcurridas"],
+                "Completadas antes de hoy",
+                len(
+                    [
+                        d for d in jornadas_info["dias"]
+                        if d < fecha_local_actual()
+                    ]
+                ),
             )
 
         with col_c:
             st.metric(
-                "Avance esperado a la fecha",
-                formato_porcentaje(
-                    jornadas_info["esperado_pct"]
-                ),
+                "Disponibles contando hoy",
+                jornadas_info["disponibles"],
             )
 
-        st.write("")
+        mensajes_todos = []
+        correos_todos = []
 
         for _, fila in resultado.iterrows():
+            usuario = fila["Usuario"]
+
+            if usuario in datos_contacto:
+                if datos_contacto[usuario]["correo"]:
+                    fila["Correo"] = datos_contacto[usuario]["correo"]
+
+                if datos_contacto[usuario]["nombre_mensaje"]:
+                    OPERADORES[usuario]["nombre_mensaje"] = (
+                        datos_contacto[usuario]["nombre_mensaje"]
+                    )
+
             calculo = generar_mensaje_diario(
                 fila,
                 jornadas_info,
             )
+
+            mensajes_todos.append(
+                f"{fila['Operador']}\n{calculo['mensaje']}"
+            )
+
+            correo_actual = str(
+                fila.get("Correo", "")
+            ).strip()
+
+            if correo_actual:
+                correos_todos.append(correo_actual)
 
             with st.container(border=True):
 
@@ -2113,7 +2246,9 @@ elif menu == "✉️ Mensajes diarios":
                     st.markdown(
                         f"### {fila['Operador']}"
                     )
-                    st.caption(fila["Correo"])
+                    st.caption(
+                        correo_actual or "Sin correo registrado"
+                    )
 
                 with col_estado:
                     estados = [
@@ -2173,9 +2308,12 @@ elif menu == "✉️ Mensajes diarios":
 
                 st.markdown("**Mensaje sugerido**")
 
-                st.code(
-                    calculo["mensaje"],
-                    language=None,
+                st.text_area(
+                    "Mensaje",
+                    value=calculo["mensaje"],
+                    height=190,
+                    key=f"msg_{usuario}",
+                    label_visibility="collapsed",
                 )
 
                 asunto = quote(
@@ -2186,26 +2324,96 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
                 mailto = (
-                    f"mailto:{fila['Correo']}"
+                    f"mailto:{correo_actual}"
                     f"?subject={asunto}"
                     f"&body={cuerpo}"
+                )
+
+                telefono = (
+                    datos_contacto
+                    .get(usuario, {})
+                    .get("telefono", "")
+                )
+
+                telefono_limpio = re.sub(
+                    r"\D",
+                    "",
+                    str(telefono),
                 )
 
                 col_mail, col_whatsapp = st.columns(2)
 
                 with col_mail:
-                    st.link_button(
-                        "✉️ Enviar por correo",
-                        mailto,
-                        use_container_width=True,
-                    )
+                    if correo_actual:
+                        st.link_button(
+                            "✉️ Enviar por correo",
+                            mailto,
+                            use_container_width=True,
+                        )
+                    else:
+                        st.button(
+                            "✉️ Sin correo",
+                            disabled=True,
+                            use_container_width=True,
+                            key=f"sinmail_{usuario}",
+                        )
 
                 with col_whatsapp:
-                    st.link_button(
-                        "💬 Abrir WhatsApp Web",
-                        "https://web.whatsapp.com/",
-                        use_container_width=True,
-                    )
+                    if telefono_limpio:
+                        wa_url = (
+                            f"https://wa.me/{telefono_limpio}"
+                            f"?text={quote(calculo['mensaje'])}"
+                        )
+
+                        st.link_button(
+                            "💬 WhatsApp",
+                            wa_url,
+                            use_container_width=True,
+                        )
+                    else:
+                        st.button(
+                            "💬 Agregar teléfono",
+                            disabled=True,
+                            use_container_width=True,
+                            key=f"sinwa_{usuario}",
+                        )
+
+        st.divider()
+        st.markdown("### Acciones para todo el equipo")
+
+        col_todos1, col_todos2 = st.columns(2)
+
+        with col_todos1:
+            if correos_todos:
+                bcc = ",".join(
+                    sorted(set(correos_todos))
+                )
+
+                mailto_todos = (
+                    f"mailto:?bcc={quote(bcc)}"
+                    f"&subject={quote('Seguimiento diario de metas')}"
+                )
+
+                st.link_button(
+                    f"✉️ Preparar correo para todos ({len(set(correos_todos))})",
+                    mailto_todos,
+                    use_container_width=True,
+                )
+
+        with col_todos2:
+            texto_todos = "\n\n--------------------\n\n".join(
+                mensajes_todos
+            )
+
+            st.download_button(
+                "📋 Descargar mensajes de todos",
+                data=texto_todos,
+                file_name=(
+                    f"mensajes_equipo_{fecha_local_actual().isoformat()}.txt"
+                ),
+                mime="text/plain",
+                use_container_width=True,
+            )
 
 
 # =========================================================
@@ -2597,48 +2805,149 @@ elif menu == "🗂️ Histórico":
 
 elif menu == "👥 Equipo":
 
-    st.subheader("Equipo de Cobranzas Inmobiliarias")
+    st.subheader("👥 Equipo de Cobranzas Inmobiliarias")
+    st.caption(
+        "Datos de contacto y configuración de los 8 operadores."
+    )
 
-    datos_equipo = []
+    operadores_db = cargar_operadores_supabase()
 
-    for usuario, datos in OPERADORES.items():
+    if operadores_db is None or operadores_db.empty:
+        sincronizar_operadores_base()
+        operadores_db = cargar_operadores_supabase()
 
-        datos_equipo.append(
-            {
-                "Usuario": usuario,
-                "Nombre": datos["nombre"],
-                "Correo": datos["correo"],
-                "Meta gestiones": META_GESTIONES,
-                "Meta compromisos": META_COMPROMISOS,
-                "Meta recuperación":
-                    formato_bs(st.session_state.meta_recuperacion_cfg),
-            }
+    if operadores_db is None or operadores_db.empty:
+        st.warning(
+            "No se pudieron cargar los operadores desde Supabase."
         )
 
-    equipo_df = pd.DataFrame(datos_equipo)
+    else:
+        operadores_db = operadores_db.copy()
 
-    equipo_df = controles_ordenamiento(
-        equipo_df,
-        [
-            "Nombre",
-            "Usuario",
-            "Meta gestiones",
-            "Meta compromisos",
-        ],
-        key_prefix="equipo",
-        columna_default="Nombre",
-        descendente_default=False,
-    )
+        operadores_db = controles_ordenamiento(
+            operadores_db,
+            [
+                "nombre",
+                "usuario",
+                "correo",
+                "telefono",
+            ],
+            key_prefix="equipo_v10",
+            columna_default="nombre",
+            descendente_default=False,
+        )
 
-    st.dataframe(
-        equipo_df,
-        use_container_width=True,
-        hide_index=True,
-    )
+        mostrar = operadores_db[
+            [
+                "nombre",
+                "usuario",
+                "correo",
+                "telefono",
+                "activo",
+            ]
+        ].copy()
 
-    st.caption(
-        "8 operadores activos."
-    )
+        mostrar.columns = [
+            "Operador",
+            "Usuario CRM",
+            "Correo",
+            "Teléfono",
+            "Activo",
+        ]
+
+        st.dataframe(
+            mostrar,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.divider()
+        st.markdown("### Editar operador")
+
+        seleccion = st.selectbox(
+            "Selecciona un operador",
+            operadores_db["usuario"].tolist(),
+            format_func=lambda u: operadores_db.loc[
+                operadores_db["usuario"] == u,
+                "nombre",
+            ].iloc[0],
+        )
+
+        fila_op = operadores_db[
+            operadores_db["usuario"] == seleccion
+        ].iloc[0]
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            nombre_op = st.text_input(
+                "Nombre",
+                value=str(
+                    fila_op.get("nombre") or ""
+                ),
+            )
+
+            nombre_mensaje_op = st.text_input(
+                "Nombre corto para mensajes",
+                value=str(
+                    fila_op.get("nombre_mensaje") or ""
+                ),
+            )
+
+        with c2:
+            correo_op = st.text_input(
+                "Correo corporativo",
+                value=str(
+                    fila_op.get("correo") or ""
+                ),
+            )
+
+            telefono_op = st.text_input(
+                "Teléfono / WhatsApp",
+                value=str(
+                    fila_op.get("telefono") or ""
+                ),
+                help=(
+                    "Usa código de país. Ejemplo Bolivia: 5917XXXXXXX"
+                ),
+            )
+
+        activo_op = st.checkbox(
+            "Operador activo",
+            value=bool(
+                fila_op.get("activo", True)
+            ),
+        )
+
+        if st.button(
+            "💾 Guardar operador",
+            type="primary",
+        ):
+            payload = {
+                "usuario": seleccion,
+                "nombre": nombre_op.strip(),
+                "nombre_mensaje": nombre_mensaje_op.strip(),
+                "correo": correo_op.strip(),
+                "telefono": telefono_op.strip(),
+                "activo": bool(activo_op),
+                "updated_at": datetime.now(
+                    ZoneInfo("America/La_Paz")
+                ).isoformat(),
+            }
+
+            ok, mensaje = guardar_operador_supabase(
+                payload
+            )
+
+            if ok:
+                st.success(
+                    "Datos del operador guardados permanentemente."
+                )
+                st.session_state.operadores_supabase_cargados = False
+            else:
+                st.error(
+                    f"No se pudo guardar: {mensaje}"
+                )
 
 
 # =========================================================
