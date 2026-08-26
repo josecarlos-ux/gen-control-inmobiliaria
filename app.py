@@ -907,16 +907,83 @@ def procesar_promesas(df):
 
 @st.cache_resource
 def get_supabase():
+    """
+    Conexión robusta a Supabase.
+    Acepta distintas formas de guardar los Secrets en Streamlit.
+    """
     try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception:
+        url = None
+        key = None
+
+        # Opción 1: claves en la raíz
+        try:
+            url = st.secrets.get("SUPABASE_URL")
+            key = st.secrets.get("SUPABASE_KEY")
+        except Exception:
+            pass
+
+        # Opción 2: sección [supabase]
+        if not url or not key:
+            try:
+                supa = st.secrets.get("supabase", {})
+                url = (
+                    url
+                    or supa.get("url")
+                    or supa.get("SUPABASE_URL")
+                )
+                key = (
+                    key
+                    or supa.get("key")
+                    or supa.get("SUPABASE_KEY")
+                )
+            except Exception:
+                pass
+
+        if not url:
+            raise ValueError(
+                "No se encontró SUPABASE_URL en Streamlit Secrets."
+            )
+
+        if not key:
+            raise ValueError(
+                "No se encontró SUPABASE_KEY en Streamlit Secrets."
+            )
+
+        cliente = create_client(
+            str(url).strip(),
+            str(key).strip(),
+        )
+
+        # Prueba real de conexión
+        cliente.table("configuracion").select(
+            "id"
+        ).limit(1).execute()
+
+        st.session_state["_supabase_error"] = ""
+        return cliente
+
+    except Exception as e:
+        st.session_state["_supabase_error"] = str(e)
         return None
 
 
 def supabase_disponible():
     return get_supabase() is not None
+
+
+def diagnostico_supabase():
+    """
+    Devuelve un mensaje seguro; nunca muestra URL ni key.
+    """
+    if get_supabase() is not None:
+        return True, "Supabase conectado correctamente."
+
+    error = st.session_state.get(
+        "_supabase_error",
+        "No se pudo establecer conexión.",
+    )
+
+    return False, error
 
 
 def cargar_configuracion_supabase():
@@ -2586,15 +2653,31 @@ elif menu == "⚙️ Configuración":
         "Administración de metas y calendario operativo."
     )
 
-    if supabase_disponible():
+    supa_ok, supa_msg = diagnostico_supabase()
+
+    if supa_ok:
         st.success(
-            "● Supabase conectado · cambios e históricos pueden guardarse."
+            "● Supabase conectado · cambios e históricos se guardan permanentemente."
         )
     else:
-        st.warning(
-            "● Supabase pendiente de configurar · la app funciona, "
-            "pero los cambios se perderán al reiniciar."
+        st.error(
+            "● Supabase no conectado."
         )
+        st.caption(
+            f"Diagnóstico: {supa_msg}"
+        )
+        st.info(
+            "GEN Control seguirá funcionando en modo temporal "
+            "hasta corregir la conexión."
+        )
+
+    if st.button(
+        "🔄 Reintentar conexión Supabase",
+        key="retry_supabase",
+    ):
+        get_supabase.clear()
+        st.session_state["_supabase_error"] = ""
+        st.rerun()
 
     # -----------------------------------------------------
     # ACCESO SOLO COORDINADOR
