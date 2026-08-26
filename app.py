@@ -2560,470 +2560,144 @@ elif menu == "📈 Comportamiento diario":
 
 elif menu == "✉️ Mensajes diarios":
 
-    st.subheader("Metas de cierre para hoy")
-
+    resultado = st.session_state.resultado_operadores
     jornadas_info = jornadas_configuradas()
 
-    st.caption(
-        f"{jornadas_info['disponibles']} jornadas disponibles contando hoy · "
-        "calendario configurado"
+    st.markdown(
+        f"""
+        <div class="hero-card">
+            <div class="hero-title">✉️ Mensajes diarios</div>
+            <div class="hero-subtitle">
+                Metas de cierre para hoy · {jornadas_info['disponibles']} jornadas disponibles contando hoy
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    resultado = st.session_state.resultado_operadores
-
     if resultado is None:
-        st.warning(
-            "Primero carga el reporte de Promesas de Pago."
-        )
-
+        st.warning("Primero carga el reporte de Promesas de Pago.")
     else:
         operadores_db = cargar_operadores_supabase()
-
         datos_contacto = {}
-
         if operadores_db is not None and not operadores_db.empty:
             for _, op in operadores_db.iterrows():
                 datos_contacto[str(op["usuario"])] = {
                     "correo": str(op.get("correo") or ""),
                     "telefono": str(op.get("telefono") or ""),
-                    "nombre_mensaje": str(
-                        op.get("nombre_mensaje")
-                        or op.get("nombre")
-                        or ""
-                    ),
+                    "nombre_mensaje": str(op.get("nombre_mensaje") or op.get("nombre") or ""),
                 }
 
-        col_a, col_b, col_c = st.columns(3)
-
-        with col_a:
-            st.metric(
-                "Jornadas del mes",
-                jornadas_info["total"],
-            )
-
-        with col_b:
-            st.metric(
-                "Completadas antes de hoy",
-                len(
-                    [
-                        d for d in jornadas_info["dias"]
-                        if d < fecha_local_actual()
-                    ]
-                ),
-            )
-
-        with col_c:
-            st.metric(
-                "Disponibles contando hoy",
-                jornadas_info["disponibles"],
-            )
+        # Resumen superior compacto
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Jornadas del mes", jornadas_info["total"])
+        c2.metric("Completadas", len([d for d in jornadas_info["dias"] if d < fecha_local_actual()]))
+        c3.metric("Disponibles", jornadas_info["disponibles"])
+        c4.metric("Esperado a la fecha", formato_porcentaje(jornadas_info["esperado_pct"]))
 
         # -------------------------------------------------
-        # MENSAJE GENERAL DE RECUPERACIÓN
+        # AVANCE GENERAL DE RECUPERACIÓN
         # -------------------------------------------------
-
-        meta_individual = float(
-            st.session_state.meta_recuperacion_cfg
-        )
-
-        tabla_general = resultado[
-            [
-                "Operador",
-                "Recuperación acumulada",
-                "% Recuperación",
-            ]
-        ].copy()
-
+        meta_individual = float(st.session_state.meta_recuperacion_cfg)
+        tabla_general = resultado[["Operador", "Recuperación acumulada", "% Recuperación"]].copy()
         tabla_general["Meta"] = meta_individual
-        tabla_general["Falta"] = (
-            meta_individual
-            - tabla_general["Recuperación acumulada"]
-        ).clip(lower=0)
+        tabla_general["Falta"] = (meta_individual - tabla_general["Recuperación acumulada"]).clip(lower=0)
+        tabla_general = tabla_general.sort_values("% Recuperación", ascending=False, kind="stable").reset_index(drop=True)
 
-        tabla_general = tabla_general.sort_values(
-            "% Recuperación",
-            ascending=False,
-            kind="stable",
-        ).reset_index(drop=True)
-
-        total_recuperacion_equipo = float(
-            tabla_general["Recuperación acumulada"].sum()
-        )
-        meta_equipo = (
-            meta_individual
-            * CANTIDAD_OPERADORES
-        )
-        pct_equipo = (
-            total_recuperacion_equipo
-            / meta_equipo
-            * 100
-            if meta_equipo
-            else 0
-        )
-        falta_equipo = max(
-            meta_equipo
-            - total_recuperacion_equipo,
-            0,
-        )
-
-        mensaje_general = (
-            f"📊 AVANCE DE RECUPERACIÓN – "
-            f"{fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
-            "Buenos días, equipo. Comparto el avance acumulado "
-            "de recuperación a la fecha, considerando una meta "
-            f"mensual de {formato_usd(meta_individual)} por operador.\n\n"
-            "Revisemos nuestro porcentaje de cumplimiento y la "
-            "brecha pendiente. Mantengamos el enfoque en recuperación "
-            "para continuar avanzando hacia la meta mensual. 💪"
-        )
+        total_recuperacion_equipo = float(tabla_general["Recuperación acumulada"].sum())
+        meta_equipo = meta_individual * CANTIDAD_OPERADORES
+        pct_equipo = total_recuperacion_equipo / meta_equipo * 100 if meta_equipo else 0
+        falta_equipo = max(meta_equipo - total_recuperacion_equipo, 0)
 
         st.markdown("### 📣 Avance general de recuperación")
+        g1, g2, g3 = st.columns(3)
+        g1.metric("Recuperación del equipo", formato_usd(total_recuperacion_equipo))
+        g2.metric("Cumplimiento", formato_porcentaje(pct_equipo))
+        g3.metric("Brecha total", formato_usd(falta_equipo))
 
-        c1, c2, c3 = st.columns(3)
-
-        with c1:
-            st.metric(
-                "Recuperación del equipo",
-                formato_bs(total_recuperacion_equipo),
-            )
-
-        with c2:
-            st.metric(
-                "Cumplimiento equipo",
-                formato_porcentaje(pct_equipo),
-            )
-
-        with c3:
-            st.metric(
-                "Brecha total",
-                formato_bs(falta_equipo),
-            )
-
-        st.text_area(
-            "Mensaje general",
-            value=mensaje_general,
-            height=170,
-            key="mensaje_general_recuperacion_v17",
-            label_visibility="collapsed",
+        mensaje_general = (
+            f"📊 AVANCE DE RECUPERACIÓN – {fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
+            f"Buenos días, equipo. Comparto el avance acumulado de recuperación a la fecha, "
+            f"considerando una meta mensual de {formato_usd(meta_individual)} por operador.\n\n"
+            "Revisemos nuestro porcentaje de cumplimiento y la brecha pendiente. "
+            "Mantengamos el enfoque en recuperación para continuar avanzando hacia la meta mensual. 💪"
         )
 
-        st.markdown("#### Tabla para compartir")
-
-        tabla_compartir = pd.DataFrame(
-            {
+        with st.expander("Ver mensaje general y tabla de recuperación", expanded=False):
+            st.text_area("Mensaje general", value=mensaje_general, height=135, key="mensaje_general_recuperacion_v22", label_visibility="collapsed")
+            tabla_compartir = pd.DataFrame({
                 "Operador": tabla_general["Operador"],
-                "Recuperación acumulada": tabla_general[
-                    "Recuperación acumulada"
-                ].apply(formato_bs),
-                "Meta": tabla_general["Meta"].apply(formato_usd),
-                "Cumplimiento": tabla_general[
-                    "% Recuperación"
-                ].apply(formato_porcentaje),
+                "Recuperación": tabla_general["Recuperación acumulada"].apply(formato_usd),
+                "Cumplimiento": tabla_general["% Recuperación"].apply(formato_porcentaje),
                 "Falta": tabla_general["Falta"].apply(formato_usd),
-            }
-        )
+            })
+            st.dataframe(tabla_compartir, use_container_width=True, hide_index=True)
 
-        st.dataframe(
-            tabla_compartir,
-            use_container_width=True,
-            hide_index=True,
-        )
-
-        # Imagen ejecutiva lista para correo o WhatsApp.
-        imagen_recuperacion = generar_imagen_avance_recuperacion(
-            tabla_general,
-            fecha_local_actual(),
-            meta_individual,
-        )
-
-        st.image(
-            imagen_recuperacion,
-            caption="Vista previa de la imagen para compartir",
-            use_container_width=True,
-        )
-
-        col_img1, col_img2 = st.columns(2)
-
-        with col_img1:
-            mostrar_boton_copiar_imagen(
-                imagen_recuperacion
-            )
-
-        with col_img2:
-            st.download_button(
-                "🖼️ Descargar imagen",
-                data=imagen_recuperacion,
-                file_name=(
-                    f"avance_recuperacion_"
-                    f"{fecha_local_actual().isoformat()}.png"
-                ),
-                mime="image/png",
-                use_container_width=True,
-            )
-
-        st.caption(
-            "Imagen compacta para correo y WhatsApp. "
-            "Los importes de recuperación se muestran en USD. "
-            "Usa “Copiar imagen” y luego Ctrl + V."
-        )
-
-        # Correo general oficial de Cobranzas:
-        # engloba a todo el equipo.
-        correo_general_cobranzas = "cobranza@gestiona.bo"
-
-        cg1, cg2, cg3 = st.columns(3)
-
-        with cg1:
-            mailto_general = (
-                f"mailto:{correo_general_cobranzas}"
-                f"?subject={quote('Avance de recuperación')}"
-                f"&body={quote(mensaje_general)}"
-            )
-            st.link_button(
-                "✉️ Enviar correo general",
-                mailto_general,
-                use_container_width=True,
-            )
-
-        with cg2:
-            texto_tabla = tabla_compartir.to_string(
-                index=False
-            )
-            contenido_descarga = (
-                mensaje_general
-                + "\n\n"
-                + texto_tabla
-            )
-            st.download_button(
-                "📋 Descargar mensaje + tabla",
-                data=contenido_descarga,
-                file_name=(
-                    f"avance_recuperacion_"
-                    f"{fecha_local_actual().isoformat()}.txt"
-                ),
-                mime="text/plain",
-                use_container_width=True,
-            )
-
-        with cg3:
-            st.link_button(
-                "💬 Abrir WhatsApp Web",
-                "https://web.whatsapp.com/",
-                use_container_width=True,
-            )
+            imagen_recuperacion = generar_imagen_avance_recuperacion(tabla_general, fecha_local_actual(), meta_individual)
+            st.image(imagen_recuperacion, caption="Imagen lista para correo o WhatsApp", width=760)
+            bi1, bi2, bi3 = st.columns(3)
+            with bi1:
+                mostrar_boton_copiar_imagen(imagen_recuperacion)
+            with bi2:
+                st.download_button("🖼️ Descargar imagen", data=imagen_recuperacion.getvalue(), file_name=f"avance_recuperacion_{fecha_local_actual().isoformat()}.png", mime="image/png", use_container_width=True)
+            with bi3:
+                mailto_general = f"mailto:cobranza@gestiona.bo?subject={quote('Avance de recuperación')}&body={quote(mensaje_general)}"
+                st.link_button("✉️ Correo general", mailto_general, use_container_width=True)
 
         st.divider()
-        st.markdown("### Mensajes individuales")
+        st.markdown("### 👥 Mensajes individuales")
+        st.caption("Vista compacta: 4 operadores por fila. Abre cada tarjeta para revisar o enviar el mensaje.")
 
-        mensajes_todos = []
-        correos_todos = []
+        filas = list(resultado.iterrows())
+        for bloque_inicio in range(0, len(filas), 4):
+            cols = st.columns(4)
+            for pos, (_, fila_original) in enumerate(filas[bloque_inicio:bloque_inicio + 4]):
+                fila = fila_original.copy()
+                usuario = fila["Usuario"]
+                contacto = datos_contacto.get(usuario, {})
+                correo_actual = contacto.get("correo") or str(fila.get("Correo", "")).strip()
+                telefono_limpio = normalizar_telefono_whatsapp(contacto.get("telefono", ""))
 
-        for _, fila in resultado.iterrows():
-            usuario = fila["Usuario"]
+                # Evita modificar el diccionario global OPERADORES al renderizar.
+                nombre_mensaje_guardado = contacto.get("nombre_mensaje", "").strip()
+                nombre_mensaje_original = OPERADORES.get(usuario, {}).get("nombre_mensaje", fila["Operador"].split()[0])
+                if nombre_mensaje_guardado:
+                    OPERADORES[usuario]["nombre_mensaje"] = nombre_mensaje_guardado
+                calculo = generar_mensaje_diario(fila, jornadas_info)
+                OPERADORES[usuario]["nombre_mensaje"] = nombre_mensaje_original
 
-            if usuario in datos_contacto:
-                if datos_contacto[usuario]["correo"]:
-                    fila["Correo"] = datos_contacto[usuario]["correo"]
+                estados = [calculo["estado_gestiones"], calculo["estado_compromisos"], calculo["estado_recuperacion"]]
+                if "Reforzar" in estados:
+                    estado = "🔴 Reforzar"
+                elif "En seguimiento" in estados:
+                    estado = "🟠 Seguimiento"
+                elif "Buen avance" in estados:
+                    estado = "🟡 Buen avance"
+                else:
+                    estado = "🟢 Excelente"
 
-                if datos_contacto[usuario]["nombre_mensaje"]:
-                    OPERADORES[usuario]["nombre_mensaje"] = (
-                        datos_contacto[usuario]["nombre_mensaje"]
-                    )
-
-            calculo = generar_mensaje_diario(
-                fila,
-                jornadas_info,
-            )
-
-            mensajes_todos.append(
-                f"{fila['Operador']}\n{calculo['mensaje']}"
-            )
-
-            correo_actual = str(
-                fila.get("Correo", "")
-            ).strip()
-
-            if correo_actual:
-                correos_todos.append(correo_actual)
-
-            with st.container(border=True):
-
-                col_nombre, col_estado = st.columns(
-                    [4, 1]
-                )
-
-                with col_nombre:
-                    st.markdown(
-                        f"### {fila['Operador']}"
-                    )
-                    st.caption(
-                        correo_actual or "Sin correo registrado"
-                    )
-
-                with col_estado:
-                    estados = [
-                        calculo["estado_gestiones"],
-                        calculo["estado_compromisos"],
-                        calculo["estado_recuperacion"],
-                    ]
-
-                    if "Reforzar" in estados:
-                        st.error("Reforzar")
-                    elif "En seguimiento" in estados:
-                        st.warning("En seguimiento")
-                    elif "Buen avance" in estados:
-                        st.info("Buen avance")
-                    else:
-                        st.success("Excelente avance")
-
-                c1, c2, c3 = st.columns(3)
-
-                with c1:
-                    st.metric(
-                        "Gestiones",
-                        formato_entero(
-                            fila["Gestiones"]
-                        ),
-                        (
-                            f"Hoy: {formato_entero(calculo['objetivo_gestiones'])}"
-                            if calculo["objetivo_gestiones"] > 0
-                            else "Meta cumplida"
-                        ),
-                    )
-
-                with c2:
-                    st.metric(
-                        "Compromisos",
-                        formato_entero(
-                            fila["Compromisos"]
-                        ),
-                        (
-                            f"Hoy: {formato_entero(calculo['objetivo_compromisos'])}"
-                            if calculo["objetivo_compromisos"] > 0
-                            else "Meta cumplida"
-                        ),
-                    )
-
-                with c3:
-                    st.metric(
-                        "Recuperación",
-                        formato_porcentaje(
-                            fila["% Recuperación"]
-                        ),
-                        (
-                            f"{formato_usd(fila['Recuperación acumulada'])} "
-                            f"de {formato_usd(st.session_state.meta_recuperacion_cfg)}"
-                        ),
-                    )
-
-                st.markdown("**Mensaje sugerido**")
-
-                st.text_area(
-                    "Mensaje",
-                    value=calculo["mensaje"],
-                    height=190,
-                    key=f"msg_{usuario}",
-                    label_visibility="collapsed",
-                )
-
-                asunto = quote(
-                    "Seguimiento diario de metas"
-                )
-                cuerpo = quote(
-                    calculo["mensaje"]
-                )
-
-                mailto = (
-                    f"mailto:{correo_actual}"
-                    f"?subject={asunto}"
-                    f"&body={cuerpo}"
-                )
-
-                telefono = (
-                    datos_contacto
-                    .get(usuario, {})
-                    .get("telefono", "")
-                )
-
-                telefono_limpio = (
-                    normalizar_telefono_whatsapp(
-                        telefono
-                    )
-                )
-
-                col_mail, col_whatsapp = st.columns(2)
-
-                with col_mail:
-                    if correo_actual:
-                        st.link_button(
-                            "✉️ Enviar por correo",
-                            mailto,
-                            use_container_width=True,
+                with cols[pos]:
+                    with st.container(border=True):
+                        st.markdown(f"**{fila['Operador']}**")
+                        st.caption(f"{estado} · {formato_porcentaje(fila['% Recuperación'])} recuperación")
+                        st.markdown(
+                            f"**Gestiones:** {formato_entero(fila['Gestiones'])}  \
+"
+                            f"**Compromisos:** {formato_entero(fila['Compromisos'])}  \
+"
+                            f"**Recuperación:** {formato_usd(fila['Recuperación acumulada'])}"
                         )
-                    else:
-                        st.button(
-                            "✉️ Sin correo",
-                            disabled=True,
-                            use_container_width=True,
-                            key=f"sinmail_{usuario}",
-                        )
-
-                with col_whatsapp:
-                    if telefono_limpio:
-                        wa_url = (
-                            f"https://wa.me/{telefono_limpio}"
-                            f"?text={quote(calculo['mensaje'])}"
-                        )
-
-                        st.link_button(
-                            "💬 WhatsApp",
-                            wa_url,
-                            use_container_width=True,
-                        )
-                    else:
-                        st.button(
-                            "💬 Agregar teléfono",
-                            disabled=True,
-                            use_container_width=True,
-                            key=f"sinwa_{usuario}",
-                        )
+                        with st.expander("Ver mensaje", expanded=False):
+                            st.text_area("Mensaje", value=calculo["mensaje"], height=210, key=f"msg_compacto_{usuario}", label_visibility="collapsed")
+                            asunto = quote("Seguimiento diario de metas")
+                            cuerpo = quote(calculo["mensaje"])
+                            if correo_actual:
+                                st.link_button("✉️ Correo", f"mailto:{correo_actual}?subject={asunto}&body={cuerpo}", use_container_width=True)
+                            if telefono_limpio:
+                                st.link_button("💬 WhatsApp", f"https://wa.me/{telefono_limpio}?text={quote(calculo['mensaje'])}", use_container_width=True)
 
         st.divider()
-        st.markdown("### Acciones para todo el equipo")
-
-        col_todos1, col_todos2 = st.columns(2)
-
-        with col_todos1:
-            if correos_todos:
-                bcc = ",".join(
-                    sorted(set(correos_todos))
-                )
-
-                mailto_todos = (
-                    f"mailto:?bcc={quote(bcc)}"
-                    f"&subject={quote('Seguimiento diario de metas')}"
-                )
-
-                st.link_button(
-                    f"✉️ Preparar correo para todos ({len(set(correos_todos))})",
-                    mailto_todos,
-                    use_container_width=True,
-                )
-
-        with col_todos2:
-            texto_todos = "\n\n--------------------\n\n".join(
-                mensajes_todos
-            )
-
-            st.download_button(
-                "📋 Descargar mensajes de todos",
-                data=texto_todos,
-                file_name=(
-                    f"mensajes_equipo_{fecha_local_actual().isoformat()}.txt"
-                ),
-                mime="text/plain",
-                use_container_width=True,
-            )
+        st.caption("Los importes de recuperación se muestran en USD. La meta individual vigente es " + formato_usd(meta_individual) + ".")
 
 
 # =========================================================
@@ -3993,4 +3667,3 @@ elif menu == "⚙️ Configuración":
             "La fórmula de distribución Sin usuario ÷ 8 "
             "se mantiene fija para evitar errores."
         )
-
