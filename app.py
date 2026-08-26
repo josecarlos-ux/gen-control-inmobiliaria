@@ -1857,6 +1857,9 @@ def generar_mensaje_grupo_recuperacion(
     tabla_general,
     meta_individual,
 ):
+    """
+    Mensaje general compacto y visual para el grupo de Telegram.
+    """
     tabla = tabla_general.copy().sort_values(
         "% Recuperación",
         ascending=False,
@@ -1883,24 +1886,23 @@ def generar_mensaje_grupo_recuperacion(
         0,
     )
 
+    puestos = [
+        "🥇", "🥈", "🥉",
+        "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣",
+    ]
+
     lineas = [
         (
-            f"📊 AVANCE DE RECUPERACIÓN – "
+            f"📊 AVANCE DE RECUPERACIÓN | "
             f"{fecha_local_actual().strftime('%d/%m/%Y')}"
         ),
         "",
-        (
-            f"💰 Equipo: {formato_usd(total_rec)} "
-            f"({formato_porcentaje(pct_equipo)})"
-        ),
-        (
-            f"🎯 Meta equipo: {formato_usd(meta_equipo)}"
-        ),
-        (
-            f"📌 Brecha: {formato_usd(falta_equipo)}"
-        ),
+        f"💰 Recuperado: {formato_usd(total_rec)}",
+        f"🎯 Meta equipo: {formato_usd(meta_equipo)}",
+        f"📈 Cumplimiento: {formato_porcentaje(pct_equipo)}",
+        f"📌 Brecha pendiente: {formato_usd(falta_equipo)}",
         "",
-        "Ranking de recuperación:",
+        "🏆 RANKING DE RECUPERACIÓN",
     ]
 
     for i, fila in tabla.iterrows():
@@ -1912,11 +1914,24 @@ def generar_mensaje_grupo_recuperacion(
             fila["Recuperación acumulada"]
         )
 
+        # Nombre corto para que el mensaje sea más limpio.
+        partes = nombre.split()
+        if len(partes) >= 2:
+            nombre_corto = f"{partes[0]} {partes[-1]}"
+        else:
+            nombre_corto = nombre
+
+        puesto = (
+            puestos[i]
+            if i < len(puestos)
+            else f"{i + 1}."
+        )
+
         lineas.append(
             (
-                f"{i + 1}. {nombre}: "
-                f"{formato_usd(recuperacion)} · "
-                f"{formato_porcentaje(porcentaje)}"
+                f"{puesto} {nombre_corto} — "
+                f"{formato_porcentaje(porcentaje)} | "
+                f"{formato_usd(recuperacion)}"
             )
         )
 
@@ -1924,9 +1939,10 @@ def generar_mensaje_grupo_recuperacion(
         [
             "",
             (
-                "Mantengamos el enfoque en recuperación "
-                "para continuar avanzando hacia la meta mensual. 💪"
+                f"🔥 Para llegar a la meta del equipo aún faltan "
+                f"{formato_usd(falta_equipo)}."
             ),
+            "Mantengamos el enfoque en recuperación. ¡Vamos por el cierre! 💪",
         ]
     )
 
