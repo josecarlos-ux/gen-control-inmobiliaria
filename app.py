@@ -7,11 +7,13 @@ import math
 import calendar
 import base64
 import json
+import smtplib
 from io import BytesIO
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
 from urllib import request, parse
+from email.message import EmailMessage
 from io import BytesIO
 import matplotlib.pyplot as plt
 from supabase import create_client
@@ -1775,6 +1777,91 @@ if (
 
 
 
+
+# =========================================================
+# CORREO SMTP
+# =========================================================
+
+def obtener_config_smtp():
+    """
+    Lee la configuración SMTP desde Streamlit Secrets.
+    No expone la contraseña.
+    """
+    try:
+        host = str(st.secrets.get("SMTP_HOST") or "").strip()
+        port = int(st.secrets.get("SMTP_PORT") or 587)
+        user = str(st.secrets.get("SMTP_USER") or "").strip()
+        password = str(st.secrets.get("SMTP_PASSWORD") or "").strip()
+        sender = str(
+            st.secrets.get("SMTP_FROM")
+            or user
+            or ""
+        ).strip()
+
+        if not all([host, user, password, sender]):
+            return None
+
+        return {
+            "host": host,
+            "port": port,
+            "user": user,
+            "password": password,
+            "sender": sender,
+        }
+
+    except Exception:
+        return None
+
+
+def smtp_disponible():
+    return obtener_config_smtp() is not None
+
+
+def enviar_correo_smtp(destinatario, asunto, cuerpo):
+    """
+    Envía un correo individual usando SMTP.
+    Retorna (ok, detalle).
+    """
+    cfg = obtener_config_smtp()
+
+    if cfg is None:
+        return False, (
+            "Falta configurar SMTP_HOST, SMTP_PORT, SMTP_USER, "
+            "SMTP_PASSWORD y SMTP_FROM en Streamlit Secrets."
+        )
+
+    destinatario = str(destinatario or "").strip()
+
+    if not destinatario:
+        return False, "El operador no tiene correo configurado."
+
+    mensaje = EmailMessage()
+    mensaje["From"] = cfg["sender"]
+    mensaje["To"] = destinatario
+    mensaje["Subject"] = asunto
+    mensaje.set_content(str(cuerpo))
+
+    try:
+        with smtplib.SMTP(
+            cfg["host"],
+            cfg["port"],
+            timeout=20,
+        ) as servidor:
+            servidor.ehlo()
+            servidor.starttls()
+            servidor.ehlo()
+            servidor.login(
+                cfg["user"],
+                cfg["password"],
+            )
+            servidor.send_message(mensaje)
+
+        return True, "Correo enviado."
+
+    except Exception as e:
+        return False, str(e)
+
+
 # =========================================================
 # TELEGRAM
 # =========================================================
@@ -2827,6 +2914,101 @@ elif menu == "✉️ Mensajes diarios":
                                     )
 
         st.divider()
+        st.markdown("### 📤 Envío individual con un solo botón")
+        st.caption(
+            "Cada operador recibe su propio mensaje personalizado. "
+            "El sistema envía un correo separado a cada dirección."
+        )
+
+        correos_configurados = [
+            usuario
+            for usuario in resultado["Usuario"].tolist()
+            if str(
+                datos_contacto.get(
+                    usuario, {}
+                ).get("correo", "")
+            ).strip()
+        ]
+
+        col_correo1, col_correo2 = st.columns([2, 1])
+
+        with col_correo1:
+            if st.button(
+                f"✉️ Enviar todos por correo ({len(correos_configurados)}/{CANTIDAD_OPERADORES})",
+                type="primary",
+                use_container_width=True,
+                disabled=(
+                    len(correos_configurados) == 0
+                    or not smtp_disponible()
+                ),
+                key="enviar_todos_correo_individual",
+            ):
+                enviados_mail = []
+                errores_mail = []
+
+                for _, fila_mail in resultado.iterrows():
+                    usuario_mail = fila_mail["Usuario"]
+
+                    correo_mail = str(
+                        datos_contacto.get(
+                            usuario_mail, {}
+                        ).get(
+                            "correo",
+                            fila_mail.get("Correo", ""),
+                        )
+                    ).strip()
+
+                    if not correo_mail:
+                        errores_mail.append(
+                            f"{fila_mail['Operador']}: sin correo"
+                        )
+                        continue
+
+                    calculo_mail = generar_mensaje_diario(
+                        fila_mail,
+                        jornadas_info,
+                    )
+
+                    ok_mail, detalle_mail = enviar_correo_smtp(
+                        correo_mail,
+                        "Seguimiento diario de metas",
+                        calculo_mail["mensaje"],
+                    )
+
+                    if ok_mail:
+                        enviados_mail.append(
+                            fila_mail["Operador"]
+                        )
+                    else:
+                        errores_mail.append(
+                            f"{fila_mail['Operador']}: {detalle_mail}"
+                        )
+
+                if enviados_mail:
+                    st.success(
+                        f"Se enviaron {len(enviados_mail)} correos individuales."
+                    )
+
+                if errores_mail:
+                    st.warning(
+                        "Pendientes / errores:\n\n- "
+                        + "\n- ".join(errores_mail)
+                    )
+
+        with col_correo2:
+            st.metric(
+                "Correos configurados",
+                f"{len(correos_configurados)}/{CANTIDAD_OPERADORES}",
+            )
+
+        if not smtp_disponible():
+            st.info(
+                "El botón quedará habilitado cuando configuremos el correo "
+                "SMTP en Streamlit Secrets. Esto permite enviar los 8 correos "
+                "individuales con un solo clic."
+            )
+
+        st.divider()
         st.markdown("### ✈️ Envío por Telegram")
 
         telegram_configurados = [
@@ -2903,8 +3085,8 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         st.caption(
-            "Cada operador recibe su propio mensaje personalizado. "
-            "No se envía un mensaje genérico al grupo."
+            "Telegram también envía un mensaje personalizado a cada operador, "
+            "no un mensaje genérico al grupo."
         )
 
         st.caption("Los importes de recuperación se muestran en USD. La meta individual vigente es " + formato_usd(meta_individual) + ".")
