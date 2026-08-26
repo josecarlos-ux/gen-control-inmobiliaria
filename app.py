@@ -437,6 +437,58 @@ def generar_mensaje_diario(fila, jornadas_info):
 
 
 # =========================================================
+# ORDENAMIENTO DE TABLAS
+# =========================================================
+
+def controles_ordenamiento(
+    df,
+    columnas,
+    key_prefix,
+    columna_default=None,
+    descendente_default=True,
+):
+    columnas_validas = [
+        c for c in columnas
+        if c in df.columns
+    ]
+
+    if not columnas_validas:
+        return df
+
+    if columna_default not in columnas_validas:
+        columna_default = columnas_validas[0]
+
+    indice_default = columnas_validas.index(
+        columna_default
+    )
+
+    c1, c2 = st.columns([2, 1])
+
+    with c1:
+        columna_orden = st.selectbox(
+            "Ordenar por",
+            columnas_validas,
+            index=indice_default,
+            key=f"{key_prefix}_columna",
+        )
+
+    with c2:
+        sentido = st.radio(
+            "Orden",
+            ["Mayor a menor", "Menor a mayor"],
+            index=0 if descendente_default else 1,
+            horizontal=True,
+            key=f"{key_prefix}_sentido",
+        )
+
+    return df.sort_values(
+        columna_orden,
+        ascending=(sentido == "Menor a mayor"),
+        na_position="last",
+    ).reset_index(drop=True)
+
+
+# =========================================================
 # LECTOR FLEXIBLE DE ARCHIVOS
 # =========================================================
 
@@ -1179,6 +1231,27 @@ if menu == "🏠 Resumen":
             ]
         ].copy()
 
+        ranking_vista = controles_ordenamiento(
+            ranking_vista,
+            [
+                "Puntaje",
+                "Gestiones",
+                "% Gestiones",
+                "Compromisos",
+                "% Compromisos",
+                "Recuperación acumulada",
+                "% Recuperación",
+                "Operador",
+            ],
+            key_prefix="ranking",
+            columna_default="Puntaje",
+            descendente_default=True,
+        )
+
+        ranking_vista["Posición"] = (
+            ranking_vista.index + 1
+        )
+
         ranking_vista["% Gestiones"] = ranking_vista[
             "% Gestiones"
         ].apply(formato_porcentaje)
@@ -1502,9 +1575,20 @@ elif menu == "📊 Comportamiento diario":
                         "Compromisos",
                         "% Compromisos",
                     ]
-                ].sort_values(
-                    "Gestiones",
-                    ascending=False,
+                ]
+
+                resumen_operador = controles_ordenamiento(
+                    resumen_operador,
+                    [
+                        "Gestiones",
+                        "% Gestiones",
+                        "Compromisos",
+                        "% Compromisos",
+                        "Operador",
+                    ],
+                    key_prefix="comportamiento_operador",
+                    columna_default="Gestiones",
+                    descendente_default=True,
                 )
 
                 resumen_operador["% Gestiones"] = resumen_operador[
@@ -1855,6 +1939,21 @@ elif menu == "📥 Cargar reportes":
                 ]
             ].copy()
 
+            vista = controles_ordenamiento(
+                vista,
+                [
+                    "% Recuperación",
+                    "Recuperación acumulada",
+                    "Recuperación original",
+                    "Gestiones",
+                    "Compromisos",
+                    "Operador",
+                ],
+                key_prefix="resultado_carga",
+                columna_default="% Recuperación",
+                descendente_default=True,
+            )
+
             for columna in [
                 "Recuperación original",
                 "Distribución sin usuario",
@@ -1899,8 +1998,23 @@ elif menu == "👥 Equipo":
             }
         )
 
+    equipo_df = pd.DataFrame(datos_equipo)
+
+    equipo_df = controles_ordenamiento(
+        equipo_df,
+        [
+            "Nombre",
+            "Usuario",
+            "Meta gestiones",
+            "Meta compromisos",
+        ],
+        key_prefix="equipo",
+        columna_default="Nombre",
+        descendente_default=False,
+    )
+
     st.dataframe(
-        pd.DataFrame(datos_equipo),
+        equipo_df,
         use_container_width=True,
         hide_index=True,
     )
