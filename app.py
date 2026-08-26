@@ -2273,146 +2273,114 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         # -------------------------------------------------
-        # MENSAJE GENERAL DEL EQUIPO
+        # MENSAJE GENERAL DE RECUPERACIÓN
         # -------------------------------------------------
 
-        total_gestiones_equipo = int(
-            resultado["Gestiones"].sum()
-        )
-        total_compromisos_equipo = int(
-            resultado["Compromisos"].sum()
-        )
-        total_recuperacion_equipo = float(
-            resultado["Recuperación acumulada"].sum()
-        )
-
-        meta_gestiones_equipo = (
-            st.session_state.meta_gestiones_cfg
-            * CANTIDAD_OPERADORES
-        )
-        meta_compromisos_equipo = (
-            st.session_state.meta_compromisos_cfg
-            * CANTIDAD_OPERADORES
-        )
-        meta_recuperacion_equipo = (
+        meta_individual = float(
             st.session_state.meta_recuperacion_cfg
+        )
+
+        tabla_general = resultado[
+            [
+                "Operador",
+                "Recuperación acumulada",
+                "% Recuperación",
+            ]
+        ].copy()
+
+        tabla_general["Meta"] = meta_individual
+        tabla_general["Falta"] = (
+            meta_individual
+            - tabla_general["Recuperación acumulada"]
+        ).clip(lower=0)
+
+        tabla_general = tabla_general.sort_values(
+            "% Recuperación",
+            ascending=False,
+            kind="stable",
+        ).reset_index(drop=True)
+
+        total_recuperacion_equipo = float(
+            tabla_general["Recuperación acumulada"].sum()
+        )
+        meta_equipo = (
+            meta_individual
             * CANTIDAD_OPERADORES
         )
-
-        pct_g_equipo = (
-            total_gestiones_equipo
-            / meta_gestiones_equipo
-            * 100
-            if meta_gestiones_equipo
-            else 0
-        )
-
-        pct_c_equipo = (
-            total_compromisos_equipo
-            / meta_compromisos_equipo
-            * 100
-            if meta_compromisos_equipo
-            else 0
-        )
-
-        pct_r_equipo = (
+        pct_equipo = (
             total_recuperacion_equipo
-            / meta_recuperacion_equipo
+            / meta_equipo
             * 100
-            if meta_recuperacion_equipo
+            if meta_equipo
             else 0
         )
-
-        objetivo_g_equipo = max(
-            sum(
-                objetivo_hoy_gestiones(
-                    int(fila["Gestiones"]),
-                    jornadas_info["disponibles"],
-                )
-                for _, fila in resultado.iterrows()
-            ),
-            0,
-        )
-
-        objetivo_c_equipo = max(
-            sum(
-                objetivo_hoy_compromisos(
-                    int(fila["Compromisos"]),
-                    jornadas_info["disponibles"],
-                )
-                for _, fila in resultado.iterrows()
-            ),
-            0,
-        )
-
-        faltante_r_equipo = max(
-            meta_recuperacion_equipo
+        falta_equipo = max(
+            meta_equipo
             - total_recuperacion_equipo,
             0,
         )
 
         mensaje_general = (
-            "Buenos días, equipo. 👋\n\n"
-            "Este es nuestro avance acumulado a la fecha:\n\n"
-            f"🔹 Gestiones: {formato_entero(total_gestiones_equipo)} "
-            f"({formato_porcentaje(pct_g_equipo)})"
-            + (
-                f" | objetivo de hoy: {formato_entero(objetivo_g_equipo)}"
-                if objetivo_g_equipo > 0
-                else " | meta cumplida"
-            )
-            + "\n"
-            f"🔹 Compromisos: {formato_entero(total_compromisos_equipo)} "
-            f"({formato_porcentaje(pct_c_equipo)})"
-            + (
-                f" | objetivo de hoy: {formato_entero(objetivo_c_equipo)}"
-                if objetivo_c_equipo > 0
-                else " | meta cumplida"
-            )
-            + "\n"
-            f"🔹 Recuperación: {formato_bs(total_recuperacion_equipo)} "
-            f"({formato_porcentaje(pct_r_equipo)})"
-            + (
-                f" | faltan {formato_bs(faltante_r_equipo)}"
-                if faltante_r_equipo > 0
-                else " | meta cumplida"
-            )
-            + "\n\n"
-            "Mantengamos el ritmo y enfoquémonos en las brechas "
-            "pendientes para cerrar el mes dentro de objetivo. ¡Vamos con todo! 💪"
+            f"📊 AVANCE DE RECUPERACIÓN – "
+            f"{fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
+            "Buenos días, equipo. Comparto el avance acumulado "
+            "de recuperación a la fecha, considerando una meta "
+            f"mensual de {formato_bs(meta_individual)} por operador.\n\n"
+            "Revisemos nuestro porcentaje de cumplimiento y la "
+            "brecha pendiente. Mantengamos el enfoque en recuperación "
+            "para continuar avanzando hacia la meta mensual. 💪"
         )
 
-        st.markdown("### 📣 Mensaje general del equipo")
+        st.markdown("### 📣 Avance general de recuperación")
 
-        g1, g2, g3 = st.columns(3)
+        c1, c2, c3 = st.columns(3)
 
-        with g1:
+        with c1:
             st.metric(
-                "Gestiones equipo",
-                formato_entero(total_gestiones_equipo),
-                formato_porcentaje(pct_g_equipo),
-            )
-
-        with g2:
-            st.metric(
-                "Compromisos equipo",
-                formato_entero(total_compromisos_equipo),
-                formato_porcentaje(pct_c_equipo),
-            )
-
-        with g3:
-            st.metric(
-                "Recuperación equipo",
+                "Recuperación del equipo",
                 formato_bs(total_recuperacion_equipo),
-                formato_porcentaje(pct_r_equipo),
+            )
+
+        with c2:
+            st.metric(
+                "Cumplimiento equipo",
+                formato_porcentaje(pct_equipo),
+            )
+
+        with c3:
+            st.metric(
+                "Brecha total",
+                formato_bs(falta_equipo),
             )
 
         st.text_area(
             "Mensaje general",
             value=mensaje_general,
-            height=220,
-            key="mensaje_general_equipo",
+            height=170,
+            key="mensaje_general_recuperacion_v17",
             label_visibility="collapsed",
+        )
+
+        st.markdown("#### Tabla para compartir")
+
+        tabla_compartir = pd.DataFrame(
+            {
+                "Operador": tabla_general["Operador"],
+                "Recuperación acumulada": tabla_general[
+                    "Recuperación acumulada"
+                ].apply(formato_bs),
+                "Meta": tabla_general["Meta"].apply(formato_bs),
+                "Cumplimiento": tabla_general[
+                    "% Recuperación"
+                ].apply(formato_porcentaje),
+                "Falta": tabla_general["Falta"].apply(formato_bs),
+            }
+        )
+
+        st.dataframe(
+            tabla_compartir,
+            use_container_width=True,
+            hide_index=True,
         )
 
         correos_generales = [
@@ -2430,7 +2398,7 @@ elif menu == "✉️ Mensajes diarios":
                 )
                 mailto_general = (
                     f"mailto:?bcc={quote(bcc_general)}"
-                    f"&subject={quote('Avance general del equipo')}"
+                    f"&subject={quote('Avance de recuperación')}"
                     f"&body={quote(mensaje_general)}"
                 )
                 st.link_button(
@@ -2440,11 +2408,19 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
         with cg2:
+            texto_tabla = tabla_compartir.to_string(
+                index=False
+            )
+            contenido_descarga = (
+                mensaje_general
+                + "\n\n"
+                + texto_tabla
+            )
             st.download_button(
-                "📋 Descargar mensaje general",
-                data=mensaje_general,
+                "📋 Descargar mensaje + tabla",
+                data=contenido_descarga,
                 file_name=(
-                    f"mensaje_general_equipo_"
+                    f"avance_recuperacion_"
                     f"{fecha_local_actual().isoformat()}.txt"
                 ),
                 mime="text/plain",
