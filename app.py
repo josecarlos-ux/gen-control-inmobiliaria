@@ -930,6 +930,181 @@ def procesar_promesas(df):
     )
 
 
+
+# =========================================================
+# IMAGEN EJECUTIVA DE AVANCE DE RECUPERACIÓN
+# =========================================================
+
+def generar_imagen_avance_recuperacion(
+    tabla_general,
+    fecha_reporte,
+    meta_individual,
+):
+    """
+    Genera una imagen PNG lista para compartir por correo o WhatsApp.
+    No guarda archivos temporales en disco: devuelve BytesIO.
+    """
+    tabla = tabla_general.copy()
+
+    columnas_requeridas = [
+        "Operador",
+        "Recuperación acumulada",
+        "% Recuperación",
+    ]
+    faltantes = [
+        c for c in columnas_requeridas
+        if c not in tabla.columns
+    ]
+    if faltantes:
+        raise ValueError(
+            "No se puede generar la imagen. Faltan columnas: "
+            + ", ".join(faltantes)
+        )
+
+    tabla = tabla.sort_values(
+        "% Recuperación",
+        ascending=False,
+        kind="stable",
+    ).reset_index(drop=True)
+
+    total_equipo = float(
+        tabla["Recuperación acumulada"].sum()
+    )
+    meta_equipo = float(meta_individual) * len(tabla)
+    pct_equipo = (
+        total_equipo / meta_equipo * 100
+        if meta_equipo
+        else 0
+    )
+
+    # Altura dinámica para evitar cortes.
+    fig_h = max(6.8, 3.4 + len(tabla) * 0.52)
+    fig, ax = plt.subplots(figsize=(12, fig_h))
+    ax.axis("off")
+
+    titulo = (
+        f"AVANCE DE RECUPERACIÓN — "
+        f"{fecha_reporte.strftime('%d/%m/%Y')}"
+    )
+    subtitulo = (
+        f"Meta mensual por operador: {formato_bs(meta_individual)}"
+    )
+
+    fig.text(
+        0.05, 0.955, titulo,
+        fontsize=18,
+        fontweight="bold",
+        ha="left",
+        va="top",
+    )
+    fig.text(
+        0.05, 0.91, subtitulo,
+        fontsize=10,
+        ha="left",
+        va="top",
+    )
+
+    resumen = (
+        f"Recuperación equipo: {formato_bs(total_equipo)}     "
+        f"Cumplimiento: {formato_porcentaje(pct_equipo)}     "
+        f"Meta equipo: {formato_bs(meta_equipo)}"
+    )
+    fig.text(
+        0.05, 0.865, resumen,
+        fontsize=11,
+        fontweight="bold",
+        ha="left",
+        va="top",
+    )
+
+    filas = []
+    for i, fila in tabla.iterrows():
+        recuperacion = float(
+            fila["Recuperación acumulada"]
+        )
+        porcentaje = float(
+            fila["% Recuperación"]
+        )
+        falta = max(
+            float(meta_individual) - recuperacion,
+            0,
+        )
+
+        filas.append(
+            [
+                str(i + 1),
+                str(fila["Operador"]),
+                formato_bs(recuperacion),
+                formato_porcentaje(porcentaje),
+                formato_bs(falta),
+            ]
+        )
+
+    tabla_plot = ax.table(
+        cellText=filas,
+        colLabels=[
+            "#",
+            "Operador",
+            "Recuperación",
+            "Cumplimiento",
+            "Falta",
+        ],
+        cellLoc="left",
+        colLoc="left",
+        bbox=[0.04, 0.08, 0.92, 0.70],
+        colWidths=[0.06, 0.34, 0.22, 0.18, 0.20],
+    )
+
+    tabla_plot.auto_set_font_size(False)
+    tabla_plot.set_fontsize(10)
+
+    for (fila_idx, col_idx), celda in tabla_plot.get_celld().items():
+        celda.set_edgecolor("#D9E2EC")
+        celda.set_linewidth(0.7)
+
+        if fila_idx == 0:
+            celda.set_facecolor("#17365D")
+            celda.get_text().set_color("white")
+            celda.get_text().set_fontweight("bold")
+        else:
+            celda.set_facecolor(
+                "#F7F9FC" if fila_idx % 2 == 0 else "white"
+            )
+
+            # Resaltar cumplimiento de forma simple.
+            if col_idx == 3:
+                texto_pct = tabla.iloc[
+                    fila_idx - 1
+                ]["% Recuperación"]
+
+                if float(texto_pct) >= 100:
+                    celda.set_facecolor("#DFF3E4")
+                elif float(texto_pct) >= 80:
+                    celda.set_facecolor("#FFF3CD")
+                else:
+                    celda.set_facecolor("#FDE2E1")
+
+    fig.text(
+        0.05,
+        0.025,
+        "GEN Control · Cobranzas Inmobiliarias",
+        fontsize=8.5,
+        ha="left",
+        va="bottom",
+    )
+
+    buffer = BytesIO()
+    fig.savefig(
+        buffer,
+        format="png",
+        dpi=180,
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+    buffer.seek(0)
+    return buffer
+
+
 # =========================================================
 # SUPABASE / PERSISTENCIA
 # =========================================================
@@ -3635,5 +3810,4 @@ elif menu == "⚙️ Configuración":
             "La fórmula de distribución Sin usuario ÷ 8 "
             "se mantiene fija para evitar errores."
         )
-
 
