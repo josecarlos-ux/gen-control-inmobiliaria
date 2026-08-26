@@ -178,6 +178,18 @@ def formato_bs(valor):
         return "Bs 0,00"
 
 
+def formato_usd(valor):
+    try:
+        return (
+            f"USD {valor:,.2f}"
+            .replace(",", "X")
+            .replace(".", ",")
+            .replace("X", ".")
+        )
+    except Exception:
+        return "USD 0,00"
+
+
 def formato_porcentaje(valor):
     try:
         return f"{valor:.2f}%".replace(".", ",")
@@ -480,13 +492,13 @@ def generar_mensaje_diario(fila, jornadas_info):
     if faltante_rec > 0:
         linea_r = (
             f"🔹 Recuperación: {formato_porcentaje(pct_recuperacion)} "
-            f"| {formato_bs(recuperacion)} acumulados "
-            f"| faltan {formato_bs(faltante_rec)}"
+            f"| {formato_usd(recuperacion)} acumulados "
+            f"| faltan {formato_usd(faltante_rec)}"
         )
     else:
         linea_r = (
             f"🔹 Recuperación: {formato_porcentaje(pct_recuperacion)} "
-            f"| meta de {formato_bs(st.session_state.meta_recuperacion_cfg)} cumplida"
+            f"| meta de {formato_usd(st.session_state.meta_recuperacion_cfg)} cumplida"
         )
 
     mensaje = (
@@ -1070,8 +1082,8 @@ def generar_imagen_avance_recuperacion(
     )
 
     # Altura dinámica para evitar cortes.
-    fig_h = max(6.8, 3.4 + len(tabla) * 0.52)
-    fig, ax = plt.subplots(figsize=(12, fig_h))
+    fig_h = max(4.8, 2.8 + len(tabla) * 0.38)
+    fig, ax = plt.subplots(figsize=(7.5, fig_h))
     ax.axis("off")
 
     titulo = (
@@ -1084,7 +1096,7 @@ def generar_imagen_avance_recuperacion(
 
     fig.text(
         0.05, 0.955, titulo,
-        fontsize=18,
+        fontsize=15,
         fontweight="bold",
         ha="left",
         va="top",
@@ -1097,13 +1109,13 @@ def generar_imagen_avance_recuperacion(
     )
 
     resumen = (
-        f"Recuperación equipo: {formato_bs(total_equipo)}     "
+        f"Recuperación equipo: {formato_usd(total_equipo)}     "
         f"Cumplimiento: {formato_porcentaje(pct_equipo)}     "
-        f"Meta equipo: {formato_bs(meta_equipo)}"
+        f"Meta equipo: {formato_usd(meta_equipo)}"
     )
     fig.text(
         0.05, 0.865, resumen,
-        fontsize=11,
+        fontsize=9.5,
         fontweight="bold",
         ha="left",
         va="top",
@@ -1126,9 +1138,9 @@ def generar_imagen_avance_recuperacion(
             [
                 str(i + 1),
                 str(fila["Operador"]),
-                formato_bs(recuperacion),
+                formato_usd(recuperacion),
                 formato_porcentaje(porcentaje),
-                formato_bs(falta),
+                formato_usd(falta),
             ]
         )
 
@@ -1143,12 +1155,12 @@ def generar_imagen_avance_recuperacion(
         ],
         cellLoc="left",
         colLoc="left",
-        bbox=[0.04, 0.08, 0.92, 0.70],
+        bbox=[0.04, 0.10, 0.92, 0.66],
         colWidths=[0.06, 0.34, 0.22, 0.18, 0.20],
     )
 
     tabla_plot.auto_set_font_size(False)
-    tabla_plot.set_fontsize(10)
+    tabla_plot.set_fontsize(8.5)
 
     for (fila_idx, col_idx), celda in tabla_plot.get_celld().items():
         celda.set_edgecolor("#D9E2EC")
@@ -1189,7 +1201,7 @@ def generar_imagen_avance_recuperacion(
     fig.savefig(
         buffer,
         format="png",
-        dpi=180,
+        dpi=120,
         bbox_inches="tight",
     )
     plt.close(fig)
@@ -2024,7 +2036,7 @@ if menu == "🏠 Resumen":
                 formato_porcentaje(promedio_recuperacion),
             )
             st.caption(
-                f"Meta equipo: {formato_bs(meta_equipo_recuperacion)}"
+                f"Meta equipo: {formato_usd(meta_equipo_recuperacion)}"
             )
 
         with c4:
@@ -2160,7 +2172,7 @@ if menu == "🏠 Resumen":
                 ),
                 "Recuperación": ranking.apply(
                     lambda r: (
-                        f"{formato_bs(r['Recuperación acumulada'])} · "
+                        f"{formato_usd(r['Recuperación acumulada'])} · "
                         f"{formato_porcentaje(r['% Recuperación'])}"
                     ),
                     axis=1,
@@ -2594,7 +2606,7 @@ elif menu == "✉️ Mensajes diarios":
             f"{fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
             "Buenos días, equipo. Comparto el avance acumulado "
             "de recuperación a la fecha, considerando una meta "
-            f"mensual de {formato_bs(meta_individual)} por operador.\n\n"
+            f"mensual de {formato_usd(meta_individual)} por operador.\n\n"
             "Revisemos nuestro porcentaje de cumplimiento y la "
             "brecha pendiente. Mantengamos el enfoque en recuperación "
             "para continuar avanzando hacia la meta mensual. 💪"
@@ -2638,11 +2650,11 @@ elif menu == "✉️ Mensajes diarios":
                 "Recuperación acumulada": tabla_general[
                     "Recuperación acumulada"
                 ].apply(formato_bs),
-                "Meta": tabla_general["Meta"].apply(formato_bs),
+                "Meta": tabla_general["Meta"].apply(formato_usd),
                 "Cumplimiento": tabla_general[
                     "% Recuperación"
                 ].apply(formato_porcentaje),
-                "Falta": tabla_general["Falta"].apply(formato_bs),
+                "Falta": tabla_general["Falta"].apply(formato_usd),
             }
         )
 
@@ -2685,8 +2697,9 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         st.caption(
-            "Usa “Copiar imagen” y luego Ctrl + V en Outlook o WhatsApp. "
-            "Si el navegador bloquea el portapapeles, utiliza Descargar imagen."
+            "La imagen ahora se genera en tamaño compacto para correo y WhatsApp. "
+            "Usa “Copiar imagen” y luego Ctrl + V. Si el navegador bloquea "
+            "el portapapeles, utiliza Descargar imagen."
         )
 
         # Correo general oficial de Cobranzas:
@@ -2833,8 +2846,8 @@ elif menu == "✉️ Mensajes diarios":
                             fila["% Recuperación"]
                         ),
                         (
-                            f"{formato_bs(fila['Recuperación acumulada'])} "
-                            f"de {formato_bs(st.session_state.meta_recuperacion_cfg)}"
+                            f"{formato_usd(fila['Recuperación acumulada'])} "
+                            f"de {formato_usd(st.session_state.meta_recuperacion_cfg)}"
                         ),
                     )
 
@@ -3515,7 +3528,7 @@ elif menu == "⚙️ Configuración":
 
         with c3:
             nueva_meta_r = st.number_input(
-                "Meta mensual de recuperación por operador (Bs)",
+                "Meta mensual de recuperación por operador (USD)",
                 min_value=1,
                 value=int(
                     st.session_state.meta_recuperacion_cfg
@@ -3907,7 +3920,7 @@ elif menu == "⚙️ Configuración":
         )
 
         st.info(
-            "El porcentaje se calcula contra la meta mensual "
+            "El porcentaje se calcula contra la meta mensual en USD "
             "de recuperación definida arriba."
         )
 
