@@ -1,5 +1,10 @@
 import streamlit as st
+import pandas as pd
+import re
+import unicodedata
+from io import BytesIO
 from datetime import datetime
+
 
 # =========================================================
 # CONFIGURACIÓN GENERAL
@@ -8,12 +13,527 @@ from datetime import datetime
 APP_NAME = "GEN Control"
 APP_SUBTITLE = "Cobranzas Inmobiliarias"
 
+META_GESTIONES = 2400
+META_COMPROMISOS = 600
+
+# =========================================================
+# REGLA DEFINITIVA DE RECUPERACIÓN
+# NO MODIFICAR SIN AUTORIZACIÓN
+# =========================================================
+
+META_RECUPERACION = 170400
+CANTIDAD_OPERADORES = 8
+
+
+OPERADORES = {
+    "apena": {
+        "nombre": "Aracely Peña Vargas",
+        "correo": "apena@gestionia.bo",
+    },
+    "cvaca": {
+        "nombre": "Carla Fernanda Vaca Cespedes",
+        "correo": "cvaca@gestionia.bo",
+    },
+    "jborja": {
+        "nombre": "James Abel Borja Chirinos",
+        "correo": "jborja@gestionia.bo",
+    },
+    "lrodriguez": {
+        "nombre": "Leen Alisson Rodriguez Espinoza",
+        "correo": "lrodriguez@gestionia.bo",
+    },
+    "malvarez": {
+        "nombre": "Mirla Anahir Alvarez",
+        "correo": "malvarez@gestionia.bo",
+    },
+    "projas": {
+        "nombre": "Percy Daniel Rojas Ortega",
+        "correo": "projas@gestionia.bo",
+    },
+    "yarinez": {
+        "nombre": "Yanine Ariñez Rivero",
+        "correo": "yarinez@gestionia.bo",
+    },
+    "yrivas": {
+        "nombre": "Yessica Rivas Blanco",
+        "correo": "yrivas@gestionia.bo",
+    },
+}
+
+
 st.set_page_config(
     page_title=APP_NAME,
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+# =========================================================
+# FUNCIONES AUXILIARES
+# =========================================================
+
+def quitar_acentos(texto):
+    texto = str(texto)
+    return "".join(
+        c for c in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def normalizar_texto(texto):
+    texto = quitar_acentos(texto).lower().strip()
+    texto = re.sub(r"\s+", " ", texto)
+    return texto
+
+
+def normalizar_columna(columna):
+    texto = normalizar_texto(columna)
+    texto = texto.replace("$", "")
+    texto = texto.replace("bs.", "")
+    texto = texto.replace("bs", "")
+    texto = re.sub(r"[^a-z0-9 ]", "", texto)
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto
+
+
+def convertir_numero(valor):
+    """
+    Convierte valores como:
+    99.892,47
+    170400
+    Bs 99.892,47
+    $ 99,892.47
+    """
+    if pd.isna(valor):
+        return 0.0
+
+    if isinstance(valor, (int, float)):
+        return float(valor)
+
+    texto = str(valor).strip()
+
+    if texto == "":
+        return 0.0
+
+    texto = texto.replace("Bs.", "")
+    texto = texto.replace("Bs", "")
+    texto = texto.replace("$", "")
+    texto = texto.replace(" ", "")
+
+    # Formato latino: 99.892,47
+    if "," in texto:
+        texto = texto.replace(".", "")
+        texto = texto.replace(",", ".")
+    else:
+        # Si únicamente tiene puntos, determinar si es decimal
+        partes = texto.split(".")
+        if len(partes) > 2:
+            texto = "".join(partes)
+        elif len(partes) == 2 and len(partes[1]) == 3:
+            texto = "".join(partes)
+
+    texto = re.sub(r"[^0-9.\-]", "", texto)
+
+    try:
+        return float(texto)
+    except Exception:
+        return 0.0
+
+
+def formato_entero(valor):
+    try:
+        return f"{int(round(valor)):,}".replace(",", ".")
+    except Exception:
+        return "0"
+
+
+def formato_bs(valor):
+    try:
+        return (
+            f"Bs {valor:,.2f}"
+            .replace(",", "X")
+            .replace(".", ",")
+            .replace("X", ".")
+        )
+    except Exception:
+        return "Bs 0,00"
+
+
+def formato_porcentaje(valor):
+    try:
+        return f"{valor:.2f}%".replace(".", ",")
+    except Exception:
+        return "0,00%"
+
+
+def buscar_columna(df, palabras):
+    """
+    Busca una columna usando partes de su nombre.
+    """
+    columnas_norm = {
+        col: normalizar_columna(col)
+        for col in df.columns
+    }
+
+    for col_original, col_norm in columnas_norm.items():
+        if all(palabra in col_norm for palabra in palabras):
+            return col_original
+
+    return None
+
+
+# =========================================================
+# LECTOR FLEXIBLE DE ARCHIVOS
+# =========================================================
+
+def leer_archivo(archivo):
+    nombre = archivo.name.lower()
+    contenido = archivo.getvalue()
+
+    # CSV
+    if nombre.endswith(".csv"):
+        for sep in [";", ",", "\t"]:
+            try:
+                df = pd.read_csv(
+                    BytesIO(contenido),
+                    sep=sep,
+                    encoding="utf-8",
+                )
+                if len(df.columns) > 1:
+                    return df
+            except Exception:
+                pass
+
+        try:
+            return pd.read_csv(
+                BytesIO(contenido),
+                sep=";",
+                encoding="latin1",
+            )
+        except Exception as e:
+            raise ValueError(f"No se pudo leer el CSV: {e}")
+
+    # XLSX
+    if nombre.endswith(".xlsx"):
+        try:
+            return pd.read_excel(
+                BytesIO(contenido),
+                engine="openpyxl",
+            )
+        except Exception as e:
+            raise ValueError(f"No se pudo leer el XLSX: {e}")
+
+    # XLS que realmente viene como tabla HTML
+    if nombre.endswith(".xls"):
+        try:
+            tablas = pd.read_html(BytesIO(contenido))
+
+            if not tablas:
+                raise ValueError("No se encontraron tablas.")
+
+            # Tomamos la tabla con mayor cantidad de registros
+            df = max(tablas, key=lambda x: len(x))
+
+            return df
+
+        except Exception:
+            # Intento alternativo por si fuera un XLS real
+            try:
+                return pd.read_excel(BytesIO(contenido))
+            except Exception as e:
+                raise ValueError(
+                    "No se pudo interpretar el archivo .xls. "
+                    f"Detalle: {e}"
+                )
+
+    raise ValueError("Formato de archivo no reconocido.")
+
+
+# =========================================================
+# DETECCIÓN DEL TIPO DE REPORTE
+# =========================================================
+
+def detectar_tipo_reporte(df):
+    columnas = [
+        normalizar_columna(c)
+        for c in df.columns
+    ]
+
+    texto_columnas = " | ".join(columnas)
+
+    criterios_promesas = [
+        "nombre usuario",
+        "total gestion",
+        "total compromisos",
+        "compromisos cumplidos",
+    ]
+
+    coincidencias = sum(
+        criterio in texto_columnas
+        for criterio in criterios_promesas
+    )
+
+    if coincidencias >= 3:
+        return "PROMESAS"
+
+    criterios_callcenter = [
+        "contrato",
+        "cliente",
+        "usuario",
+    ]
+
+    coincidencias_call = sum(
+        criterio in texto_columnas
+        for criterio in criterios_callcenter
+    )
+
+    if coincidencias_call >= 2 and len(df) > 100:
+        return "CALLCENTER"
+
+    return "DESCONOCIDO"
+
+
+# =========================================================
+# PROCESAMIENTO DEFINITIVO DE PROMESAS / RECUPERACIÓN
+# =========================================================
+
+def procesar_promesas(df):
+    """
+    REGLA DEFINITIVA:
+
+    1. Tomar Compromisos Cumplidos en $ del registro SIN USUARIO.
+    2. Dividir ese monto entre 8 operadores.
+    3. Sumar esa parte al monto individual de cada operador.
+    4. Recuperación ajustada / Bs 170.400 * 100.
+    5. Resultado principal = porcentaje.
+    """
+
+    df = df.copy()
+
+    # Limpiar nombres de columnas multinivel si existieran
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [
+            " ".join(
+                str(x)
+                for x in col
+                if str(x) != "nan"
+            ).strip()
+            for col in df.columns
+        ]
+
+    col_usuario = buscar_columna(
+        df,
+        ["nombre", "usuario"],
+    )
+
+    col_gestiones = buscar_columna(
+        df,
+        ["total", "gestion"],
+    )
+
+    col_compromisos = buscar_columna(
+        df,
+        ["total", "compromisos"],
+    )
+
+    col_cumplidos = buscar_columna(
+        df,
+        ["compromisos", "cumplidos"],
+    )
+
+    # Buscar específicamente columna monetaria de cumplidos.
+    columnas_cumplidos = []
+
+    for col in df.columns:
+        norm = normalizar_columna(col)
+
+        if (
+            "compromisos" in norm
+            and "cumplidos" in norm
+        ):
+            columnas_cumplidos.append(col)
+
+    col_cumplidos_monto = None
+
+    # Normalmente la última columna coincidente es la monetaria.
+    if columnas_cumplidos:
+        col_cumplidos_monto = columnas_cumplidos[-1]
+
+    if col_usuario is None:
+        raise ValueError(
+            "No se encontró la columna 'Nombre Usuario'."
+        )
+
+    if col_cumplidos_monto is None:
+        raise ValueError(
+            "No se encontró la columna de "
+            "'Compromisos Cumplidos en $'."
+        )
+
+    # Normalizar usuario
+    df["_usuario_norm"] = (
+        df[col_usuario]
+        .astype(str)
+        .apply(normalizar_texto)
+    )
+
+    # -----------------------------------------------------
+    # DETECTAR FILA SIN USUARIO
+    # -----------------------------------------------------
+
+    mascara_sin_usuario = df["_usuario_norm"].apply(
+        lambda x:
+        "sin usuario" in x
+        or x in ["sinusuario", "sin user"]
+    )
+
+    filas_sin_usuario = df[mascara_sin_usuario]
+
+    if filas_sin_usuario.empty:
+        monto_sin_usuario = 0.0
+    else:
+        monto_sin_usuario = filas_sin_usuario[
+            col_cumplidos_monto
+        ].apply(convertir_numero).sum()
+
+    # REGLA FIJA: DIVIDIR ENTRE 8
+    distribucion_por_operador = (
+        monto_sin_usuario / CANTIDAD_OPERADORES
+    )
+
+    resultados = []
+
+    # -----------------------------------------------------
+    # LOS 8 OPERADORES OFICIALES
+    # -----------------------------------------------------
+
+    for usuario, datos in OPERADORES.items():
+
+        mascara = df["_usuario_norm"].apply(
+            lambda x: usuario in x
+        )
+
+        fila_operador = df[mascara]
+
+        if fila_operador.empty:
+
+            gestiones = 0
+            compromisos = 0
+            cumplidos = 0
+            monto_individual = 0.0
+
+        else:
+
+            fila = fila_operador.iloc[0]
+
+            gestiones = (
+                convertir_numero(fila[col_gestiones])
+                if col_gestiones
+                else 0
+            )
+
+            compromisos = (
+                convertir_numero(fila[col_compromisos])
+                if col_compromisos
+                else 0
+            )
+
+            cumplidos = (
+                convertir_numero(fila[col_cumplidos])
+                if col_cumplidos
+                else 0
+            )
+
+            monto_individual = convertir_numero(
+                fila[col_cumplidos_monto]
+            )
+
+        # =================================================
+        # CÁLCULO OFICIAL DE RECUPERACIÓN
+        # =================================================
+
+        recuperacion_ajustada = (
+            monto_individual
+            + distribucion_por_operador
+        )
+
+        porcentaje_recuperacion = (
+            recuperacion_ajustada
+            / META_RECUPERACION
+            * 100
+        )
+
+        porcentaje_gestiones = (
+            gestiones
+            / META_GESTIONES
+            * 100
+            if META_GESTIONES
+            else 0
+        )
+
+        porcentaje_compromisos = (
+            compromisos
+            / META_COMPROMISOS
+            * 100
+            if META_COMPROMISOS
+            else 0
+        )
+
+        resultados.append(
+            {
+                "Usuario": usuario,
+                "Operador": datos["nombre"],
+                "Correo": datos["correo"],
+
+                "Gestiones": int(round(gestiones)),
+                "% Gestiones": porcentaje_gestiones,
+
+                "Compromisos": int(round(compromisos)),
+                "% Compromisos": porcentaje_compromisos,
+
+                "Compromisos cumplidos": int(
+                    round(cumplidos)
+                ),
+
+                "Recuperación original": monto_individual,
+
+                "Distribución sin usuario":
+                    distribucion_por_operador,
+
+                "Recuperación acumulada":
+                    recuperacion_ajustada,
+
+                "% Recuperación":
+                    porcentaje_recuperacion,
+            }
+        )
+
+    resultado_df = pd.DataFrame(resultados)
+
+    return (
+        resultado_df,
+        monto_sin_usuario,
+        distribucion_por_operador,
+    )
+
+
+# =========================================================
+# SESSION STATE
+# =========================================================
+
+if "resultado_operadores" not in st.session_state:
+    st.session_state.resultado_operadores = None
+
+if "monto_sin_usuario" not in st.session_state:
+    st.session_state.monto_sin_usuario = 0.0
+
+if "distribucion_sin_usuario" not in st.session_state:
+    st.session_state.distribucion_sin_usuario = 0.0
+
+if "archivos_cargados" not in st.session_state:
+    st.session_state.archivos_cargados = []
+
 
 # =========================================================
 # ESTILO
@@ -22,6 +542,7 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+
         .block-container {
             padding-top: 1.5rem;
             padding-bottom: 3rem;
@@ -57,7 +578,7 @@ st.markdown(
             border-radius: 14px;
             padding: 20px;
             min-height: 145px;
-            box-shadow: 0 2px 8px rgba(16, 24, 40, 0.04);
+            box-shadow: 0 2px 8px rgba(16,24,40,.05);
         }
 
         .metric-label {
@@ -84,16 +605,19 @@ st.markdown(
             border-radius: 14px;
             padding: 20px;
         }
+
     </style>
     """,
     unsafe_allow_html=True,
 )
+
 
 # =========================================================
 # MENÚ LATERAL
 # =========================================================
 
 with st.sidebar:
+
     st.markdown("## 📊 GEN Control")
     st.caption("Cobranzas Inmobiliarias")
 
@@ -116,11 +640,15 @@ with st.sidebar:
 
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
 
-    st.success(f"● Datos actualizados\n\n{fecha_actual}")
+    st.success(
+        f"● Datos actualizados\n\n{fecha_actual}"
+    )
 
     st.markdown("---")
+
     st.markdown("**José Carlos**")
     st.caption("Coordinador")
+
 
 # =========================================================
 # ENCABEZADO
@@ -136,6 +664,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # =========================================================
 # RESUMEN
 # =========================================================
@@ -143,67 +672,122 @@ st.markdown(
 if menu == "🏠 Resumen":
 
     st.subheader("Resumen operativo")
+
     st.caption(
-        "Seguimiento general del cumplimiento mensual del equipo."
+        "Seguimiento general del cumplimiento "
+        "mensual del equipo."
     )
 
-    col1, col2, col3 = st.columns(3)
+    resultado = st.session_state.resultado_operadores
 
-    with col1:
-        st.markdown(
-            """
-            <div class="metric-card">
-                <div class="metric-label">GESTIONES</div>
-                <div class="metric-value">0</div>
-                <div class="metric-detail">
-                    Meta mensual pendiente de cargar
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    if resultado is None:
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "Gestiones",
+                "0",
+                f"Meta: {formato_entero(META_GESTIONES)}",
+            )
+
+        with col2:
+            st.metric(
+                "Compromisos",
+                "0",
+                f"Meta: {formato_entero(META_COMPROMISOS)}",
+            )
+
+        with col3:
+            st.metric(
+                "Recuperación",
+                "0,00%",
+                f"Meta por operador: {formato_bs(META_RECUPERACION)}",
+            )
+
+        st.info(
+            "Carga el reporte de Promesas de Pago "
+            "para visualizar los resultados reales."
         )
 
-    with col2:
-        st.markdown(
-            """
-            <div class="metric-card">
-                <div class="metric-label">COMPROMISOS</div>
-                <div class="metric-value">0</div>
-                <div class="metric-detail">
-                    Meta mensual pendiente de cargar
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    else:
+
+        promedio_gestiones = resultado[
+            "% Gestiones"
+        ].mean()
+
+        promedio_compromisos = resultado[
+            "% Compromisos"
+        ].mean()
+
+        promedio_recuperacion = resultado[
+            "% Recuperación"
+        ].mean()
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "Gestiones · cumplimiento promedio",
+                formato_porcentaje(
+                    promedio_gestiones
+                ),
+            )
+
+        with col2:
+            st.metric(
+                "Compromisos · cumplimiento promedio",
+                formato_porcentaje(
+                    promedio_compromisos
+                ),
+            )
+
+        with col3:
+            st.metric(
+                "Recuperación · cumplimiento promedio",
+                formato_porcentaje(
+                    promedio_recuperacion
+                ),
+            )
+
+        st.write("")
+
+        st.subheader("Avance por operador")
+
+        tabla = resultado[
+            [
+                "Operador",
+                "Gestiones",
+                "% Gestiones",
+                "Compromisos",
+                "% Compromisos",
+                "Recuperación acumulada",
+                "% Recuperación",
+            ]
+        ].copy()
+
+        tabla["% Gestiones"] = tabla[
+            "% Gestiones"
+        ].apply(formato_porcentaje)
+
+        tabla["% Compromisos"] = tabla[
+            "% Compromisos"
+        ].apply(formato_porcentaje)
+
+        tabla["Recuperación acumulada"] = tabla[
+            "Recuperación acumulada"
+        ].apply(formato_bs)
+
+        tabla["% Recuperación"] = tabla[
+            "% Recuperación"
+        ].apply(formato_porcentaje)
+
+        st.dataframe(
+            tabla,
+            use_container_width=True,
+            hide_index=True,
         )
 
-    with col3:
-        st.markdown(
-            """
-            <div class="metric-card">
-                <div class="metric-label">RECUPERACIONES</div>
-                <div class="metric-value">Bs 0</div>
-                <div class="metric-detail">
-                    Meta mensual del equipo: Bs 170.400
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.write("")
-
-    st.markdown(
-        """
-        <div class="status-box">
-            <b>Estado inicial</b><br><br>
-            GEN Control está funcionando correctamente.
-            Los indicadores se completarán cuando conectemos
-            los reportes y el histórico.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 # =========================================================
 # COMPORTAMIENTO DIARIO
@@ -212,28 +796,96 @@ if menu == "🏠 Resumen":
 elif menu == "📊 Comportamiento diario":
 
     st.subheader("Comportamiento diario")
+
     st.info(
-        "Aquí incorporaremos la evolución diaria de gestiones, "
-        "compromisos y recuperaciones."
+        "En la siguiente fase incorporaremos "
+        "la evolución diaria por operador y fecha."
     )
 
+
 # =========================================================
-# MENSAJES
+# MENSAJES DIARIOS
 # =========================================================
 
 elif menu == "✉️ Mensajes diarios":
 
     st.subheader("Metas de cierre para hoy")
 
-    st.caption(
-        "Aquí se generarán automáticamente los mensajes "
-        "personalizados para cada operador."
-    )
+    resultado = st.session_state.resultado_operadores
 
-    st.info(
-        "Los mensajes diarios se habilitarán cuando carguemos "
-        "los datos de los operadores."
-    )
+    if resultado is None:
+
+        st.warning(
+            "Primero carga el reporte de Promesas de Pago."
+        )
+
+    else:
+
+        for _, fila in resultado.iterrows():
+
+            with st.container(border=True):
+
+                col_nombre, col_estado = st.columns(
+                    [4, 1]
+                )
+
+                with col_nombre:
+                    st.markdown(
+                        f"### {fila['Operador']}"
+                    )
+                    st.caption(fila["Correo"])
+
+                with col_estado:
+
+                    porcentaje = fila[
+                        "% Recuperación"
+                    ]
+
+                    if porcentaje >= 100:
+                        st.success("Meta cumplida")
+                    elif porcentaje >= 80:
+                        st.info("Buen avance")
+                    elif porcentaje >= 60:
+                        st.warning("En seguimiento")
+                    else:
+                        st.error("Reforzar")
+
+                c1, c2, c3 = st.columns(3)
+
+                with c1:
+                    st.metric(
+                        "Gestiones",
+                        formato_entero(
+                            fila["Gestiones"]
+                        ),
+                        formato_porcentaje(
+                            fila["% Gestiones"]
+                        ),
+                    )
+
+                with c2:
+                    st.metric(
+                        "Compromisos",
+                        formato_entero(
+                            fila["Compromisos"]
+                        ),
+                        formato_porcentaje(
+                            fila["% Compromisos"]
+                        ),
+                    )
+
+                with c3:
+                    st.metric(
+                        "Recuperación",
+                        formato_porcentaje(
+                            fila["% Recuperación"]
+                        ),
+                        (
+                            f"{formato_bs(fila['Recuperación acumulada'])} "
+                            f"de {formato_bs(META_RECUPERACION)}"
+                        ),
+                    )
+
 
 # =========================================================
 # CARGAR REPORTES
@@ -244,17 +896,169 @@ elif menu == "📥 Cargar reportes":
     st.subheader("Cargar reportes")
 
     st.caption(
-        "Carga los archivos utilizados para actualizar "
-        "los indicadores de GEN Control."
+        "Puedes cargar uno o varios archivos. "
+        "GEN Control identificará automáticamente "
+        "el tipo de reporte."
     )
 
-    archivo = st.file_uploader(
-        "Seleccionar reporte",
-        type=["xlsx", "xls", "csv"],
+    archivos = st.file_uploader(
+        "Seleccionar archivos",
+        type=[
+            "xls",
+            "xlsx",
+            "csv",
+        ],
+        accept_multiple_files=True,
     )
 
-    if archivo is not None:
-        st.success(f"Archivo recibido: {archivo.name}")
+    if archivos:
+
+        resumen_cargas = []
+
+        for archivo in archivos:
+
+            try:
+
+                df = leer_archivo(archivo)
+
+                tipo = detectar_tipo_reporte(df)
+
+                resumen_cargas.append(
+                    {
+                        "Archivo": archivo.name,
+                        "Tipo detectado": tipo,
+                        "Registros": len(df),
+                        "Estado": "Correcto",
+                    }
+                )
+
+                # =========================================
+                # PROMESAS
+                # =========================================
+
+                if tipo == "PROMESAS":
+
+                    (
+                        resultado,
+                        monto_sin_usuario,
+                        distribucion,
+                    ) = procesar_promesas(df)
+
+                    st.session_state.resultado_operadores = (
+                        resultado
+                    )
+
+                    st.session_state.monto_sin_usuario = (
+                        monto_sin_usuario
+                    )
+
+                    st.session_state.distribucion_sin_usuario = (
+                        distribucion
+                    )
+
+            except Exception as e:
+
+                resumen_cargas.append(
+                    {
+                        "Archivo": archivo.name,
+                        "Tipo detectado": "ERROR",
+                        "Registros": 0,
+                        "Estado": str(e),
+                    }
+                )
+
+        st.write("")
+
+        st.subheader("Validación de archivos")
+
+        st.dataframe(
+            pd.DataFrame(resumen_cargas),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        resultado = st.session_state.resultado_operadores
+
+        if resultado is not None:
+
+            st.success(
+                "Reporte de Promesas de Pago "
+                "procesado correctamente."
+            )
+
+            st.markdown(
+                "### Cálculo automático de recuperación"
+            )
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric(
+                    "Monto sin usuario",
+                    formato_bs(
+                        st.session_state.monto_sin_usuario
+                    ),
+                )
+
+            with col2:
+                st.metric(
+                    "Distribución por operador",
+                    formato_bs(
+                        st.session_state.distribucion_sin_usuario
+                    ),
+                    "Sin usuario ÷ 8",
+                )
+
+            with col3:
+                st.metric(
+                    "Meta mensual por operador",
+                    formato_bs(
+                        META_RECUPERACION
+                    ),
+                )
+
+            st.info(
+                "Regla aplicada: monto sin usuario ÷ 8 "
+                "+ recuperación individual. "
+                "El resultado se divide entre Bs 170.400 "
+                "y se expresa en porcentaje."
+            )
+
+            st.markdown(
+                "### Resultado por operador"
+            )
+
+            vista = resultado[
+                [
+                    "Operador",
+                    "Gestiones",
+                    "Compromisos",
+                    "Recuperación original",
+                    "Distribución sin usuario",
+                    "Recuperación acumulada",
+                    "% Recuperación",
+                ]
+            ].copy()
+
+            for columna in [
+                "Recuperación original",
+                "Distribución sin usuario",
+                "Recuperación acumulada",
+            ]:
+                vista[columna] = vista[
+                    columna
+                ].apply(formato_bs)
+
+            vista["% Recuperación"] = vista[
+                "% Recuperación"
+            ].apply(formato_porcentaje)
+
+            st.dataframe(
+                vista,
+                use_container_width=True,
+                hide_index=True,
+            )
+
 
 # =========================================================
 # EQUIPO
@@ -262,12 +1066,34 @@ elif menu == "📥 Cargar reportes":
 
 elif menu == "👥 Equipo":
 
-    st.subheader("Equipo")
+    st.subheader("Equipo de Cobranzas Inmobiliarias")
 
-    st.info(
-        "Aquí administraremos operadores, correos, teléfonos "
-        "y metas individuales."
+    datos_equipo = []
+
+    for usuario, datos in OPERADORES.items():
+
+        datos_equipo.append(
+            {
+                "Usuario": usuario,
+                "Nombre": datos["nombre"],
+                "Correo": datos["correo"],
+                "Meta gestiones": META_GESTIONES,
+                "Meta compromisos": META_COMPROMISOS,
+                "Meta recuperación":
+                    formato_bs(META_RECUPERACION),
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(datos_equipo),
+        use_container_width=True,
+        hide_index=True,
     )
+
+    st.caption(
+        "8 operadores activos."
+    )
+
 
 # =========================================================
 # CONFIGURACIÓN
@@ -283,24 +1109,42 @@ elif menu == "⚙️ Configuración":
         st.number_input(
             "Meta mensual de gestiones",
             min_value=0,
-            value=2400,
+            value=META_GESTIONES,
+            disabled=True,
         )
 
     with col2:
         st.number_input(
             "Meta mensual de compromisos",
             min_value=0,
-            value=600,
+            value=META_COMPROMISOS,
+            disabled=True,
         )
 
     with col3:
         st.number_input(
-            "Meta mensual de recuperación (Bs)",
+            "Meta mensual de recuperación por operador (Bs)",
             min_value=0,
-            value=170400,
+            value=META_RECUPERACION,
+            disabled=True,
         )
 
-    st.info(
-        "En una siguiente fase estas configuraciones "
-        "se guardarán permanentemente en Supabase."
+    st.markdown("### Regla de recuperación")
+
+    st.success(
+        """
+        **Regla oficial actual**
+
+        1. Tomar el monto de Compromisos Cumplidos en $ de
+        **Sin usuario**.
+        2. Dividirlo entre **8 operadores**.
+        3. Sumar ese valor a la recuperación individual.
+        4. Dividir el total obtenido entre **Bs 170.400**.
+        5. Mostrar el resultado principal en **porcentaje (%)**.
+        """
+    )
+
+    st.warning(
+        "Esta lógica está definida como regla fija del sistema "
+        "y no debe modificarse sin autorización."
     )
