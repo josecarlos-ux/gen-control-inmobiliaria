@@ -8,6 +8,7 @@ from io import BytesIO
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
+from supabase import create_client
 
 
 # =========================================================
@@ -901,6 +902,280 @@ def procesar_promesas(df):
 
 
 # =========================================================
+# SUPABASE / PERSISTENCIA
+# =========================================================
+
+@st.cache_resource
+def get_supabase():
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception:
+        return None
+
+
+def supabase_disponible():
+    return get_supabase() is not None
+
+
+def cargar_configuracion_supabase():
+    sb = get_supabase()
+
+    if sb is None:
+        return
+
+    try:
+        resp = (
+            sb.table("configuracion")
+            .select("*")
+            .eq("id", 1)
+            .execute()
+        )
+
+        if resp.data:
+            fila = resp.data[0]
+
+            st.session_state.meta_gestiones_cfg = int(
+                fila.get(
+                    "meta_gestiones",
+                    st.session_state.meta_gestiones_cfg,
+                )
+            )
+
+            st.session_state.meta_compromisos_cfg = int(
+                fila.get(
+                    "meta_compromisos",
+                    st.session_state.meta_compromisos_cfg,
+                )
+            )
+
+            st.session_state.meta_recuperacion_cfg = float(
+                fila.get(
+                    "meta_recuperacion",
+                    st.session_state.meta_recuperacion_cfg,
+                )
+            )
+
+            st.session_state.meta_diaria_compromisos_cfg = int(
+                fila.get(
+                    "meta_diaria_compromisos",
+                    st.session_state.meta_diaria_compromisos_cfg,
+                )
+            )
+    except Exception:
+        pass
+
+
+def guardar_configuracion_supabase():
+    sb = get_supabase()
+
+    if sb is None:
+        return False, "Supabase no está conectado."
+
+    payload = {
+        "id": 1,
+        "meta_gestiones": int(
+            st.session_state.meta_gestiones_cfg
+        ),
+        "meta_compromisos": int(
+            st.session_state.meta_compromisos_cfg
+        ),
+        "meta_recuperacion": float(
+            st.session_state.meta_recuperacion_cfg
+        ),
+        "meta_diaria_compromisos": int(
+            st.session_state.meta_diaria_compromisos_cfg
+        ),
+        "updated_at": datetime.now(
+            ZoneInfo("America/La_Paz")
+        ).isoformat(),
+    }
+
+    try:
+        (
+            sb.table("configuracion")
+            .upsert(payload)
+            .execute()
+        )
+        return True, "Configuración guardada en Supabase."
+    except Exception as e:
+        return False, str(e)
+
+
+def guardar_calendario_supabase(
+    anio,
+    mes,
+    calendario_mes,
+):
+    sb = get_supabase()
+
+    if sb is None:
+        return False, "Supabase no está conectado."
+
+    registros = []
+
+    for dia, laboral in calendario_mes.items():
+        fecha_dia = date(
+            int(anio),
+            int(mes),
+            int(dia),
+        )
+
+        registros.append(
+            {
+                "fecha": fecha_dia.isoformat(),
+                "es_laboral": bool(laboral),
+            }
+        )
+
+    try:
+        (
+            sb.table("calendario_laboral")
+            .upsert(
+                registros,
+                on_conflict="fecha",
+            )
+            .execute()
+        )
+        return True, "Calendario guardado."
+    except Exception as e:
+        return False, str(e)
+
+
+def cargar_calendario_supabase(
+    anio,
+    mes,
+):
+    sb = get_supabase()
+
+    if sb is None:
+        return None
+
+    inicio = date(
+        int(anio),
+        int(mes),
+        1,
+    )
+
+    dias_mes = calendar.monthrange(
+        int(anio),
+        int(mes),
+    )[1]
+
+    fin = date(
+        int(anio),
+        int(mes),
+        dias_mes,
+    )
+
+    try:
+        resp = (
+            sb.table("calendario_laboral")
+            .select("fecha,es_laboral")
+            .gte("fecha", inicio.isoformat())
+            .lte("fecha", fin.isoformat())
+            .execute()
+        )
+
+        if not resp.data:
+            return None
+
+        return {
+            int(
+                pd.to_datetime(
+                    fila["fecha"]
+                ).day
+            ): bool(fila["es_laboral"])
+            for fila in resp.data
+        }
+    except Exception:
+        return None
+
+
+def guardar_resultados_supabase(
+    resultado_df,
+    fecha_reporte,
+    nombre_archivo,
+):
+    sb = get_supabase()
+
+    if sb is None:
+        return False, "Supabase no está conectado."
+
+    registros = []
+
+    for _, fila in resultado_df.iterrows():
+        registros.append(
+            {
+                "fecha": fecha_reporte.isoformat(),
+                "usuario": fila["Usuario"],
+                "operador": fila["Operador"],
+                "gestiones": int(
+                    fila["Gestiones"]
+                ),
+                "compromisos": int(
+                    fila["Compromisos"]
+                ),
+                "compromisos_cumplidos": int(
+                    fila["Compromisos cumplidos"]
+                ),
+                "recuperacion_original": float(
+                    fila["Recuperación original"]
+                ),
+                "distribucion_sin_usuario": float(
+                    fila["Distribución sin usuario"]
+                ),
+                "recuperacion_acumulada": float(
+                    fila["Recuperación acumulada"]
+                ),
+                "porcentaje_recuperacion": float(
+                    fila["% Recuperación"]
+                ),
+                "archivo_origen": nombre_archivo,
+            }
+        )
+
+    try:
+        (
+            sb.table("resultados_diarios")
+            .upsert(
+                registros,
+                on_conflict="fecha,usuario",
+            )
+            .execute()
+        )
+        return True, "Resultados guardados en histórico."
+    except Exception as e:
+        return False, str(e)
+
+
+def guardar_carga_supabase(
+    nombre_archivo,
+    tipo,
+    registros,
+):
+    sb = get_supabase()
+
+    if sb is None:
+        return
+
+    try:
+        sb.table("cargas").insert(
+            {
+                "fecha_carga": datetime.now(
+                    ZoneInfo("America/La_Paz")
+                ).isoformat(),
+                "nombre_archivo": nombre_archivo,
+                "tipo_reporte": tipo,
+                "registros": int(registros),
+            }
+        ).execute()
+    except Exception:
+        pass
+
+
+# =========================================================
 # SESSION STATE
 # =========================================================
 
@@ -936,6 +1211,13 @@ if "meta_diaria_compromisos_cfg" not in st.session_state:
 
 if "calendario_laboral" not in st.session_state:
     st.session_state.calendario_laboral = {}
+
+if "config_supabase_cargada" not in st.session_state:
+    st.session_state.config_supabase_cargada = False
+
+if not st.session_state.config_supabase_cargada:
+    cargar_configuracion_supabase()
+    st.session_state.config_supabase_cargada = True
 
 
 # =========================================================
@@ -1033,6 +1315,7 @@ with st.sidebar:
             "📊 Comportamiento diario",
             "✉️ Mensajes diarios",
             "📥 Cargar reportes",
+            "🗂️ Histórico",
             "👥 Equipo",
             "⚙️ Configuración",
         ],
@@ -1904,6 +2187,12 @@ elif menu == "📥 Cargar reportes":
                     }
                 )
 
+                guardar_carga_supabase(
+                    archivo.name,
+                    tipo,
+                    len(df),
+                )
+
                 # =========================================
                 # PROMESAS
                 # =========================================
@@ -1927,6 +2216,13 @@ elif menu == "📥 Cargar reportes":
                     st.session_state.distribucion_sin_usuario = (
                         distribucion
                     )
+
+                    if supabase_disponible():
+                        guardar_resultados_supabase(
+                            resultado,
+                            fecha_local_actual(),
+                            archivo.name,
+                        )
 
                 elif tipo == "CALLCENTER":
                     st.session_state.callcenter_df = df.copy()
@@ -2070,6 +2366,166 @@ elif menu == "📥 Cargar reportes":
 
 
 # =========================================================
+# HISTÓRICO
+# =========================================================
+
+elif menu == "🗂️ Histórico":
+
+    st.subheader("🗂️ Histórico")
+    st.caption(
+        "Consulta resultados guardados por fecha y operador."
+    )
+
+    if not supabase_disponible():
+        st.warning(
+            "Conecta Supabase para habilitar el histórico permanente."
+        )
+    else:
+        sb = get_supabase()
+
+        try:
+            resp = (
+                sb.table("resultados_diarios")
+                .select("*")
+                .order("fecha", desc=True)
+                .execute()
+            )
+
+            historico = pd.DataFrame(
+                resp.data or []
+            )
+
+            if historico.empty:
+                st.info(
+                    "Todavía no hay resultados guardados."
+                )
+            else:
+                historico["fecha"] = pd.to_datetime(
+                    historico["fecha"],
+                    errors="coerce",
+                ).dt.date
+
+                fecha_min = historico["fecha"].min()
+                fecha_max = historico["fecha"].max()
+
+                c1, c2 = st.columns([2, 1])
+
+                with c1:
+                    rango_hist = st.date_input(
+                        "Rango histórico",
+                        value=(
+                            fecha_min,
+                            fecha_max,
+                        ),
+                        min_value=fecha_min,
+                        max_value=fecha_max,
+                        key="historico_rango",
+                    )
+
+                with c2:
+                    operador_hist = st.selectbox(
+                        "Operador",
+                        ["Todos"]
+                        + sorted(
+                            historico[
+                                "operador"
+                            ].dropna().unique()
+                        ),
+                        key="historico_operador",
+                    )
+
+                if (
+                    isinstance(rango_hist, tuple)
+                    and len(rango_hist) == 2
+                ):
+                    inicio_hist, fin_hist = rango_hist
+                else:
+                    inicio_hist = fin_hist = rango_hist
+
+                vista_hist = historico[
+                    (
+                        historico["fecha"]
+                        >= inicio_hist
+                    )
+                    & (
+                        historico["fecha"]
+                        <= fin_hist
+                    )
+                ].copy()
+
+                if operador_hist != "Todos":
+                    vista_hist = vista_hist[
+                        vista_hist["operador"]
+                        == operador_hist
+                    ].copy()
+
+                if vista_hist.empty:
+                    st.info(
+                        "No hay datos para los filtros seleccionados."
+                    )
+                else:
+                    columnas_orden = [
+                        c for c in [
+                            "fecha",
+                            "porcentaje_recuperacion",
+                            "recuperacion_acumulada",
+                            "gestiones",
+                            "compromisos",
+                            "operador",
+                        ]
+                        if c in vista_hist.columns
+                    ]
+
+                    vista_hist = controles_ordenamiento(
+                        vista_hist,
+                        columnas_orden,
+                        key_prefix="historico",
+                        columna_default="fecha",
+                        descendente_default=True,
+                    )
+
+                    mostrar = vista_hist[
+                        [
+                            c for c in [
+                                "fecha",
+                                "operador",
+                                "gestiones",
+                                "compromisos",
+                                "recuperacion_acumulada",
+                                "porcentaje_recuperacion",
+                                "archivo_origen",
+                            ]
+                            if c in vista_hist.columns
+                        ]
+                    ].copy()
+
+                    if "recuperacion_acumulada" in mostrar.columns:
+                        mostrar[
+                            "recuperacion_acumulada"
+                        ] = mostrar[
+                            "recuperacion_acumulada"
+                        ].apply(formato_bs)
+
+                    if "porcentaje_recuperacion" in mostrar.columns:
+                        mostrar[
+                            "porcentaje_recuperacion"
+                        ] = mostrar[
+                            "porcentaje_recuperacion"
+                        ].apply(formato_porcentaje)
+
+                    st.dataframe(
+                        mostrar,
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+        except Exception as e:
+            st.error(
+                f"No se pudo consultar el histórico: {e}"
+            )
+
+
+# =========================================================
 # EQUIPO
 # =========================================================
 
@@ -2129,6 +2585,16 @@ elif menu == "⚙️ Configuración":
     st.caption(
         "Administración de metas y calendario operativo."
     )
+
+    if supabase_disponible():
+        st.success(
+            "● Supabase conectado · cambios e históricos pueden guardarse."
+        )
+    else:
+        st.warning(
+            "● Supabase pendiente de configurar · la app funciona, "
+            "pero los cambios se perderán al reiniciar."
+        )
 
     # -----------------------------------------------------
     # ACCESO SOLO COORDINADOR
@@ -2242,9 +2708,22 @@ elif menu == "⚙️ Configuración":
                 nueva_meta_diaria_c
             )
 
-            st.success(
-                "Metas actualizadas correctamente."
-            )
+            if supabase_disponible():
+                ok, mensaje = guardar_configuracion_supabase()
+
+                if ok:
+                    st.success(
+                        "Metas actualizadas y guardadas permanentemente."
+                    )
+                else:
+                    st.warning(
+                        f"Metas actualizadas en esta sesión. "
+                        f"No se pudo guardar en Supabase: {mensaje}"
+                    )
+            else:
+                st.success(
+                    "Metas actualizadas para esta sesión."
+                )
 
         st.divider()
 
@@ -2308,6 +2787,17 @@ elif menu == "⚙️ Configuración":
             clave_mes
         ]
 
+        if supabase_disponible():
+            calendario_guardado = cargar_calendario_supabase(
+                int(anio_sel),
+                int(mes_sel),
+            )
+
+            if calendario_guardado:
+                calendario_mes.update(
+                    calendario_guardado
+                )
+
         dias_mes = calendar.monthrange(
             int(anio_sel),
             int(mes_sel),
@@ -2355,6 +2845,30 @@ elif menu == "⚙️ Configuración":
                     )
 
                     calendario_mes[dia] = valor
+
+        if st.button(
+            "💾 Guardar calendario laboral",
+            type="primary",
+        ):
+            if supabase_disponible():
+                ok, mensaje = guardar_calendario_supabase(
+                    int(anio_sel),
+                    int(mes_sel),
+                    calendario_mes,
+                )
+
+                if ok:
+                    st.success(
+                        "Calendario laboral guardado permanentemente."
+                    )
+                else:
+                    st.error(
+                        f"No se pudo guardar el calendario: {mensaje}"
+                    )
+            else:
+                st.success(
+                    "Calendario actualizado para esta sesión."
+                )
 
         # -------------------------------------------------
         # CÁLCULO DE META DIARIA
