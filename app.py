@@ -7,13 +7,11 @@ import math
 import calendar
 import base64
 import json
-import smtplib
 from io import BytesIO
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
 from urllib import request, parse
-from email.message import EmailMessage
 from io import BytesIO
 import matplotlib.pyplot as plt
 from supabase import create_client
@@ -1777,94 +1775,25 @@ if (
 
 
 
-
-# =========================================================
-# CORREO SMTP
-# =========================================================
-
-def obtener_config_smtp():
-    """
-    Lee la configuración SMTP desde Streamlit Secrets.
-    No expone la contraseña.
-    """
-    try:
-        host = str(st.secrets.get("SMTP_HOST") or "").strip()
-        port = int(st.secrets.get("SMTP_PORT") or 587)
-        user = str(st.secrets.get("SMTP_USER") or "").strip()
-        password = str(st.secrets.get("SMTP_PASSWORD") or "").strip()
-        sender = str(
-            st.secrets.get("SMTP_FROM")
-            or user
-            or ""
-        ).strip()
-
-        if not all([host, user, password, sender]):
-            return None
-
-        return {
-            "host": host,
-            "port": port,
-            "user": user,
-            "password": password,
-            "sender": sender,
-        }
-
-    except Exception:
-        return None
-
-
-def smtp_disponible():
-    return obtener_config_smtp() is not None
-
-
-def enviar_correo_smtp(destinatario, asunto, cuerpo):
-    """
-    Envía un correo individual usando SMTP.
-    Retorna (ok, detalle).
-    """
-    cfg = obtener_config_smtp()
-
-    if cfg is None:
-        return False, (
-            "Falta configurar SMTP_HOST, SMTP_PORT, SMTP_USER, "
-            "SMTP_PASSWORD y SMTP_FROM en Streamlit Secrets."
-        )
-
-    destinatario = str(destinatario or "").strip()
-
-    if not destinatario:
-        return False, "El operador no tiene correo configurado."
-
-    mensaje = EmailMessage()
-    mensaje["From"] = cfg["sender"]
-    mensaje["To"] = destinatario
-    mensaje["Subject"] = asunto
-    mensaje.set_content(str(cuerpo))
-
-    try:
-        with smtplib.SMTP(
-            cfg["host"],
-            cfg["port"],
-            timeout=20,
-        ) as servidor:
-            servidor.ehlo()
-            servidor.starttls()
-            servidor.ehlo()
-            servidor.login(
-                cfg["user"],
-                cfg["password"],
-            )
-            servidor.send_message(mensaje)
-
-        return True, "Correo enviado."
-
-    except Exception as e:
-        return False, str(e)
-
-
 # =========================================================
 # TELEGRAM
 # =========================================================
+
+def obtener_telegram_group_chat_id():
+    try:
+        chat_id = st.secrets.get("TELEGRAM_GROUP_CHAT_ID")
+        if chat_id:
+            return str(chat_id).strip()
+
+        telegram_cfg = st.secrets.get("telegram", {})
+        chat_id = (
+            telegram_cfg.get("group_chat_id")
+            or telegram_cfg.get("TELEGRAM_GROUP_CHAT_ID")
+        )
+        return str(chat_id).strip() if chat_id else ""
+    except Exception:
+        return ""
+
 
 def obtener_telegram_bot_token():
     try:
@@ -1922,6 +1851,86 @@ def enviar_mensaje_telegram(chat_id, texto):
         )
     except Exception as e:
         return False, str(e)
+
+
+def generar_mensaje_grupo_recuperacion(
+    tabla_general,
+    meta_individual,
+):
+    tabla = tabla_general.copy().sort_values(
+        "% Recuperación",
+        ascending=False,
+        kind="stable",
+    ).reset_index(drop=True)
+
+    total_rec = float(
+        tabla["Recuperación acumulada"].sum()
+    )
+
+    meta_equipo = (
+        float(meta_individual)
+        * len(tabla)
+    )
+
+    pct_equipo = (
+        total_rec / meta_equipo * 100
+        if meta_equipo
+        else 0
+    )
+
+    falta_equipo = max(
+        meta_equipo - total_rec,
+        0,
+    )
+
+    lineas = [
+        (
+            f"📊 AVANCE DE RECUPERACIÓN – "
+            f"{fecha_local_actual().strftime('%d/%m/%Y')}"
+        ),
+        "",
+        (
+            f"💰 Equipo: {formato_usd(total_rec)} "
+            f"({formato_porcentaje(pct_equipo)})"
+        ),
+        (
+            f"🎯 Meta equipo: {formato_usd(meta_equipo)}"
+        ),
+        (
+            f"📌 Brecha: {formato_usd(falta_equipo)}"
+        ),
+        "",
+        "Ranking de recuperación:",
+    ]
+
+    for i, fila in tabla.iterrows():
+        nombre = str(fila["Operador"])
+        porcentaje = float(
+            fila["% Recuperación"]
+        )
+        recuperacion = float(
+            fila["Recuperación acumulada"]
+        )
+
+        lineas.append(
+            (
+                f"{i + 1}. {nombre}: "
+                f"{formato_usd(recuperacion)} · "
+                f"{formato_porcentaje(porcentaje)}"
+            )
+        )
+
+    lineas.extend(
+        [
+            "",
+            (
+                "Mantengamos el enfoque en recuperación "
+                "para continuar avanzando hacia la meta mensual. 💪"
+            ),
+        ]
+    )
+
+    return "\n".join(lineas)
 
 
 def probar_conexion_telegram():
@@ -2914,102 +2923,67 @@ elif menu == "✉️ Mensajes diarios":
                                     )
 
         st.divider()
-        st.markdown("### 📤 Envío individual con un solo botón")
-        st.caption(
-            "Cada operador recibe su propio mensaje personalizado. "
-            "El sistema envía un correo separado a cada dirección."
+        st.markdown("### ✈️ Envío por Telegram")
+
+        telegram_group_chat_id = (
+            obtener_telegram_group_chat_id()
         )
 
-        correos_configurados = [
-            usuario
-            for usuario in resultado["Usuario"].tolist()
-            if str(
-                datos_contacto.get(
-                    usuario, {}
-                ).get("correo", "")
-            ).strip()
-        ]
+        mensaje_grupo = (
+            generar_mensaje_grupo_recuperacion(
+                tabla_general,
+                meta_individual,
+            )
+        )
 
-        col_correo1, col_correo2 = st.columns([2, 1])
+        tg_col1, tg_col2 = st.columns(2)
 
-        with col_correo1:
+        with tg_col1:
             if st.button(
-                f"✉️ Enviar todos por correo ({len(correos_configurados)}/{CANTIDAD_OPERADORES})",
+                "👥 Enviar resumen al grupo",
                 type="primary",
                 use_container_width=True,
                 disabled=(
-                    len(correos_configurados) == 0
-                    or not smtp_disponible()
+                    not bool(
+                        telegram_group_chat_id
+                    )
                 ),
-                key="enviar_todos_correo_individual",
+                key="enviar_resumen_grupo_telegram",
             ):
-                enviados_mail = []
-                errores_mail = []
-
-                for _, fila_mail in resultado.iterrows():
-                    usuario_mail = fila_mail["Usuario"]
-
-                    correo_mail = str(
-                        datos_contacto.get(
-                            usuario_mail, {}
-                        ).get(
-                            "correo",
-                            fila_mail.get("Correo", ""),
-                        )
-                    ).strip()
-
-                    if not correo_mail:
-                        errores_mail.append(
-                            f"{fila_mail['Operador']}: sin correo"
-                        )
-                        continue
-
-                    calculo_mail = generar_mensaje_diario(
-                        fila_mail,
-                        jornadas_info,
+                ok_grupo, detalle_grupo = (
+                    enviar_mensaje_telegram(
+                        telegram_group_chat_id,
+                        mensaje_grupo,
                     )
+                )
 
-                    ok_mail, detalle_mail = enviar_correo_smtp(
-                        correo_mail,
-                        "Seguimiento diario de metas",
-                        calculo_mail["mensaje"],
-                    )
-
-                    if ok_mail:
-                        enviados_mail.append(
-                            fila_mail["Operador"]
-                        )
-                    else:
-                        errores_mail.append(
-                            f"{fila_mail['Operador']}: {detalle_mail}"
-                        )
-
-                if enviados_mail:
+                if ok_grupo:
                     st.success(
-                        f"Se enviaron {len(enviados_mail)} correos individuales."
+                        "Resumen enviado al grupo de Telegram."
+                    )
+                else:
+                    st.error(
+                        f"No se pudo enviar al grupo: {detalle_grupo}"
                     )
 
-                if errores_mail:
-                    st.warning(
-                        "Pendientes / errores:\n\n- "
-                        + "\n- ".join(errores_mail)
-                    )
-
-        with col_correo2:
+        with tg_col2:
+            estado_grupo = (
+                "Configurado"
+                if telegram_group_chat_id
+                else "Pendiente"
+            )
             st.metric(
-                "Correos configurados",
-                f"{len(correos_configurados)}/{CANTIDAD_OPERADORES}",
+                "Grupo Telegram",
+                estado_grupo,
             )
 
-        if not smtp_disponible():
+        if not telegram_group_chat_id:
             st.info(
-                "El botón quedará habilitado cuando configuremos el correo "
-                "SMTP en Streamlit Secrets. Esto permite enviar los 8 correos "
-                "individuales con un solo clic."
+                "Agrega TELEGRAM_GROUP_CHAT_ID en Streamlit Secrets "
+                "para habilitar el envío al grupo."
             )
 
-        st.divider()
-        st.markdown("### ✈️ Envío por Telegram")
+        st.markdown("#### Mensajes individuales")
 
         telegram_configurados = [
             usuario
@@ -3025,7 +2999,7 @@ elif menu == "✉️ Mensajes diarios":
 
         with col_envio:
             if st.button(
-                f"✈️ Enviar todos los mensajes ({len(telegram_configurados)}/{CANTIDAD_OPERADORES})",
+                f"✈️ Enviar mensajes individuales ({len(telegram_configurados)}/{CANTIDAD_OPERADORES})",
                 type="primary",
                 use_container_width=True,
                 disabled=(len(telegram_configurados) == 0),
@@ -3085,8 +3059,8 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         st.caption(
-            "Telegram también envía un mensaje personalizado a cada operador, "
-            "no un mensaje genérico al grupo."
+            "Cada operador recibe su propio mensaje personalizado. "
+            "No se envía un mensaje genérico al grupo."
         )
 
         st.caption("Los importes de recuperación se muestran en USD. La meta individual vigente es " + formato_usd(meta_individual) + ".")
