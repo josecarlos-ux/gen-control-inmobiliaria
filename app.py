@@ -1262,37 +1262,55 @@ def guardar_operador_supabase(payload):
 
 
 def sincronizar_operadores_base():
+    """
+    Carga inicial de los 8 operadores SIN sobrescribir datos ya guardados.
+    Importante: no debe borrar teléfonos, correos editados ni nombres
+    personalizados existentes en Supabase.
+    """
     sb = get_supabase()
 
     if sb is None:
         return
 
-    registros = []
-
-    for usuario, datos in OPERADORES.items():
-        registros.append(
-            {
-                "usuario": usuario,
-                "nombre": datos["nombre"],
-                "nombre_mensaje": datos.get(
-                    "nombre_mensaje",
-                    datos["nombre"].split()[0],
-                ),
-                "correo": datos.get("correo", ""),
-                "telefono": datos.get("telefono", ""),
-                "activo": True,
-            }
-        )
-
     try:
-        (
+        existentes_resp = (
             sb.table("operadores")
-            .upsert(
-                registros,
-                on_conflict="usuario",
-            )
+            .select("usuario")
             .execute()
         )
+
+        usuarios_existentes = {
+            str(fila["usuario"])
+            for fila in (existentes_resp.data or [])
+        }
+
+        nuevos = []
+
+        for usuario, datos in OPERADORES.items():
+            if usuario in usuarios_existentes:
+                continue
+
+            nuevos.append(
+                {
+                    "usuario": usuario,
+                    "nombre": datos["nombre"],
+                    "nombre_mensaje": datos.get(
+                        "nombre_mensaje",
+                        datos["nombre"].split()[0],
+                    ),
+                    "correo": datos.get("correo", ""),
+                    "telefono": datos.get("telefono", ""),
+                    "activo": True,
+                }
+            )
+
+        if nuevos:
+            (
+                sb.table("operadores")
+                .insert(nuevos)
+                .execute()
+            )
+
     except Exception:
         pass
 
@@ -2893,7 +2911,8 @@ elif menu == "👥 Equipo":
 
         st.caption(
             "Los cambios guardados se reflejan inmediatamente "
-            "en esta tabla y en Mensajes diarios."
+            "en esta tabla y en Mensajes diarios. Los datos editados "
+            "ya no se sobrescriben al recargar la aplicación."
         )
 
         st.divider()
