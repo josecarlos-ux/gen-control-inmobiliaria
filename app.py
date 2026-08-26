@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import unicodedata
 import math
+import calendar
 from io import BytesIO
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
@@ -259,8 +260,81 @@ def calcular_jornadas(fecha_ref=None):
     }
 
 
+def inicializar_calendario_mes(fecha_ref):
+    clave_mes = f"{fecha_ref.year:04d}-{fecha_ref.month:02d}"
+
+    if clave_mes not in st.session_state.calendario_laboral:
+        dias_mes = calendar.monthrange(
+            fecha_ref.year,
+            fecha_ref.month,
+        )[1]
+
+        st.session_state.calendario_laboral[clave_mes] = {
+            dia: (
+                date(
+                    fecha_ref.year,
+                    fecha_ref.month,
+                    dia,
+                ).weekday() != 6
+            )
+            for dia in range(1, dias_mes + 1)
+        }
+
+    return clave_mes
+
+
+def jornadas_configuradas(fecha_ref=None):
+    fecha_ref = fecha_ref or fecha_local_actual()
+    clave_mes = inicializar_calendario_mes(fecha_ref)
+
+    calendario_mes = st.session_state.calendario_laboral[
+        clave_mes
+    ]
+
+    dias_laborales = [
+        date(
+            fecha_ref.year,
+            fecha_ref.month,
+            dia,
+        )
+        for dia, es_laboral in calendario_mes.items()
+        if es_laboral
+    ]
+
+    transcurridas = len(
+        [d for d in dias_laborales if d <= fecha_ref]
+    )
+
+    disponibles = len(
+        [d for d in dias_laborales if d >= fecha_ref]
+    )
+
+    return {
+        "total": len(dias_laborales),
+        "transcurridas": transcurridas,
+        "disponibles": disponibles,
+        "esperado_pct": (
+            transcurridas / len(dias_laborales) * 100
+            if dias_laborales
+            else 0
+        ),
+        "dias": dias_laborales,
+        "clave_mes": clave_mes,
+    }
+
+
+def metas_actuales():
+    return {
+        "gestiones": st.session_state.meta_gestiones_cfg,
+        "compromisos": st.session_state.meta_compromisos_cfg,
+        "recuperacion": st.session_state.meta_recuperacion_cfg,
+        "diaria_compromisos": st.session_state.meta_diaria_compromisos_cfg,
+    }
+
+
 def objetivo_hoy_gestiones(acumulado, jornadas_disponibles):
-    faltante = max(META_GESTIONES - acumulado, 0)
+    meta = st.session_state.meta_gestiones_cfg
+    faltante = max(meta - acumulado, 0)
 
     if faltante <= 0:
         return 0
@@ -274,7 +348,12 @@ def objetivo_hoy_gestiones(acumulado, jornadas_disponibles):
 
 
 def objetivo_hoy_compromisos(acumulado, jornadas_disponibles):
-    faltante = max(META_COMPROMISOS - acumulado, 0)
+    meta = st.session_state.meta_compromisos_cfg
+    minimo_diario = (
+        st.session_state.meta_diaria_compromisos_cfg
+    )
+
+    faltante = max(meta - acumulado, 0)
 
     if faltante <= 0:
         return 0
@@ -286,10 +365,8 @@ def objetivo_hoy_compromisos(acumulado, jornadas_disponibles):
         math.ceil(faltante / jornadas_disponibles)
     )
 
-    # Regla operativa: mantener al menos 25 compromisos diarios
-    # mientras la meta mensual aún no esté cumplida.
     return max(
-        META_DIARIA_COMPROMISOS,
+        minimo_diario,
         recuperacion_diaria,
     )
 
@@ -332,7 +409,7 @@ def generar_mensaje_diario(fila, jornadas_info):
     )
 
     faltante_rec = max(
-        META_RECUPERACION - recuperacion,
+        st.session_state.meta_recuperacion_cfg - recuperacion,
         0,
     )
 
@@ -404,7 +481,7 @@ def generar_mensaje_diario(fila, jornadas_info):
     else:
         linea_r = (
             f"🔹 Recuperación: {formato_porcentaje(pct_recuperacion)} "
-            f"| meta de {formato_bs(META_RECUPERACION)} cumplida"
+            f"| meta de {formato_bs(st.session_state.meta_recuperacion_cfg)} cumplida"
         )
 
     mensaje = (
@@ -765,23 +842,23 @@ def procesar_promesas(df):
 
         porcentaje_recuperacion = (
             recuperacion_ajustada
-            / META_RECUPERACION
+            / st.session_state.meta_recuperacion_cfg
             * 100
         )
 
         porcentaje_gestiones = (
             gestiones
-            / META_GESTIONES
+            / st.session_state.meta_gestiones_cfg
             * 100
-            if META_GESTIONES
+            if st.session_state.meta_gestiones_cfg
             else 0
         )
 
         porcentaje_compromisos = (
             compromisos
-            / META_COMPROMISOS
+            / st.session_state.meta_compromisos_cfg
             * 100
-            if META_COMPROMISOS
+            if st.session_state.meta_compromisos_cfg
             else 0
         )
 
@@ -841,6 +918,24 @@ if "archivos_cargados" not in st.session_state:
 
 if "callcenter_df" not in st.session_state:
     st.session_state.callcenter_df = None
+
+if "config_desbloqueada" not in st.session_state:
+    st.session_state.config_desbloqueada = False
+
+if "meta_gestiones_cfg" not in st.session_state:
+    st.session_state.meta_gestiones_cfg = META_GESTIONES
+
+if "meta_compromisos_cfg" not in st.session_state:
+    st.session_state.meta_compromisos_cfg = META_COMPROMISOS
+
+if "meta_recuperacion_cfg" not in st.session_state:
+    st.session_state.meta_recuperacion_cfg = META_RECUPERACION
+
+if "meta_diaria_compromisos_cfg" not in st.session_state:
+    st.session_state.meta_diaria_compromisos_cfg = META_DIARIA_COMPROMISOS
+
+if "calendario_laboral" not in st.session_state:
+    st.session_state.calendario_laboral = {}
 
 
 # =========================================================
@@ -985,7 +1080,7 @@ if menu == "🏠 Resumen":
     )
 
     resultado = st.session_state.resultado_operadores
-    jornadas_info = calcular_jornadas()
+    jornadas_info = jornadas_configuradas()
 
     if resultado is None:
 
@@ -1009,7 +1104,7 @@ if menu == "🏠 Resumen":
             st.metric(
                 "Recuperación",
                 "0,00%",
-                f"Meta por operador: {formato_bs(META_RECUPERACION)}",
+                f"Meta por operador: {formato_bs(st.session_state.meta_recuperacion_cfg)}",
             )
 
         st.info(
@@ -1042,13 +1137,13 @@ if menu == "🏠 Resumen":
         )
 
         meta_equipo_gestiones = (
-            META_GESTIONES * CANTIDAD_OPERADORES
+            st.session_state.meta_gestiones_cfg * CANTIDAD_OPERADORES
         )
         meta_equipo_compromisos = (
-            META_COMPROMISOS * CANTIDAD_OPERADORES
+            st.session_state.meta_compromisos_cfg * CANTIDAD_OPERADORES
         )
         meta_equipo_recuperacion = (
-            META_RECUPERACION * CANTIDAD_OPERADORES
+            st.session_state.meta_recuperacion_cfg * CANTIDAD_OPERADORES
         )
 
         # -------------------------------------------------
@@ -1614,7 +1709,7 @@ elif menu == "✉️ Mensajes diarios":
 
     st.subheader("Metas de cierre para hoy")
 
-    jornadas_info = calcular_jornadas()
+    jornadas_info = jornadas_configuradas()
 
     st.caption(
         f"{jornadas_info['disponibles']} jornadas disponibles "
@@ -1723,7 +1818,7 @@ elif menu == "✉️ Mensajes diarios":
                         ),
                         (
                             f"{formato_bs(fila['Recuperación acumulada'])} "
-                            f"de {formato_bs(META_RECUPERACION)}"
+                            f"de {formato_bs(st.session_state.meta_recuperacion_cfg)}"
                         ),
                     )
 
@@ -1994,7 +2089,7 @@ elif menu == "👥 Equipo":
                 "Meta gestiones": META_GESTIONES,
                 "Meta compromisos": META_COMPROMISOS,
                 "Meta recuperación":
-                    formato_bs(META_RECUPERACION),
+                    formato_bs(st.session_state.meta_recuperacion_cfg),
             }
         )
 
@@ -2030,59 +2125,387 @@ elif menu == "👥 Equipo":
 
 elif menu == "⚙️ Configuración":
 
-    st.subheader("Configuración")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.number_input(
-            "Meta mensual de gestiones",
-            min_value=0,
-            value=META_GESTIONES,
-            disabled=True,
-        )
-
-    with col2:
-        st.number_input(
-            "Meta mensual de compromisos",
-            min_value=0,
-            value=META_COMPROMISOS,
-            disabled=True,
-        )
-
-    with col3:
-        st.number_input(
-            "Meta mensual de recuperación por operador (Bs)",
-            min_value=0,
-            value=META_RECUPERACION,
-            disabled=True,
-        )
-
-    st.markdown("### Regla de objetivo diario")
-
-    st.info(
-        f"Gestiones: faltante mensual ÷ jornadas disponibles. "
-        f"Compromisos: se mantiene un mínimo de "
-        f"{META_DIARIA_COMPROMISOS} por día mientras la meta mensual "
-        f"no esté cumplida."
+    st.subheader("⚙️ Configuración y metas")
+    st.caption(
+        "Administración de metas y calendario operativo."
     )
 
-    st.markdown("### Regla de recuperación")
+    # -----------------------------------------------------
+    # ACCESO SOLO COORDINADOR
+    # -----------------------------------------------------
 
-    st.success(
-        """
-        **Regla oficial actual**
+    if not st.session_state.config_desbloqueada:
 
-        1. Tomar el monto de Compromisos Cumplidos en $ de
-        **Sin usuario**.
-        2. Dividirlo entre **8 operadores**.
-        3. Sumar ese valor a la recuperación individual.
-        4. Dividir el total obtenido entre **Bs 170.400**.
-        5. Mostrar el resultado principal en **porcentaje (%)**.
-        """
-    )
+        st.info(
+            "La configuración está protegida. "
+            "Ingresa la clave de administrador para modificarla."
+        )
 
-    st.warning(
-        "Esta lógica está definida como regla fija del sistema "
-        "y no debe modificarse sin autorización."
-    )
+        clave = st.text_input(
+            "Clave de administrador",
+            type="password",
+            key="clave_admin_input",
+        )
+
+        if st.button(
+            "Desbloquear configuración",
+            type="primary",
+        ):
+            try:
+                clave_correcta = st.secrets[
+                    "ADMIN_PASSWORD"
+                ]
+            except Exception:
+                clave_correcta = "GEN2026"
+
+            if clave == clave_correcta:
+                st.session_state.config_desbloqueada = True
+                st.success(
+                    "Configuración desbloqueada."
+                )
+                st.rerun()
+            else:
+                st.error(
+                    "Clave incorrecta."
+                )
+
+    else:
+
+        col_logout, _ = st.columns([1, 4])
+
+        with col_logout:
+            if st.button("🔒 Bloquear"):
+                st.session_state.config_desbloqueada = False
+                st.rerun()
+
+        # -------------------------------------------------
+        # METAS
+        # -------------------------------------------------
+
+        st.markdown("### Metas mensuales")
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            nueva_meta_g = st.number_input(
+                "Meta mensual de gestiones",
+                min_value=1,
+                value=int(
+                    st.session_state.meta_gestiones_cfg
+                ),
+                step=50,
+            )
+
+        with c2:
+            nueva_meta_c = st.number_input(
+                "Meta mensual de compromisos",
+                min_value=1,
+                value=int(
+                    st.session_state.meta_compromisos_cfg
+                ),
+                step=10,
+            )
+
+        with c3:
+            nueva_meta_r = st.number_input(
+                "Meta mensual de recuperación por operador (Bs)",
+                min_value=1,
+                value=int(
+                    st.session_state.meta_recuperacion_cfg
+                ),
+                step=1000,
+            )
+
+        nueva_meta_diaria_c = st.number_input(
+            "Mínimo diario de compromisos",
+            min_value=0,
+            value=int(
+                st.session_state.meta_diaria_compromisos_cfg
+            ),
+            step=1,
+        )
+
+        if st.button(
+            "💾 Guardar metas",
+            type="primary",
+        ):
+            st.session_state.meta_gestiones_cfg = int(
+                nueva_meta_g
+            )
+            st.session_state.meta_compromisos_cfg = int(
+                nueva_meta_c
+            )
+            st.session_state.meta_recuperacion_cfg = float(
+                nueva_meta_r
+            )
+            st.session_state.meta_diaria_compromisos_cfg = int(
+                nueva_meta_diaria_c
+            )
+
+            st.success(
+                "Metas actualizadas correctamente."
+            )
+
+        st.divider()
+
+        # -------------------------------------------------
+        # CALENDARIO OPERATIVO
+        # -------------------------------------------------
+
+        st.markdown("### 📅 Calendario operativo")
+        st.caption(
+            "Marca los días que realmente cuentan como jornada laboral. "
+            "Esto modifica automáticamente la meta diaria necesaria."
+        )
+
+        hoy = fecha_local_actual()
+
+        meses = {
+            1: "Enero",
+            2: "Febrero",
+            3: "Marzo",
+            4: "Abril",
+            5: "Mayo",
+            6: "Junio",
+            7: "Julio",
+            8: "Agosto",
+            9: "Septiembre",
+            10: "Octubre",
+            11: "Noviembre",
+            12: "Diciembre",
+        }
+
+        col_mes, col_anio = st.columns(2)
+
+        with col_mes:
+            mes_sel = st.selectbox(
+                "Mes",
+                options=list(meses.keys()),
+                format_func=lambda m: meses[m],
+                index=hoy.month - 1,
+            )
+
+        with col_anio:
+            anio_sel = st.number_input(
+                "Año",
+                min_value=2024,
+                max_value=2035,
+                value=hoy.year,
+                step=1,
+            )
+
+        fecha_mes = date(
+            int(anio_sel),
+            int(mes_sel),
+            1,
+        )
+
+        clave_mes = inicializar_calendario_mes(
+            fecha_mes
+        )
+
+        calendario_mes = st.session_state.calendario_laboral[
+            clave_mes
+        ]
+
+        dias_mes = calendar.monthrange(
+            int(anio_sel),
+            int(mes_sel),
+        )[1]
+
+        nombres_dia = [
+            "Lun",
+            "Mar",
+            "Mié",
+            "Jue",
+            "Vie",
+            "Sáb",
+            "Dom",
+        ]
+
+        st.markdown(
+            "**Selecciona/deselecciona los días laborales:**"
+        )
+
+        for semana_inicio in range(1, dias_mes + 1, 7):
+            columnas = st.columns(7)
+
+            for offset in range(7):
+                dia = semana_inicio + offset
+
+                if dia > dias_mes:
+                    continue
+
+                fecha_dia = date(
+                    int(anio_sel),
+                    int(mes_sel),
+                    dia,
+                )
+
+                with columnas[offset]:
+                    valor = st.checkbox(
+                        f"{nombres_dia[fecha_dia.weekday()]} {dia}",
+                        value=calendario_mes.get(
+                            dia,
+                            fecha_dia.weekday() != 6,
+                        ),
+                        key=(
+                            f"cal_{anio_sel}_{mes_sel}_{dia}"
+                        ),
+                    )
+
+                    calendario_mes[dia] = valor
+
+        # -------------------------------------------------
+        # CÁLCULO DE META DIARIA
+        # -------------------------------------------------
+
+        st.divider()
+        st.markdown("### Meta diaria necesaria")
+
+        fecha_calculo = (
+            hoy
+            if (
+                int(anio_sel) == hoy.year
+                and int(mes_sel) == hoy.month
+            )
+            else fecha_mes
+        )
+
+        jornadas = jornadas_configuradas(
+            fecha_calculo
+        )
+
+        resultado = st.session_state.resultado_operadores
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.metric(
+                "Jornadas laborales del mes",
+                jornadas["total"],
+            )
+
+        with c2:
+            st.metric(
+                "Jornadas transcurridas",
+                jornadas["transcurridas"],
+            )
+
+        with c3:
+            st.metric(
+                "Jornadas disponibles",
+                jornadas["disponibles"],
+            )
+
+        if resultado is not None and not resultado.empty:
+
+            promedio_g = float(
+                resultado["Gestiones"].mean()
+            )
+            promedio_c = float(
+                resultado["Compromisos"].mean()
+            )
+            promedio_r = float(
+                resultado["Recuperación acumulada"].mean()
+            )
+
+            faltante_g = max(
+                st.session_state.meta_gestiones_cfg
+                - promedio_g,
+                0,
+            )
+
+            faltante_c = max(
+                st.session_state.meta_compromisos_cfg
+                - promedio_c,
+                0,
+            )
+
+            faltante_r = max(
+                st.session_state.meta_recuperacion_cfg
+                - promedio_r,
+                0,
+            )
+
+            disponibles = max(
+                jornadas["disponibles"],
+                1,
+            )
+
+            meta_diaria_g = math.ceil(
+                faltante_g / disponibles
+            )
+
+            meta_diaria_c = max(
+                st.session_state.meta_diaria_compromisos_cfg,
+                math.ceil(
+                    faltante_c / disponibles
+                ),
+            ) if faltante_c > 0 else 0
+
+            meta_diaria_r = (
+                faltante_r / disponibles
+            )
+
+            d1, d2, d3 = st.columns(3)
+
+            with d1:
+                st.metric(
+                    "Gestiones necesarias por día",
+                    formato_entero(
+                        meta_diaria_g
+                    ),
+                )
+
+            with d2:
+                st.metric(
+                    "Compromisos necesarios por día",
+                    formato_entero(
+                        meta_diaria_c
+                    ),
+                )
+
+            with d3:
+                st.metric(
+                    "Recuperación necesaria por día",
+                    formato_bs(
+                        meta_diaria_r
+                    ),
+                )
+
+            st.caption(
+                "La meta diaria se recalcula automáticamente "
+                "según el avance acumulado y los días laborales pendientes."
+            )
+
+        else:
+            st.info(
+                "Carga el reporte de Promesas de Pago para calcular "
+                "la meta diaria real según el avance acumulado."
+            )
+
+        st.divider()
+
+        # -------------------------------------------------
+        # REGLA DE RECUPERACIÓN
+        # -------------------------------------------------
+
+        st.markdown("### Regla de recuperación")
+
+        st.success(
+            "Recuperación ajustada = recuperación individual "
+            "+ (monto Sin usuario ÷ 8 operadores)."
+        )
+
+        st.info(
+            "El porcentaje se calcula contra la meta mensual "
+            "de recuperación definida arriba."
+        )
+
+        st.warning(
+            "La fórmula de distribución Sin usuario ÷ 8 "
+            "se mantiene fija para evitar errores."
+        )
+
+
