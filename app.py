@@ -26,7 +26,7 @@ CANTIDAD_OPERADORES = 8
 
 
 OPERADORES = {
-    "apena": {
+    "avargas": {
         "nombre": "Aracely Peña Vargas",
         "correo": "apena@gestionia.bo",
     },
@@ -38,7 +38,7 @@ OPERADORES = {
         "nombre": "James Abel Borja Chirinos",
         "correo": "jborja@gestionia.bo",
     },
-    "lrodriguez": {
+    "arodriguez": {
         "nombre": "Leen Alisson Rodriguez Espinoza",
         "correo": "lrodriguez@gestionia.bo",
     },
@@ -410,11 +410,11 @@ def procesar_promesas(df):
 
     for usuario, datos in OPERADORES.items():
 
-        mascara = df["_usuario_norm"].apply(
-            lambda x: usuario in x
-        )
+    usuario_norm = normalizar_texto(usuario)
 
-        fila_operador = df[mascara]
+    mascara = df["_usuario_norm"] == usuario_norm
+
+    fila_operador = df[mascara]
 
         if fila_operador.empty:
 
