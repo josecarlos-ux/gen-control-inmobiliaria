@@ -8,6 +8,8 @@ from io import BytesIO
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
+from io import BytesIO
+import matplotlib.pyplot as plt
 from supabase import create_client
 
 
@@ -2381,6 +2383,30 @@ elif menu == "✉️ Mensajes diarios":
             tabla_compartir,
             use_container_width=True,
             hide_index=True,
+        )
+
+        # Imagen ejecutiva lista para correo o WhatsApp.
+        imagen_recuperacion = generar_imagen_avance_recuperacion(
+            tabla_general,
+            fecha_local_actual(),
+            meta_individual,
+        )
+
+        st.image(
+            imagen_recuperacion,
+            caption="Vista previa de la imagen para compartir",
+            use_container_width=True,
+        )
+
+        st.download_button(
+            "🖼️ Descargar imagen de recuperación",
+            data=imagen_recuperacion,
+            file_name=(
+                f"avance_recuperacion_"
+                f"{fecha_local_actual().isoformat()}.png"
+            ),
+            mime="image/png",
+            use_container_width=True,
         )
 
         # Correo general oficial de Cobranzas:
