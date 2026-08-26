@@ -410,11 +410,11 @@ def procesar_promesas(df):
 
     for usuario, datos in OPERADORES.items():
 
-    usuario_norm = normalizar_texto(usuario)
+        usuario_norm = normalizar_texto(usuario)
 
-    mascara = df["_usuario_norm"] == usuario_norm
+        mascara = df["_usuario_norm"] == usuario_norm
 
-    fila_operador = df[mascara]
+        fila_operador = df[mascara]
 
         if fila_operador.empty:
 
