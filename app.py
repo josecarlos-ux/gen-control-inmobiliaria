@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 import re
 import unicodedata
+import math
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+from urllib.parse import quote
 
 
 # =========================================================
@@ -15,6 +18,7 @@ APP_SUBTITLE = "Cobranzas Inmobiliarias"
 
 META_GESTIONES = 2400
 META_COMPROMISOS = 600
+META_DIARIA_COMPROMISOS = 25
 
 # =========================================================
 # REGLA DEFINITIVA DE RECUPERACIÓN
@@ -28,34 +32,42 @@ CANTIDAD_OPERADORES = 8
 OPERADORES = {
     "avargas": {
         "nombre": "Aracely Peña Vargas",
+        "nombre_mensaje": "Aracely",
         "correo": "apena@gestionia.bo",
     },
     "cvaca": {
         "nombre": "Carla Fernanda Vaca Cespedes",
+        "nombre_mensaje": "Carla",
         "correo": "cvaca@gestionia.bo",
     },
     "jborja": {
         "nombre": "James Abel Borja Chirinos",
+        "nombre_mensaje": "James",
         "correo": "jborja@gestionia.bo",
     },
     "arodriguez": {
         "nombre": "Leen Alisson Rodriguez Espinoza",
+        "nombre_mensaje": "Leen",
         "correo": "lrodriguez@gestionia.bo",
     },
     "malvarez": {
         "nombre": "Mirla Anahir Alvarez",
+        "nombre_mensaje": "Anahir",
         "correo": "malvarez@gestionia.bo",
     },
     "projas": {
         "nombre": "Percy Daniel Rojas Ortega",
+        "nombre_mensaje": "Percy",
         "correo": "projas@gestionia.bo",
     },
     "yarinez": {
         "nombre": "Yanine Ariñez Rivero",
+        "nombre_mensaje": "Yanine",
         "correo": "yarinez@gestionia.bo",
     },
     "yrivas": {
         "nombre": "Yessica Rivas Blanco",
+        "nombre_mensaje": "Yessica",
         "correo": "yrivas@gestionia.bo",
     },
 }
@@ -181,6 +193,247 @@ def buscar_columna(df, palabras):
             return col_original
 
     return None
+
+
+# =========================================================
+# CALENDARIO Y MENSAJES
+# =========================================================
+
+def fecha_local_actual():
+    return datetime.now(ZoneInfo("America/La_Paz")).date()
+
+
+def es_jornada_laboral(fecha):
+    # Regla actual: lunes a sábado. Domingo no cuenta.
+    return fecha.weekday() != 6
+
+
+def jornadas_mes(fecha_ref):
+    primer_dia = fecha_ref.replace(day=1)
+    if fecha_ref.month == 12:
+        siguiente_mes = fecha_ref.replace(
+            year=fecha_ref.year + 1,
+            month=1,
+            day=1,
+        )
+    else:
+        siguiente_mes = fecha_ref.replace(
+            month=fecha_ref.month + 1,
+            day=1,
+        )
+
+    ultimo_dia = siguiente_mes - timedelta(days=1)
+
+    dias = []
+    actual = primer_dia
+
+    while actual <= ultimo_dia:
+        if es_jornada_laboral(actual):
+            dias.append(actual)
+        actual += timedelta(days=1)
+
+    return dias
+
+
+def calcular_jornadas(fecha_ref=None):
+    fecha_ref = fecha_ref or fecha_local_actual()
+    dias = jornadas_mes(fecha_ref)
+
+    transcurridas = len(
+        [d for d in dias if d <= fecha_ref]
+    )
+
+    disponibles = len(
+        [d for d in dias if d >= fecha_ref]
+    )
+
+    return {
+        "total": len(dias),
+        "transcurridas": transcurridas,
+        "disponibles": disponibles,
+        "esperado_pct": (
+            transcurridas / len(dias) * 100
+            if dias
+            else 0
+        ),
+    }
+
+
+def objetivo_hoy_gestiones(acumulado, jornadas_disponibles):
+    faltante = max(META_GESTIONES - acumulado, 0)
+
+    if faltante <= 0:
+        return 0
+
+    if jornadas_disponibles <= 0:
+        return int(math.ceil(faltante))
+
+    return int(
+        math.ceil(faltante / jornadas_disponibles)
+    )
+
+
+def objetivo_hoy_compromisos(acumulado, jornadas_disponibles):
+    faltante = max(META_COMPROMISOS - acumulado, 0)
+
+    if faltante <= 0:
+        return 0
+
+    if jornadas_disponibles <= 0:
+        return int(math.ceil(faltante))
+
+    recuperacion_diaria = int(
+        math.ceil(faltante / jornadas_disponibles)
+    )
+
+    # Regla operativa: mantener al menos 25 compromisos diarios
+    # mientras la meta mensual aún no esté cumplida.
+    return max(
+        META_DIARIA_COMPROMISOS,
+        recuperacion_diaria,
+    )
+
+
+def clasificar_avance(porcentaje, esperado):
+    if porcentaje >= 100:
+        return "Meta cumplida"
+    if porcentaje >= esperado + 5:
+        return "Excelente avance"
+    if porcentaje >= esperado - 3:
+        return "Buen avance"
+    if porcentaje >= esperado - 10:
+        return "En seguimiento"
+    return "Reforzar"
+
+
+def generar_mensaje_diario(fila, jornadas_info):
+    usuario = fila["Usuario"]
+    datos = OPERADORES.get(usuario, {})
+    nombre = datos.get(
+        "nombre_mensaje",
+        fila["Operador"].split()[0],
+    )
+
+    gestiones = int(fila["Gestiones"])
+    compromisos = int(fila["Compromisos"])
+    recuperacion = float(fila["Recuperación acumulada"])
+    pct_recuperacion = float(fila["% Recuperación"])
+
+    disponibles = jornadas_info["disponibles"]
+    esperado = jornadas_info["esperado_pct"]
+
+    objetivo_g = objetivo_hoy_gestiones(
+        gestiones,
+        disponibles,
+    )
+    objetivo_c = objetivo_hoy_compromisos(
+        compromisos,
+        disponibles,
+    )
+
+    faltante_rec = max(
+        META_RECUPERACION - recuperacion,
+        0,
+    )
+
+    pct_g = float(fila["% Gestiones"])
+    pct_c = float(fila["% Compromisos"])
+
+    brechas = {
+        "gestiones": esperado - pct_g,
+        "compromisos": esperado - pct_c,
+        "recuperación": esperado - pct_recuperacion,
+    }
+
+    principal = max(
+        brechas,
+        key=brechas.get,
+    )
+
+    if (
+        pct_g >= esperado
+        and pct_c >= esperado
+        and pct_recuperacion >= esperado
+    ):
+        cierre = (
+            "Muy buen avance. Mantengamos el ritmo diario "
+            "para asegurar el cumplimiento mensual."
+        )
+    elif principal == "gestiones":
+        cierre = (
+            "Enfoquémonos hoy en reducir la brecha de gestiones "
+            "sin bajar el ritmo en los demás indicadores."
+        )
+    elif principal == "compromisos":
+        cierre = (
+            "Hoy reforcemos especialmente la generación de "
+            "compromisos para recuperar la brecha."
+        )
+    else:
+        cierre = (
+            "Hoy reforcemos la recuperación para acercarnos "
+            "a la meta mensual."
+        )
+
+    linea_g = (
+        f"🔹 Gestiones: {formato_entero(gestiones)} acumuladas"
+    )
+    if objetivo_g > 0:
+        linea_g += (
+            f" | realizar {formato_entero(objetivo_g)} hoy"
+        )
+    else:
+        linea_g += " | meta mensual cumplida"
+
+    linea_c = (
+        f"🔹 Compromisos: {formato_entero(compromisos)} acumulados"
+    )
+    if objetivo_c > 0:
+        linea_c += (
+            f" | generar {formato_entero(objetivo_c)} hoy"
+        )
+    else:
+        linea_c += " | meta mensual cumplida"
+
+    if faltante_rec > 0:
+        linea_r = (
+            f"🔹 Recuperación: {formato_porcentaje(pct_recuperacion)} "
+            f"| {formato_bs(recuperacion)} acumulados "
+            f"| faltan {formato_bs(faltante_rec)}"
+        )
+    else:
+        linea_r = (
+            f"🔹 Recuperación: {formato_porcentaje(pct_recuperacion)} "
+            f"| meta de {formato_bs(META_RECUPERACION)} cumplida"
+        )
+
+    mensaje = (
+        f"Buenos días, {nombre}. 👋\n\n"
+        f"Para mantenernos encaminados a las metas del mes, hoy necesitamos:\n\n"
+        f"{linea_g}\n"
+        f"{linea_c}\n"
+        f"{linea_r}\n\n"
+        f"{cierre} ¡Vamos con todo! 💪"
+    )
+
+    return {
+        "mensaje": mensaje,
+        "objetivo_gestiones": objetivo_g,
+        "objetivo_compromisos": objetivo_c,
+        "faltante_recuperacion": faltante_rec,
+        "estado_gestiones": clasificar_avance(
+            pct_g,
+            esperado,
+        ),
+        "estado_compromisos": clasificar_avance(
+            pct_c,
+            esperado,
+        ),
+        "estado_recuperacion": clasificar_avance(
+            pct_recuperacion,
+            esperado,
+        ),
+    }
 
 
 # =========================================================
@@ -641,7 +894,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    fecha_actual = datetime.now().strftime("%d/%m/%Y")
+    fecha_actual = fecha_local_actual().strftime("%d/%m/%Y")
 
     st.success(
         f"● Datos actualizados\n\n{fecha_actual}"
@@ -1029,17 +1282,50 @@ elif menu == "✉️ Mensajes diarios":
 
     st.subheader("Metas de cierre para hoy")
 
+    jornadas_info = calcular_jornadas()
+
+    st.caption(
+        f"{jornadas_info['disponibles']} jornadas disponibles "
+        "contando hoy · lunes a sábado"
+    )
+
     resultado = st.session_state.resultado_operadores
 
     if resultado is None:
-
         st.warning(
             "Primero carga el reporte de Promesas de Pago."
         )
 
     else:
+        col_a, col_b, col_c = st.columns(3)
+
+        with col_a:
+            st.metric(
+                "Jornadas del mes",
+                jornadas_info["total"],
+            )
+
+        with col_b:
+            st.metric(
+                "Jornadas transcurridas",
+                jornadas_info["transcurridas"],
+            )
+
+        with col_c:
+            st.metric(
+                "Avance esperado a la fecha",
+                formato_porcentaje(
+                    jornadas_info["esperado_pct"]
+                ),
+            )
+
+        st.write("")
 
         for _, fila in resultado.iterrows():
+            calculo = generar_mensaje_diario(
+                fila,
+                jornadas_info,
+            )
 
             with st.container(border=True):
 
@@ -1054,19 +1340,20 @@ elif menu == "✉️ Mensajes diarios":
                     st.caption(fila["Correo"])
 
                 with col_estado:
-
-                    porcentaje = fila[
-                        "% Recuperación"
+                    estados = [
+                        calculo["estado_gestiones"],
+                        calculo["estado_compromisos"],
+                        calculo["estado_recuperacion"],
                     ]
 
-                    if porcentaje >= 100:
-                        st.success("Meta cumplida")
-                    elif porcentaje >= 80:
-                        st.info("Buen avance")
-                    elif porcentaje >= 60:
-                        st.warning("En seguimiento")
-                    else:
+                    if "Reforzar" in estados:
                         st.error("Reforzar")
+                    elif "En seguimiento" in estados:
+                        st.warning("En seguimiento")
+                    elif "Buen avance" in estados:
+                        st.info("Buen avance")
+                    else:
+                        st.success("Excelente avance")
 
                 c1, c2, c3 = st.columns(3)
 
@@ -1076,8 +1363,10 @@ elif menu == "✉️ Mensajes diarios":
                         formato_entero(
                             fila["Gestiones"]
                         ),
-                        formato_porcentaje(
-                            fila["% Gestiones"]
+                        (
+                            f"Hoy: {formato_entero(calculo['objetivo_gestiones'])}"
+                            if calculo["objetivo_gestiones"] > 0
+                            else "Meta cumplida"
                         ),
                     )
 
@@ -1087,8 +1376,10 @@ elif menu == "✉️ Mensajes diarios":
                         formato_entero(
                             fila["Compromisos"]
                         ),
-                        formato_porcentaje(
-                            fila["% Compromisos"]
+                        (
+                            f"Hoy: {formato_entero(calculo['objetivo_compromisos'])}"
+                            if calculo["objetivo_compromisos"] > 0
+                            else "Meta cumplida"
                         ),
                     )
 
@@ -1102,6 +1393,42 @@ elif menu == "✉️ Mensajes diarios":
                             f"{formato_bs(fila['Recuperación acumulada'])} "
                             f"de {formato_bs(META_RECUPERACION)}"
                         ),
+                    )
+
+                st.markdown("**Mensaje sugerido**")
+
+                st.code(
+                    calculo["mensaje"],
+                    language=None,
+                )
+
+                asunto = quote(
+                    "Seguimiento diario de metas"
+                )
+                cuerpo = quote(
+                    calculo["mensaje"]
+                )
+
+                mailto = (
+                    f"mailto:{fila['Correo']}"
+                    f"?subject={asunto}"
+                    f"&body={cuerpo}"
+                )
+
+                col_mail, col_whatsapp = st.columns(2)
+
+                with col_mail:
+                    st.link_button(
+                        "✉️ Enviar por correo",
+                        mailto,
+                        use_container_width=True,
+                    )
+
+                with col_whatsapp:
+                    st.link_button(
+                        "💬 Abrir WhatsApp Web",
+                        "https://web.whatsapp.com/",
+                        use_container_width=True,
                     )
 
 
@@ -1368,6 +1695,15 @@ elif menu == "⚙️ Configuración":
             value=META_RECUPERACION,
             disabled=True,
         )
+
+    st.markdown("### Regla de objetivo diario")
+
+    st.info(
+        f"Gestiones: faltante mensual ÷ jornadas disponibles. "
+        f"Compromisos: se mantiene un mínimo de "
+        f"{META_DIARIA_COMPROMISOS} por día mientras la meta mensual "
+        f"no esté cumplida."
+    )
 
     st.markdown("### Regla de recuperación")
 
