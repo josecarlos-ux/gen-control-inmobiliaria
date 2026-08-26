@@ -534,6 +534,9 @@ if "distribucion_sin_usuario" not in st.session_state:
 if "archivos_cargados" not in st.session_state:
     st.session_state.archivos_cargados = []
 
+if "callcenter_df" not in st.session_state:
+    st.session_state.callcenter_df = None
+
 
 # =========================================================
 # ESTILO
@@ -796,11 +799,226 @@ if menu == "🏠 Resumen":
 elif menu == "📊 Comportamiento diario":
 
     st.subheader("Comportamiento diario")
-
-    st.info(
-        "En la siguiente fase incorporaremos "
-        "la evolución diaria por operador y fecha."
+    st.caption(
+        "Evolución real de gestiones y compromisos a partir del reporte GEN CallCenter."
     )
+
+    callcenter = st.session_state.callcenter_df
+
+    if callcenter is None or callcenter.empty:
+        st.warning(
+            "Primero carga el reporte GEN CallCenter desde la sección Cargar reportes."
+        )
+
+    else:
+        df_cc = callcenter.copy()
+
+        df_cc["Fecha_dt"] = pd.to_datetime(
+            df_cc["Fecha"],
+            dayfirst=True,
+            errors="coerce",
+        )
+        df_cc = df_cc.dropna(subset=["Fecha_dt"])
+        df_cc["Fecha_dia"] = df_cc["Fecha_dt"].dt.date
+
+        usuarios_oficiales = list(OPERADORES.keys())
+        df_cc["_usuario_norm"] = (
+            df_cc["Usuario"]
+            .astype(str)
+            .apply(normalizar_texto)
+        )
+
+        df_cc = df_cc[
+            df_cc["_usuario_norm"].isin(usuarios_oficiales)
+        ].copy()
+
+        if df_cc.empty:
+            st.warning(
+                "El archivo fue leído, pero no se encontraron registros de los 8 operadores oficiales."
+            )
+        else:
+            fecha_min = df_cc["Fecha_dia"].min()
+            fecha_max = df_cc["Fecha_dia"].max()
+
+            col_f1, col_f2 = st.columns([2, 1])
+
+            with col_f1:
+                rango = st.date_input(
+                    "Rango de fechas",
+                    value=(fecha_min, fecha_max),
+                    min_value=fecha_min,
+                    max_value=fecha_max,
+                )
+
+            with col_f2:
+                opciones_operadores = ["Todos"] + [
+                    datos["nombre"]
+                    for datos in OPERADORES.values()
+                ]
+
+                operador_sel = st.selectbox(
+                    "Operador",
+                    opciones_operadores,
+                )
+
+            if isinstance(rango, tuple) and len(rango) == 2:
+                inicio, fin = rango
+            else:
+                inicio = fin = rango
+
+            filtrado = df_cc[
+                (df_cc["Fecha_dia"] >= inicio)
+                & (df_cc["Fecha_dia"] <= fin)
+            ].copy()
+
+            if operador_sel != "Todos":
+                usuario_sel = next(
+                    usuario
+                    for usuario, datos in OPERADORES.items()
+                    if datos["nombre"] == operador_sel
+                )
+
+                filtrado = filtrado[
+                    filtrado["_usuario_norm"] == usuario_sel
+                ].copy()
+
+            filtrado["_tiene_compromiso"] = (
+                filtrado["Compromiso"].notna()
+                & (filtrado["Compromiso"].astype(str).str.strip() != "")
+                & (filtrado["Compromiso"].astype(str).str.lower() != "nan")
+            )
+
+            total_gestiones = len(filtrado)
+            total_compromisos = int(filtrado["_tiene_compromiso"].sum())
+            dias_con_gestion = int(filtrado["Fecha_dia"].nunique())
+
+            promedio_gestiones = (
+                total_gestiones / dias_con_gestion
+                if dias_con_gestion
+                else 0
+            )
+
+            promedio_compromisos = (
+                total_compromisos / dias_con_gestion
+                if dias_con_gestion
+                else 0
+            )
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            with c1:
+                st.metric(
+                    "Gestiones",
+                    formato_entero(total_gestiones),
+                )
+
+            with c2:
+                st.metric(
+                    "Compromisos",
+                    formato_entero(total_compromisos),
+                )
+
+            with c3:
+                st.metric(
+                    "Promedio gestiones/día",
+                    formato_entero(promedio_gestiones),
+                )
+
+            with c4:
+                st.metric(
+                    "Promedio compromisos/día",
+                    formato_entero(promedio_compromisos),
+                )
+
+            st.write("")
+            st.markdown("### Evolución por día")
+
+            diario = (
+                filtrado
+                .groupby("Fecha_dia")
+                .agg(
+                    Gestiones=("Fecha_dia", "size"),
+                    Compromisos=("_tiene_compromiso", "sum"),
+                )
+                .reset_index()
+                .sort_values("Fecha_dia")
+            )
+
+            diario["Compromisos"] = diario["Compromisos"].astype(int)
+
+            st.line_chart(
+                diario.set_index("Fecha_dia")[["Gestiones", "Compromisos"]],
+                use_container_width=True,
+            )
+
+            st.markdown("### Detalle diario")
+
+            st.dataframe(
+                diario,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            if operador_sel == "Todos":
+                st.markdown("### Avance acumulado por operador")
+
+                resumen_operador = (
+                    filtrado
+                    .groupby("_usuario_norm")
+                    .agg(
+                        Gestiones=("Fecha_dia", "size"),
+                        Compromisos=("_tiene_compromiso", "sum"),
+                    )
+                    .reset_index()
+                )
+
+                nombres = {
+                    usuario: datos["nombre"]
+                    for usuario, datos in OPERADORES.items()
+                }
+
+                resumen_operador["Operador"] = resumen_operador[
+                    "_usuario_norm"
+                ].map(nombres)
+
+                resumen_operador["% Gestiones"] = (
+                    resumen_operador["Gestiones"]
+                    / META_GESTIONES
+                    * 100
+                )
+
+                resumen_operador["% Compromisos"] = (
+                    resumen_operador["Compromisos"]
+                    / META_COMPROMISOS
+                    * 100
+                )
+
+                resumen_operador = resumen_operador[
+                    [
+                        "Operador",
+                        "Gestiones",
+                        "% Gestiones",
+                        "Compromisos",
+                        "% Compromisos",
+                    ]
+                ].sort_values(
+                    "Gestiones",
+                    ascending=False,
+                )
+
+                resumen_operador["% Gestiones"] = resumen_operador[
+                    "% Gestiones"
+                ].apply(formato_porcentaje)
+
+                resumen_operador["% Compromisos"] = resumen_operador[
+                    "% Compromisos"
+                ].apply(formato_porcentaje)
+
+                st.dataframe(
+                    resumen_operador,
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
 
 # =========================================================
@@ -956,6 +1174,16 @@ elif menu == "📥 Cargar reportes":
                         distribucion
                     )
 
+                elif tipo == "CALLCENTER":
+                    st.session_state.callcenter_df = df.copy()
+
+                # =========================================
+                # CALLCENTER
+                # =========================================
+
+                elif tipo == "CALLCENTER":
+                    st.session_state.callcenter_df = df.copy()
+
             except Exception as e:
 
                 resumen_cargas.append(
@@ -976,6 +1204,18 @@ elif menu == "📥 Cargar reportes":
             use_container_width=True,
             hide_index=True,
         )
+
+        if st.session_state.callcenter_df is not None:
+            st.success(
+                "Reporte GEN CallCenter cargado correctamente. "
+                "Ya puedes revisar Comportamiento diario."
+            )
+
+        if st.session_state.callcenter_df is not None:
+            st.success(
+                "Reporte GEN CallCenter cargado correctamente. "
+                "Ya puedes revisar Comportamiento diario."
+            )
 
         resultado = st.session_state.resultado_operadores
 
