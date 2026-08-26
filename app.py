@@ -2383,29 +2383,23 @@ elif menu == "✉️ Mensajes diarios":
             hide_index=True,
         )
 
-        correos_generales = [
-            str(c).strip()
-            for c in resultado["Correo"].tolist()
-            if str(c).strip()
-        ]
+        # Correo general oficial de Cobranzas:
+        # engloba a todo el equipo.
+        correo_general_cobranzas = "cobranza@gestiona.bo"
 
         cg1, cg2, cg3 = st.columns(3)
 
         with cg1:
-            if correos_generales:
-                bcc_general = ",".join(
-                    sorted(set(correos_generales))
-                )
-                mailto_general = (
-                    f"mailto:?bcc={quote(bcc_general)}"
-                    f"&subject={quote('Avance de recuperación')}"
-                    f"&body={quote(mensaje_general)}"
-                )
-                st.link_button(
-                    "✉️ Enviar correo general",
-                    mailto_general,
-                    use_container_width=True,
-                )
+            mailto_general = (
+                f"mailto:{correo_general_cobranzas}"
+                f"?subject={quote('Avance de recuperación')}"
+                f"&body={quote(mensaje_general)}"
+            )
+            st.link_button(
+                "✉️ Enviar correo general",
+                mailto_general,
+                use_container_width=True,
+            )
 
         with cg2:
             texto_tabla = tabla_compartir.to_string(
