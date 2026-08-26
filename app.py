@@ -1045,8 +1045,8 @@ def generar_imagen_avance_recuperacion(
     meta_individual,
 ):
     """
-    Genera una imagen PNG lista para compartir por correo o WhatsApp.
-    No guarda archivos temporales en disco: devuelve BytesIO.
+    Genera una imagen PNG compacta y legible para pegar directamente
+    en Outlook o WhatsApp.
     """
     tabla = tabla_general.copy()
 
@@ -1055,10 +1055,12 @@ def generar_imagen_avance_recuperacion(
         "Recuperación acumulada",
         "% Recuperación",
     ]
+
     faltantes = [
         c for c in columnas_requeridas
         if c not in tabla.columns
     ]
+
     if faltantes:
         raise ValueError(
             "No se puede generar la imagen. Faltan columnas: "
@@ -1074,61 +1076,90 @@ def generar_imagen_avance_recuperacion(
     total_equipo = float(
         tabla["Recuperación acumulada"].sum()
     )
+
     meta_equipo = float(meta_individual) * len(tabla)
+
     pct_equipo = (
         total_equipo / meta_equipo * 100
         if meta_equipo
         else 0
     )
 
-    # Altura dinámica para evitar cortes.
-    fig_h = max(4.8, 2.8 + len(tabla) * 0.38)
-    fig, ax = plt.subplots(figsize=(7.5, fig_h))
+    falta_equipo = max(
+        meta_equipo - total_equipo,
+        0,
+    )
+
+    # Imagen pensada para correo: aprox. 820 px de ancho.
+    fig, ax = plt.subplots(
+        figsize=(7.4, 5.6),
+        dpi=110,
+    )
     ax.axis("off")
 
     titulo = (
-        f"AVANCE DE RECUPERACIÓN — "
+        f"AVANCE DE RECUPERACIÓN · "
         f"{fecha_reporte.strftime('%d/%m/%Y')}"
-    )
-    subtitulo = (
-        f"Meta mensual por operador: {formato_bs(meta_individual)}"
     )
 
     fig.text(
-        0.05, 0.955, titulo,
+        0.04,
+        0.955,
+        titulo,
         fontsize=15,
         fontweight="bold",
         ha="left",
         va="top",
     )
+
     fig.text(
-        0.05, 0.91, subtitulo,
-        fontsize=10,
+        0.04,
+        0.915,
+        (
+            f"Meta mensual por operador: "
+            f"{formato_usd(meta_individual)}"
+        ),
+        fontsize=9.5,
         ha="left",
         va="top",
     )
 
-    resumen = (
-        f"Recuperación equipo: {formato_usd(total_equipo)}     "
-        f"Cumplimiento: {formato_porcentaje(pct_equipo)}     "
-        f"Meta equipo: {formato_usd(meta_equipo)}"
-    )
     fig.text(
-        0.05, 0.865, resumen,
+        0.04,
+        0.875,
+        (
+            f"Equipo: {formato_usd(total_equipo)}   ·   "
+            f"Cumplimiento: {formato_porcentaje(pct_equipo)}   ·   "
+            f"Falta: {formato_usd(falta_equipo)}"
+        ),
         fontsize=9.5,
         fontweight="bold",
         ha="left",
         va="top",
     )
 
+    # Nombres más compactos para que nunca se corten.
+    def nombre_corto(nombre):
+        partes = str(nombre).split()
+
+        if len(partes) <= 2:
+            return str(nombre)
+
+        # Nombre + último apellido.
+        return f"{partes[0]} {partes[-1]}"
+
     filas = []
+
     for i, fila in tabla.iterrows():
+
         recuperacion = float(
             fila["Recuperación acumulada"]
         )
+
         porcentaje = float(
             fila["% Recuperación"]
         )
+
         falta = max(
             float(meta_individual) - recuperacion,
             0,
@@ -1137,10 +1168,18 @@ def generar_imagen_avance_recuperacion(
         filas.append(
             [
                 str(i + 1),
-                str(fila["Operador"]),
-                formato_usd(recuperacion),
-                formato_porcentaje(porcentaje),
-                formato_usd(falta),
+                nombre_corto(
+                    fila["Operador"]
+                ),
+                formato_usd(
+                    recuperacion
+                ),
+                formato_porcentaje(
+                    porcentaje
+                ),
+                formato_usd(
+                    falta
+                ),
             ]
         )
 
@@ -1150,63 +1189,89 @@ def generar_imagen_avance_recuperacion(
             "#",
             "Operador",
             "Recuperación",
-            "Cumplimiento",
+            "Cumpl.",
             "Falta",
         ],
         cellLoc="left",
         colLoc="left",
-        bbox=[0.04, 0.10, 0.92, 0.66],
-        colWidths=[0.06, 0.34, 0.22, 0.18, 0.20],
+        bbox=[
+            0.035,
+            0.08,
+            0.93,
+            0.70,
+        ],
+        colWidths=[
+            0.055,
+            0.24,
+            0.245,
+            0.16,
+            0.245,
+        ],
     )
 
-    tabla_plot.auto_set_font_size(False)
-    tabla_plot.set_fontsize(8.5)
+    tabla_plot.auto_set_font_size(
+        False
+    )
 
-    for (fila_idx, col_idx), celda in tabla_plot.get_celld().items():
-        celda.set_edgecolor("#D9E2EC")
-        celda.set_linewidth(0.7)
+    tabla_plot.set_fontsize(
+        8.8
+    )
+
+    for (
+        fila_idx,
+        col_idx,
+    ), celda in tabla_plot.get_celld().items():
+
+        celda.set_linewidth(
+            0.6
+        )
 
         if fila_idx == 0:
-            celda.set_facecolor("#17365D")
-            celda.get_text().set_color("white")
-            celda.get_text().set_fontweight("bold")
-        else:
-            celda.set_facecolor(
-                "#F7F9FC" if fila_idx % 2 == 0 else "white"
+            celda.get_text().set_fontweight(
+                "bold"
             )
 
-            # Resaltar cumplimiento de forma simple.
-            if col_idx == 3:
-                texto_pct = tabla.iloc[
-                    fila_idx - 1
-                ]["% Recuperación"]
-
-                if float(texto_pct) >= 100:
-                    celda.set_facecolor("#DFF3E4")
-                elif float(texto_pct) >= 80:
-                    celda.set_facecolor("#FFF3CD")
-                else:
-                    celda.set_facecolor("#FDE2E1")
+        if (
+            fila_idx > 0
+            and col_idx == 1
+        ):
+            celda.get_text().set_fontweight(
+                "bold"
+            )
 
     fig.text(
-        0.05,
+        0.04,
         0.025,
-        "GEN Control · Cobranzas Inmobiliarias",
-        fontsize=8.5,
+        (
+            "GEN Control · Recuperación acumulada en USD · "
+            "Distribución Sin usuario ÷ 8"
+        ),
+        fontsize=7.8,
         ha="left",
         va="bottom",
     )
 
     buffer = BytesIO()
+
     fig.savefig(
         buffer,
         format="png",
-        dpi=120,
+        dpi=110,
         bbox_inches="tight",
+        pad_inches=0.12,
     )
-    plt.close(fig)
-    buffer.seek(0)
+
+    plt.close(
+        fig
+    )
+
+    buffer.seek(
+        0
+    )
+
     return buffer
+
+
 
 
 # =========================================================
@@ -2697,9 +2762,9 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         st.caption(
-            "La imagen ahora se genera en tamaño compacto para correo y WhatsApp. "
-            "Usa “Copiar imagen” y luego Ctrl + V. Si el navegador bloquea "
-            "el portapapeles, utiliza Descargar imagen."
+            "Imagen compacta para correo y WhatsApp. "
+            "Los importes de recuperación se muestran en USD. "
+            "Usa “Copiar imagen” y luego Ctrl + V."
         )
 
         # Correo general oficial de Cobranzas:
