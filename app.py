@@ -4,6 +4,7 @@ import pandas as pd
 import re
 import unicodedata
 import math
+import textwrap
 import calendar
 import base64
 import json
@@ -4696,7 +4697,7 @@ elif menu == "✉️ Mensajes diarios":
         saludo_v66, emoji_v66 = saludo_segun_hora()
 
         st.markdown(
-            f"""
+            textwrap.dedent(f"""
             <div class="hello-v66">
                 <div>
                     <div class="hello-title-v66">
@@ -4709,7 +4710,7 @@ elif menu == "✉️ Mensajes diarios":
                     </div>
                 </div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
@@ -4955,7 +4956,7 @@ elif menu == "✉️ Mensajes diarios":
             )
 
             st.markdown(
-                f"""
+                textwrap.dedent(f"""
                 <div class="day-shell-v66">
                     <div class="day-title-v66">
                         ⏱️ Avance del día · a las {ahora_v66.strftime('%H:%M')}
@@ -5017,7 +5018,7 @@ elif menu == "✉️ Mensajes diarios":
 
                     </div>
                 </div>
-                """,
+                """),
                 unsafe_allow_html=True,
             )
         else:
@@ -5485,7 +5486,7 @@ elif menu == "✉️ Mensajes diarios":
                         border=True,
                     ):
                         st.markdown(
-                            f"""
+                            textwrap.dedent(f"""
                             <div class="{clase_tarjeta}" style="
                                 margin:-8px -8px 6px -8px;
                                 padding:9px 10px;
@@ -5526,7 +5527,7 @@ elif menu == "✉️ Mensajes diarios":
                                     </div>
                                 </div>
                             </div>
-                            """,
+                            """),
                             unsafe_allow_html=True,
                         )
 
@@ -5566,7 +5567,7 @@ elif menu == "✉️ Mensajes diarios":
                             )
 
                             st.markdown(
-                                f"""
+                                textwrap.dedent(f"""
                                 <div class="operator-today-shell-v66">
                                     <div class="operator-today-title-v66">
                                         HOY · {avance_hora_card['hora_corte']}
@@ -5603,7 +5604,7 @@ elif menu == "✉️ Mensajes diarios":
                                         </div>
                                     </div>
                                 </div>
-                                """,
+                                """),
                                 unsafe_allow_html=True,
                             )
                         else:
@@ -5613,7 +5614,7 @@ elif menu == "✉️ Mensajes diarios":
 
                         # Mensual queda como contexto secundario.
                         st.markdown(
-                            f"""
+                            textwrap.dedent(f"""
                             <div class="monthly-strip-v66">
                                 <div class="monthly-item-v66">
                                     <div class="monthly-label-v66">Mes · Gestiones</div>
@@ -5637,7 +5638,7 @@ elif menu == "✉️ Mensajes diarios":
                                     </div>
                                 </div>
                             </div>
-                            """,
+                            """),
                             unsafe_allow_html=True,
                         )
 
@@ -5718,7 +5719,7 @@ elif menu == "✉️ Mensajes diarios":
                                 )
 
         st.markdown(
-            """
+            textwrap.dedent("""
             <div class="legend-v66">
                 <strong>Estados de hoy:</strong>
                 🔴 Crítico = brecha importante contra el ritmo ·
@@ -5726,7 +5727,7 @@ elif menu == "✉️ Mensajes diarios":
                 🟢 En ritmo = dentro del esperado ·
                 🟢 Adelantado = por encima del ritmo.
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
