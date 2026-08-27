@@ -425,133 +425,113 @@ def generar_mensaje_diario(fila, jornadas_info):
     meta_c = int(st.session_state.meta_compromisos_cfg)
     meta_r = float(st.session_state.meta_recuperacion_cfg)
 
-    pct_g = (
-        gestiones / meta_g * 100
-        if meta_g
-        else 0
-    )
-    pct_c = (
-        compromisos / meta_c * 100
-        if meta_c
-        else 0
-    )
-    pct_r = (
-        recuperacion / meta_r * 100
-        if meta_r
-        else 0
-    )
+    pct_g = gestiones / meta_g * 100 if meta_g else 0
+    pct_c = compromisos / meta_c * 100 if meta_c else 0
+    pct_r = recuperacion / meta_r * 100 if meta_r else 0
 
-    disponibles = jornadas_info["disponibles"]
     esperado = jornadas_info["esperado_pct"]
 
-    objetivo_g = objetivo_hoy_gestiones(
-        gestiones,
-        disponibles,
-    )
-    objetivo_c = objetivo_hoy_compromisos(
-        compromisos,
-        disponibles,
-    )
+    # Para el mensaje diario se mantienen siempre los mínimos operativos,
+    # aunque una meta mensual ya haya sido alcanzada.
+    minimo_g = int(st.session_state.meta_diaria_gestiones_cfg)
+    minimo_c = int(st.session_state.meta_diaria_compromisos_cfg)
 
-    faltante_g = max(meta_g - gestiones, 0)
-    faltante_c = max(meta_c - compromisos, 0)
     faltante_r = max(meta_r - recuperacion, 0)
 
-    # Línea de gestiones
-    if gestiones >= meta_g:
-        linea_g = (
-            f"🔹 Gestiones: {formato_entero(gestiones)} de "
-            f"{formato_entero(meta_g)} — {formato_porcentaje(pct_g)} ✅ Meta cumplida"
-        )
-    else:
-        linea_g = (
-            f"🔹 Gestiones: {formato_entero(gestiones)} de "
-            f"{formato_entero(meta_g)} — {formato_porcentaje(pct_g)}"
-        )
+    check_g = " ✅" if gestiones >= meta_g else ""
+    check_c = " ✅" if compromisos >= meta_c else ""
+    check_r = " ✅" if recuperacion >= meta_r else ""
 
-    # Línea de compromisos
-    if compromisos >= meta_c:
-        linea_c = (
-            f"🔹 Compromisos: {formato_entero(compromisos)} de "
-            f"{formato_entero(meta_c)} — {formato_porcentaje(pct_c)} ✅ Meta cumplida"
-        )
-    else:
-        linea_c = (
-            f"🔹 Compromisos: {formato_entero(compromisos)} de "
-            f"{formato_entero(meta_c)} — {formato_porcentaje(pct_c)}"
-        )
+    linea_g = (
+        f"🔹 Gestiones: {formato_entero(gestiones)} / "
+        f"{formato_entero(meta_g)} — {formato_porcentaje(pct_g)}{check_g}"
+    )
 
-    # Línea de recuperación
-    if recuperacion >= meta_r:
-        linea_r = (
-            f"🔹 Recuperación: {formato_usd(recuperacion)} de "
-            f"{formato_usd(meta_r)} — {formato_porcentaje(pct_r)} ✅ Meta cumplida"
-        )
-    else:
-        linea_r = (
-            f"🔹 Recuperación: {formato_usd(recuperacion)} de "
-            f"{formato_usd(meta_r)} — {formato_porcentaje(pct_r)}"
-        )
+    linea_c = (
+        f"🔹 Compromisos: {formato_entero(compromisos)} / "
+        f"{formato_entero(meta_c)} — {formato_porcentaje(pct_c)}{check_c}"
+    )
 
-    # Objetivo de hoy
-    objetivos_hoy = []
+    linea_r = (
+        f"🔹 Recuperación: {formato_usd(recuperacion)} / "
+        f"{formato_usd(meta_r)} — {formato_porcentaje(pct_r)}{check_r}"
+    )
 
-    if objetivo_g > 0:
-        objetivos_hoy.append(
-            f"Gestiones: +{formato_entero(objetivo_g)}"
-        )
+    # Cierre automático según metas alcanzadas.
+    cumple_g = gestiones >= meta_g
+    cumple_c = compromisos >= meta_c
+    cumple_r = recuperacion >= meta_r
 
-    # Compromisos siempre mantiene mínimo diario,
-    # incluso si la meta mensual ya fue cumplida.
-    if objetivo_c > 0:
-        objetivos_hoy.append(
-            f"Compromisos: +{formato_entero(objetivo_c)}"
-        )
-
-    if faltante_r > 0:
-        objetivos_hoy.append(
-            f"Recuperación pendiente: {formato_usd(faltante_r)}"
-        )
-
-    # Estado principal
-    if pct_r < esperado - 10:
+    if cumple_g and cumple_c and cumple_r:
         cierre = (
-            "Hoy reforcemos especialmente la recuperación "
-            "para reducir la brecha."
+            "¡Metas mensuales cumplidas! 👏 "
+            "Mantengamos los mínimos diarios para sostener el resultado."
+        )
+    elif cumple_g and cumple_c:
+        cierre = (
+            "¡Metas de gestiones y compromisos cumplidas! 👏 "
+            "Mantengamos los mínimos diarios y reforcemos la recuperación "
+            "para cerrar la brecha del mes."
+        )
+    elif cumple_c:
+        cierre = (
+            "¡Meta de compromisos cumplida! 👏 "
+            "Mantengamos los mínimos diarios y reforcemos la recuperación "
+            "para cerrar la brecha del mes."
+        )
+    elif cumple_g:
+        cierre = (
+            "¡Meta de gestiones cumplida! 👏 "
+            "Mantengamos los mínimos diarios y reforcemos compromisos "
+            "y recuperación."
+        )
+    elif pct_r < esperado - 10:
+        cierre = (
+            "Mantengamos el ritmo y reforcemos la recuperación "
+            "para acercarnos a la meta mensual."
         )
     elif pct_c < esperado - 10:
         cierre = (
-            "Hoy reforcemos la generación de compromisos "
-            "sin bajar el ritmo en los demás indicadores."
-        )
-    elif pct_g < esperado - 10:
-        cierre = (
-            "Hoy reforcemos las gestiones para mantener "
-            "el avance esperado del mes."
+            "Mantengamos el ritmo y reforcemos los compromisos "
+            "para acercarnos a la meta mensual."
         )
     else:
         cierre = (
-            "Buen avance. Mantengamos el ritmo diario "
-            "para sostener el cumplimiento mensual."
+            "Mantengamos el ritmo diario para seguir avanzando "
+            "hacia las metas del mes."
         )
 
     saludo_individual, emoji_individual = saludo_segun_hora()
 
+    objetivo_recuperacion = ""
+    if faltante_r > 0:
+        objetivo_recuperacion = (
+            f"\n• Recuperación pendiente: {formato_usd(faltante_r)}"
+        )
+    else:
+        objetivo_recuperacion = (
+            "\n• Recuperación: Meta mensual cumplida ✅"
+        )
+
     mensaje = (
         f"{saludo_individual}, {nombre}. {emoji_individual}\n\n"
-        f"📊 Avance acumulado del mes:\n\n"
+        f"📊 Avance del mes\n"
         f"{linea_g}\n"
         f"{linea_c}\n"
         f"{linea_r}\n\n"
-        f"🎯 Objetivo de hoy:\n"
-        f"• " + "\n• ".join(objetivos_hoy) + "\n\n"
-        f"{cierre} ¡Vamos con todo! 💪"
+        f"🎯 Meta mínima de hoy\n"
+        f"• {formato_entero(minimo_g)} gestiones\n"
+        f"• {formato_entero(minimo_c)} compromisos"
+        f"{objetivo_recuperacion}\n\n"
+        f"{cierre} 💪"
     )
 
     return {
         "mensaje": mensaje,
-        "objetivo_gestiones": objetivo_g,
-        "objetivo_compromisos": objetivo_c,
+        # Se devuelven los mínimos diarios para mantener coherencia
+        # con las tarjetas y mensajes del módulo.
+        "objetivo_gestiones": minimo_g,
+        "objetivo_compromisos": minimo_c,
         "faltante_recuperacion": faltante_r,
         "estado_gestiones": clasificar_avance(
             pct_g,
