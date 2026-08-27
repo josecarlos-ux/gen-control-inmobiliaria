@@ -2668,6 +2668,77 @@ st.markdown(
             border-radius: 12px;
         }
 
+
+        /* ===== TARJETAS DE OPERADORES V53 ===== */
+
+        .operator-card-head {
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:12px;
+            margin-bottom:10px;
+        }
+
+        .operator-card-name {
+            font-size:21px;
+            font-weight:800;
+            color:#101828;
+            line-height:1.2;
+        }
+
+        .operator-status-pill {
+            display:inline-flex;
+            align-items:center;
+            border-radius:999px;
+            padding:5px 10px;
+            font-size:12px;
+            font-weight:700;
+            white-space:nowrap;
+        }
+
+        .status-red {
+            background:#fff1f3;
+            color:#c01048;
+        }
+
+        .status-orange {
+            background:#fff6ed;
+            color:#b54708;
+        }
+
+        .status-yellow {
+            background:#fffaeb;
+            color:#b54708;
+        }
+
+        .status-green {
+            background:#ecfdf3;
+            color:#067647;
+        }
+
+        .operator-meta-line {
+            font-size:12px;
+            color:#667085;
+            margin-top:-2px;
+            margin-bottom:10px;
+        }
+
+        .operator-progress-label {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            font-size:11px;
+            color:#667085;
+            margin-top:7px;
+            margin-bottom:2px;
+        }
+
+        .operator-divider {
+            height:1px;
+            background:#eef1f5;
+            margin:10px 0 8px 0;
+        }
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -3393,7 +3464,7 @@ elif menu == "✉️ Mensajes diarios":
 
         st.divider()
         st.markdown("### 👥 Mensajes individuales")
-        st.caption("Vista ampliada: 2 operadores por fila para facilitar lectura, revisión y envío.")
+        st.caption("Seguimiento individual de metas, brechas y canales de contacto.")
 
         filas = list(resultado.iterrows())
         for bloque_inicio in range(0, len(filas), 2):
@@ -3427,98 +3498,145 @@ elif menu == "✉️ Mensajes diarios":
 
                 with cols[pos]:
                     with st.container(border=True):
+
+                        # Estado visual compacto.
+                        if estado.startswith("🔴"):
+                            clase_estado = "status-red"
+                        elif estado.startswith("🟠"):
+                            clase_estado = "status-orange"
+                        elif estado.startswith("🟡"):
+                            clase_estado = "status-yellow"
+                        else:
+                            clase_estado = "status-green"
+
+                        estado_texto = estado.split(" ", 1)[1] if " " in estado else estado
+
                         st.markdown(
-                            f"### {fila['Operador']}"
-                        )
-                        st.caption(
-                            f"{estado} · Recuperación "
-                            f"{formato_porcentaje(fila['% Recuperación'])}"
+                            f"""
+                            <div class="operator-card-head">
+                                <div>
+                                    <div class="operator-card-name">{fila['Operador']}</div>
+                                    <div class="operator-meta-line">
+                                        {usuario} · {formato_porcentaje(fila['% Recuperación'])} de recuperación
+                                    </div>
+                                </div>
+                                <span class="operator-status-pill {clase_estado}">
+                                    {estado_texto}
+                                </span>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
                         )
 
+                        # KPIs con referencia contra meta mensual.
                         k1, k2, k3 = st.columns(3)
+
+                        pct_g_ind = float(fila["% Gestiones"])
+                        pct_c_ind = float(fila["% Compromisos"])
+                        pct_r_ind = float(fila["% Recuperación"])
 
                         with k1:
                             st.metric(
                                 "Gestiones",
-                                formato_entero(
-                                    fila["Gestiones"]
-                                ),
+                                formato_entero(fila["Gestiones"]),
                                 (
-                                    f"Hoy {formato_entero(calculo['objetivo_gestiones'])}"
+                                    f"Hoy +{formato_entero(calculo['objetivo_gestiones'])}"
                                     if calculo["objetivo_gestiones"] > 0
                                     else "Meta cumplida"
                                 ),
+                            )
+                            st.progress(
+                                min(max(pct_g_ind / 100, 0), 1),
                             )
 
                         with k2:
                             st.metric(
                                 "Compromisos",
-                                formato_entero(
-                                    fila["Compromisos"]
-                                ),
+                                formato_entero(fila["Compromisos"]),
                                 (
-                                    f"Hoy {formato_entero(calculo['objetivo_compromisos'])}"
+                                    f"Hoy +{formato_entero(calculo['objetivo_compromisos'])}"
                                     if calculo["objetivo_compromisos"] > 0
                                     else "Meta cumplida"
                                 ),
+                            )
+                            st.progress(
+                                min(max(pct_c_ind / 100, 0), 1),
                             )
 
                         with k3:
                             st.metric(
                                 "Recuperación",
-                                formato_porcentaje(
-                                    fila["% Recuperación"]
-                                ),
-                                formato_usd(
-                                    fila["Recuperación acumulada"]
-                                ),
+                                formato_porcentaje(pct_r_ind),
+                                formato_usd(fila["Recuperación acumulada"]),
                             )
-                        with st.expander("Ver mensaje", expanded=False):
-                            st.text_area("Mensaje", value=calculo["mensaje"], height=210, key=f"msg_compacto_{usuario}", label_visibility="collapsed")
-                            asunto = quote("Seguimiento diario de metas")
-                            cuerpo = quote(calculo["mensaje"])
-                            b1, b2 = st.columns(2)
+                            st.progress(
+                                min(max(pct_r_ind / 100, 0), 1),
+                            )
 
-                            with b1:
-                                if correo_actual:
-                                    st.link_button(
-                                        "✉️ Correo",
-                                        f"mailto:{correo_actual}?subject={asunto}&body={cuerpo}",
-                                        use_container_width=True,
-                                    )
-                                else:
-                                    st.button(
-                                        "✉️ Sin correo",
-                                        disabled=True,
-                                        use_container_width=True,
-                                        key=f"sin_correo_compacto_{usuario}",
+                        # Acción principal visible sin abrir el mensaje.
+                        st.markdown(
+                            '<div class="operator-divider"></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        asunto = quote("Seguimiento diario de metas")
+                        cuerpo = quote(calculo["mensaje"])
+
+                        a1, a2, a3 = st.columns([1.15, 1, 1])
+
+                        with a1:
+                            with st.expander(
+                                "💬 Ver mensaje",
+                                expanded=False,
+                            ):
+                                st.text_area(
+                                    "Mensaje",
+                                    value=calculo["mensaje"],
+                                    height=190,
+                                    key=f"msg_compacto_{usuario}",
+                                    label_visibility="collapsed",
+                                )
+
+                        with a2:
+                            if correo_actual:
+                                st.link_button(
+                                    "✉️ Correo",
+                                    f"mailto:{correo_actual}?subject={asunto}&body={cuerpo}",
+                                    use_container_width=True,
+                                )
+                            else:
+                                st.button(
+                                    "✉️ Sin correo",
+                                    disabled=True,
+                                    use_container_width=True,
+                                    key=f"sin_correo_compacto_{usuario}",
+                                )
+
+                        with a3:
+                            if telegram_chat_id:
+                                if st.button(
+                                    "✈️ Telegram",
+                                    use_container_width=True,
+                                    key=f"telegram_compacto_{usuario}",
+                                ):
+                                    ok_tg, detalle_tg = enviar_mensaje_telegram(
+                                        telegram_chat_id,
+                                        calculo["mensaje"],
                                     )
 
-                            with b2:
-                                if telegram_chat_id:
-                                    if st.button(
-                                        "✈️ Telegram",
-                                        use_container_width=True,
-                                        key=f"telegram_compacto_{usuario}",
-                                    ):
-                                        ok_tg, detalle_tg = enviar_mensaje_telegram(
-                                            telegram_chat_id,
-                                            calculo["mensaje"],
+                                    if ok_tg:
+                                        st.success("Enviado.")
+                                    else:
+                                        st.error(
+                                            f"No se pudo enviar: {detalle_tg}"
                                         )
-
-                                        if ok_tg:
-                                            st.success("Enviado.")
-                                        else:
-                                            st.error(
-                                                f"No se pudo enviar: {detalle_tg}"
-                                            )
-                                else:
-                                    st.button(
-                                        "✈️ Sin Telegram",
-                                        disabled=True,
-                                        use_container_width=True,
-                                        key=f"sin_telegram_compacto_{usuario}",
-                                    )
+                            else:
+                                st.button(
+                                    "✈️ Sin Telegram",
+                                    disabled=True,
+                                    use_container_width=True,
+                                    key=f"sin_telegram_compacto_{usuario}",
+                                )
 
         st.divider()
         st.markdown(
