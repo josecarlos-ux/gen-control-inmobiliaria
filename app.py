@@ -1918,8 +1918,14 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    UNA sola imagen para Telegram, optimizada para celular.
-    Los 8 operadores se muestran con nombres grandes y sin KPIs repetidos.
+    UNA sola imagen optimizada para Telegram móvil.
+
+    Objetivo visual:
+    - nombres realmente grandes;
+    - montos y porcentajes grandes;
+    - mínimo espacio vacío;
+    - 8 operadores en una sola imagen;
+    - misma jerarquía tipográfica para todos.
     """
     import io
 
@@ -1929,16 +1935,21 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
-    W = 1080
-    margin = 34
-    header_h = 125
-    row_h = 112
-    gap = 10
-    footer_h = 70
+    # Lienzo más compacto para que Telegram no reduzca tanto el contenido.
+    W = 760
+    margin = 18
+    header_h = 96
+    row_h = 128
+    gap = 8
+    footer_h = 56
+
     H = (
-        margin + header_h + 18
+        margin
+        + header_h
+        + 12
         + len(tabla) * (row_h + gap)
-        + footer_h + margin + 14
+        + footer_h
+        + margin
     )
 
     navy = (7, 29, 52)
@@ -1956,147 +1967,298 @@ def generar_imagen_recuperacion_telegram(
     img = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(img)
 
-    f_title = _fuente_reporte(50, True)
-    f_date = _fuente_reporte(25, True)
-    f_name = _fuente_reporte(44, True)
-    f_name_long = _fuente_reporte(38, True)
-    f_amount = _fuente_reporte(29, True)
-    f_pct = _fuente_reporte(34, True)
-    f_pos = _fuente_reporte(27, True)
-    f_footer = _fuente_reporte(22, True)
+    # Tipografía grande respecto al ancho del lienzo.
+    f_title = _fuente_reporte(40, True)
+    f_date = _fuente_reporte(20, True)
 
-    # Header
+    # Todos parten del mismo tamaño visual.
+    f_name = _fuente_reporte(38, True)
+    f_name_long = _fuente_reporte(34, True)
+    f_name_xlong = _fuente_reporte(30, True)
+
+    f_amount = _fuente_reporte(25, True)
+    f_pct = _fuente_reporte(30, True)
+    f_pos = _fuente_reporte(22, True)
+    f_footer = _fuente_reporte(17, True)
+
+    # -----------------------------------------------------
+    # HEADER
+    # -----------------------------------------------------
     d.rounded_rectangle(
-        (margin, margin, W - margin, margin + header_h),
-        radius=26,
+        (
+            margin,
+            margin,
+            W - margin,
+            margin + header_h,
+        ),
+        radius=20,
         fill=navy,
     )
+
     d.text(
-        (margin + 28, margin + 23),
+        (
+            margin + 22,
+            margin + 18,
+        ),
         "RANKING DE RECUPERACIÓN",
         font=f_title,
         fill=white,
     )
+
     d.text(
-        (margin + 28, margin + 82),
+        (
+            margin + 22,
+            margin + 62,
+        ),
         fecha_local_actual().strftime("%d/%m/%Y"),
         font=f_date,
         fill=green,
     )
 
-    y = margin + header_h + 18
+    y = margin + header_h + 12
 
+    # -----------------------------------------------------
+    # FILAS
+    # -----------------------------------------------------
     for i, fila in tabla.iterrows():
         y1 = y + i * (row_h + gap)
         y2 = y1 + row_h
 
         d.rounded_rectangle(
-            (margin, y1, W - margin, y2),
-            radius=18,
+            (
+                margin,
+                y1,
+                W - margin,
+                y2,
+            ),
+            radius=17,
             fill=white,
             outline=border,
             width=2,
         )
 
         pos_color = (
-            gold if i == 0 else
-            silver if i == 1 else
-            bronze if i == 2 else navy
+            gold if i == 0
+            else silver if i == 1
+            else bronze if i == 2
+            else navy
         )
 
-        bx1 = margin + 16
-        by1 = y1 + 25
-        bx2 = bx1 + 58
-        by2 = by1 + 58
+        bx1 = margin + 12
+        by1 = y1 + 20
+        bx2 = bx1 + 50
+        by2 = by1 + 50
 
         d.rounded_rectangle(
-            (bx1, by1, bx2, by2),
-            radius=13,
+            (
+                bx1,
+                by1,
+                bx2,
+                by2,
+            ),
+            radius=11,
             fill=pos_color,
         )
 
         pos = str(i + 1)
-        pb = d.textbbox((0, 0), pos, font=f_pos)
+        pb = d.textbbox(
+            (0, 0),
+            pos,
+            font=f_pos,
+        )
+
         d.text(
             (
                 (bx1 + bx2) / 2 - (pb[2] - pb[0]) / 2,
-                by1 + 14,
+                by1 + 12,
             ),
             pos,
             font=f_pos,
             fill=white,
         )
 
-        nombre = str(fila["Operador"]).strip()
-        rec = float(fila["Recuperación acumulada"])
-        pct = float(fila["% Recuperación"])
+        nombre = str(
+            fila["Operador"]
+        ).strip()
 
-        name_x = bx2 + 20
-        fuente_nombre = f_name if len(nombre) <= 29 else f_name_long
+        recuperacion = float(
+            fila["Recuperación acumulada"]
+        )
 
+        porcentaje = float(
+            fila["% Recuperación"]
+        )
+
+        name_x = bx2 + 16
+
+        # Espacio real para nombre, dejando lugar al porcentaje.
+        pct_txt = formato_porcentaje(
+            porcentaje
+        )
+
+        pct_box = d.textbbox(
+            (0, 0),
+            pct_txt,
+            font=f_pct,
+        )
+
+        pct_w = pct_box[2] - pct_box[0]
+
+        max_name_w = (
+            W
+            - margin
+            - 24
+            - pct_w
+            - name_x
+        )
+
+        # Mantener nombres grandes y solo reducir si realmente no caben.
+        fuente_nombre = f_name
+
+        name_box = d.textbbox(
+            (0, 0),
+            nombre,
+            font=fuente_nombre,
+        )
+
+        if (
+            name_box[2] - name_box[0]
+            > max_name_w
+        ):
+            fuente_nombre = f_name_long
+
+            name_box = d.textbbox(
+                (0, 0),
+                nombre,
+                font=fuente_nombre,
+            )
+
+        if (
+            name_box[2] - name_box[0]
+            > max_name_w
+        ):
+            fuente_nombre = f_name_xlong
+
+        # Nombre: elemento principal de la fila.
         d.text(
-            (name_x, y1 + 13),
+            (
+                name_x,
+                y1 + 14,
+            ),
             nombre,
             font=fuente_nombre,
             fill=dark,
         )
 
+        # Monto grande debajo.
         d.text(
-            (name_x, y1 + 66),
-            formato_usd(rec),
+            (
+                name_x,
+                y1 + 66,
+            ),
+            formato_usd(
+                recuperacion
+            ),
             font=f_amount,
             fill=green_dark,
         )
 
-        pct_txt = formato_porcentaje(pct)
-        pct_box = d.textbbox((0, 0), pct_txt, font=f_pct)
+        # Porcentaje grande a la derecha.
         d.text(
             (
-                W - margin - 22 - (pct_box[2] - pct_box[0]),
-                y1 + 58,
+                W
+                - margin
+                - 18
+                - pct_w,
+                y1 + 62,
             ),
             pct_txt,
             font=f_pct,
             fill=dark,
         )
 
+        # Barra más gruesa y cercana a los datos.
         bar_x1 = name_x
-        bar_x2 = W - margin - 22
-        bar_y = y2 - 13
+        bar_x2 = W - margin - 18
+        bar_y = y2 - 18
 
         d.rounded_rectangle(
-            (bar_x1, bar_y, bar_x2, bar_y + 7),
-            radius=4,
+            (
+                bar_x1,
+                bar_y,
+                bar_x2,
+                bar_y + 10,
+            ),
+            radius=5,
             fill=bar_bg,
         )
 
         fill_x = bar_x1 + int(
-            (bar_x2 - bar_x1) * min(max(pct / 100, 0), 1)
+            (
+                bar_x2 - bar_x1
+            )
+            * min(
+                max(
+                    porcentaje / 100,
+                    0,
+                ),
+                1,
+            )
         )
+
         if fill_x > bar_x1:
             d.rounded_rectangle(
-                (bar_x1, bar_y, fill_x, bar_y + 7),
-                radius=4,
+                (
+                    bar_x1,
+                    bar_y,
+                    fill_x,
+                    bar_y + 10,
+                ),
+                radius=5,
                 fill=green,
             )
 
-    footer_y = y + len(tabla) * (row_h + gap) - gap + 14
+    # -----------------------------------------------------
+    # FOOTER
+    # -----------------------------------------------------
+    footer_y = (
+        y
+        + len(tabla) * (row_h + gap)
+        - gap
+        + 10
+    )
 
     d.rounded_rectangle(
-        (margin, footer_y, W - margin, footer_y + footer_h),
-        radius=18,
+        (
+            margin,
+            footer_y,
+            W - margin,
+            footer_y + footer_h,
+        ),
+        radius=15,
         fill=navy,
     )
+
     d.text(
-        (margin + 26, footer_y + 22),
+        (
+            margin + 18,
+            footer_y + 17,
+        ),
         "¡Cada resultado suma! Vamos por la meta. 💪",
         font=f_footer,
         fill=white,
     )
 
     buffer = io.BytesIO()
-    img.save(buffer, format="PNG", optimize=True)
+
+    img.save(
+        buffer,
+        format="PNG",
+        optimize=True,
+    )
+
     buffer.seek(0)
+
     return buffer
 
 
