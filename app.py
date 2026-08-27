@@ -4432,6 +4432,110 @@ st.markdown(
             color:#667085;
             font-size:10px;
         }
+
+        /* ===== V71 · TARJETAS OPERATIVAS REFINADAS ===== */
+
+        .op-head-v71 {
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            align-items:flex-start;
+            margin-bottom:6px;
+        }
+
+        .op-name-v71 {
+            color:#101828;
+            font-size:17px;
+            font-weight:850;
+            line-height:1.15;
+        }
+
+        .op-contact-v71 {
+            color:#667085;
+            font-size:10px;
+            margin-top:3px;
+        }
+
+        .op-state-v71 {
+            display:inline-flex;
+            align-items:center;
+            border-radius:999px;
+            padding:4px 8px;
+            font-size:10px;
+            font-weight:850;
+        }
+
+        .op-red-v71 {
+            color:#c01048;
+            background:#fff1f3;
+        }
+
+        .op-orange-v71 {
+            color:#b54708;
+            background:#fff6ed;
+        }
+
+        .op-green-v71 {
+            color:#067647;
+            background:#ecfdf3;
+        }
+
+        .op-gray-v71 {
+            color:#475467;
+            background:#f2f4f7;
+        }
+
+        .schedule-v71 {
+            color:#667085;
+            font-size:10px;
+            padding:6px 8px;
+            background:#f8fafc;
+            border:1px solid #e7ebf0;
+            border-radius:9px;
+            margin-bottom:7px;
+        }
+
+        .today-label-v71 {
+            color:#667085;
+            font-size:9px;
+            font-weight:850;
+            text-transform:uppercase;
+            letter-spacing:.04em;
+            margin:3px 0 4px 0;
+        }
+
+        .month-bar-v71 {
+            border-top:1px solid #eef1f4;
+            margin-top:7px;
+            padding-top:6px;
+        }
+
+        .legend-v71 {
+            background:#f8fafc;
+            border:1px solid #e7ebf0;
+            border-radius:11px;
+            padding:8px 10px;
+            color:#667085;
+            font-size:10px;
+            margin-top:8px;
+        }
+
+        /* Menos aire vertical dentro de las tarjetas */
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetric"] {
+            padding:5px 8px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricValue"] {
+            font-size:22px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricLabel"] p {
+            font-size:10px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricDelta"] {
+            font-size:10px !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -5959,8 +6063,7 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         # -------------------------------------------------
-        # TARJETAS DE OPERADORES — V66
-        # Hoy primero · mensual como contexto
+        # TARJETAS DE OPERADORES — V71
         # -------------------------------------------------
         for bloque_inicio in range(
             0,
@@ -5974,7 +6077,7 @@ elif menu == "✉️ Mensajes diarios":
                     bloque_inicio:bloque_inicio + 2
                 ]
             ):
-                fila, calculo, estado_texto, clase_estado = item
+                fila, calculo, _, _ = item
                 usuario = fila["Usuario"]
 
                 contacto = datos_contacto.get(
@@ -5998,272 +6101,206 @@ elif menu == "✉️ Mensajes diarios":
                     )
                 )
 
-                avance_hora_card = calculo.get(
+                avance = calculo.get(
                     "avance_hora",
                     {},
                 )
 
-                pct_g_ind = float(
+                pct_g = float(
                     fila["% Gestiones"]
                 )
-                pct_c_ind = float(
+                pct_c = float(
                     fila["% Compromisos"]
                 )
-                pct_r_ind = float(
+                pct_r = float(
                     fila["% Recuperación"]
                 )
 
-                partes_nombre = str(
-                    fila["Operador"]
-                ).split()
-
-                iniciales = (
-                    (
-                        partes_nombre[0][0]
-                        + partes_nombre[1][0]
+                dg = (
+                    int(
+                        avance.get(
+                            "delta_gestiones",
+                            0,
+                        )
                     )
-                    if len(partes_nombre) >= 2
-                    else partes_nombre[0][:2]
-                ).upper()
+                    if avance.get("disponible")
+                    else 0
+                )
 
-                # Estado HOY según la mayor brecha contra ritmo.
-                if avance_hora_card.get("disponible"):
-                    dg = int(
-                        avance_hora_card[
-                            "delta_gestiones"
-                        ]
-                    )
-                    dc = int(
-                        avance_hora_card[
-                            "delta_compromisos"
-                        ]
-                    )
+                dc_val = avance.get(
+                    "delta_compromisos"
+                )
 
-                    peor_delta = min(
-                        dg,
-                        dc,
-                    )
+                dc = (
+                    int(dc_val)
+                    if dc_val is not None
+                    else 0
+                )
 
-                    if peor_delta <= -10:
-                        estado_hoy = "🔴 Crítico"
-                        clase_tarjeta = "status-critical-v66"
-                        color_estado = "#c01048"
-                    elif peor_delta < 0:
-                        estado_hoy = "🟠 Atención"
-                        clase_tarjeta = "status-attention-v66"
-                        color_estado = "#b54708"
-                    elif dg > 5 and dc > 2:
-                        estado_hoy = "🟢 Adelantado"
-                        clase_tarjeta = "status-good-v66"
-                        color_estado = "#067647"
-                    else:
-                        estado_hoy = "🟢 En ritmo"
-                        clase_tarjeta = "status-good-v66"
-                        color_estado = "#067647"
+                estado_jornada = avance.get(
+                    "estado_jornada",
+                    "",
+                )
+
+                if not avance.get("disponible"):
+                    estado_txt = "Sin datos"
+                    estado_cls = "op-gray-v71"
+
+                elif estado_jornada == "Jornada aún no iniciada":
+                    estado_txt = "Aún no inicia"
+                    estado_cls = "op-gray-v71"
+
+                elif min(dg, dc) <= -10:
+                    estado_txt = "Crítico"
+                    estado_cls = "op-red-v71"
+
+                elif min(dg, dc) < 0:
+                    estado_txt = "Atención"
+                    estado_cls = "op-orange-v71"
+
+                elif dg >= 5 and dc >= 2:
+                    estado_txt = "Adelantado"
+                    estado_cls = "op-green-v71"
+
                 else:
-                    dg = 0
-                    dc = 0
-                    estado_hoy = "Sin datos de hoy"
-                    clase_tarjeta = ""
-                    color_estado = "#667085"
+                    estado_txt = "En ritmo"
+                    estado_cls = "op-green-v71"
 
-                estado_tg_html = (
-                    '<span class="channel-ok-v64">✈ Telegram ✓</span>'
+                horario = (
+                    avance.get("horario")
+                    or {}
+                )
+
+                tg_txt = (
+                    "Telegram ✓"
                     if telegram_chat_id
-                    else '<span class="channel-pending-v64">✈ Telegram pendiente</span>'
+                    else "Telegram pendiente"
                 )
 
                 with cols[pos]:
-                    with st.container(
-                        border=True,
-                    ):
+                    with st.container(border=True):
+
                         st.markdown(
-                            textwrap.dedent(f"""
-                            <div class="{clase_tarjeta}" style="
-                                margin:-8px -8px 6px -8px;
-                                padding:9px 10px;
-                                border-radius:11px 11px 8px 8px;
-                                border:1px solid transparent;
-                            ">
-                                <div class="operator-head-v59" style="margin-bottom:0;">
-                                    <div class="operator-id-wrap-v59">
-                                        <div class="operator-avatar-v59">
-                                            {iniciales}
-                                        </div>
-                                        <div>
-                                            <div class="operator-name-v59">
-                                                {fila['Operador']}
-                                            </div>
-                                            <div class="channel-mini-v62">
-                                                <span>✉ {correo_actual or 'Sin correo'}</span>
-                                                {estado_tg_html}
-                                            </div>
-                                        </div>
+                            f"""
+                            <div class="op-head-v71">
+                                <div>
+                                    <div class="op-name-v71">
+                                        {fila['Operador']}
                                     </div>
-                                    <div style="text-align:right;">
-                                        <div style="
-                                            color:{color_estado};
-                                            font-size:11px;
-                                            font-weight:850;
-                                        ">
-                                            {estado_hoy}
-                                        </div>
-                                        <div style="
-                                            color:#667085;
-                                            font-size:9px;
-                                            margin-top:3px;
-                                        ">
-                                            Recuperación mensual:
-                                            {formato_porcentaje(pct_r_ind)}
-                                        </div>
+                                    <div class="op-contact-v71">
+                                        ✉ {correo_actual or 'Sin correo'} ·
+                                        ✈ {tg_txt}
                                     </div>
                                 </div>
+                                <span class="op-state-v71 {estado_cls}">
+                                    {estado_txt}
+                                </span>
                             </div>
-                            """),
+                            """,
                             unsafe_allow_html=True,
                         )
 
-                        if avance_hora_card.get(
+                        if horario.get(
+                            "horario_configurado"
+                        ):
+                            st.markdown(
+                                f"""
+                                <div class="schedule-v71">
+                                    🕒 {horario['entrada']}–{horario['salida']}
+                                    · ☕ {horario['break_inicio']}–{horario['break_fin']}
+                                    · 📍 {estado_jornada}
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+
+                        if avance.get(
                             "disponible"
                         ):
-                            horario_card = (
-                                avance_hora_card.get(
-                                    "horario"
-                                )
-                                or {}
+                            st.markdown(
+                                f"""
+                                <div class="today-label-v71">
+                                    HOY · corte {avance['hora_corte']}
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
                             )
 
-                            horario_txt_card = ""
+                            h1, h2 = st.columns(2)
 
-                            if horario_card.get(
-                                "horario_configurado"
-                            ):
-                                horario_txt_card = (
-                                    f" · Jornada "
-                                    f"{horario_card['entrada']}–{horario_card['salida']} "
-                                    f"· Break "
-                                    f"{horario_card['break_inicio']}–{horario_card['break_fin']}"
-                                )
-
-                            st.caption(
-                                f"⏱️ HOY · corte {avance_hora_card['hora_corte']}"
-                                f"{horario_txt_card}"
-                            )
-
-                            estado_jornada_card = (
-                                avance_hora_card.get(
-                                    "estado_jornada",
-                                    "",
-                                )
-                            )
-
-                            if estado_jornada_card in {
-                                "Jornada aún no iniciada",
-                                "En break",
-                                "Jornada finalizada",
-                            }:
-                                st.info(
-                                    estado_jornada_card
-                                )
-
-                            hoy_g_col, hoy_c_col = st.columns(
-                                2
-                            )
-
-                            with hoy_g_col:
-                                dg = int(
-                                    avance_hora_card[
-                                        "delta_gestiones"
-                                    ]
-                                )
-
+                            with h1:
                                 st.metric(
                                     "📞 Gestiones",
                                     (
-                                        f"{formato_entero(avance_hora_card['gestiones_hoy'])}"
+                                        f"{formato_entero(avance['gestiones_hoy'])}"
                                         " / 98"
                                     ),
-                                    f"{dg:+d} vs ritmo",
+                                    f"{dg:+d} vs esperado",
                                 )
 
                                 st.caption(
-                                    "Esperado al corte: "
-                                    f"{formato_entero(avance_hora_card['esperado_gestiones'])}"
-                                    " · Faltan hoy: "
-                                    f"{formato_entero(avance_hora_card['faltan_gestiones'])}"
+                                    f"Esperado: {formato_entero(avance['esperado_gestiones'])}"
+                                    f" · Faltan: {formato_entero(avance['faltan_gestiones'])}"
                                 )
 
-                            with hoy_c_col:
-                                if avance_hora_card.get(
+                            with h2:
+                                if avance.get(
                                     "compromisos_disponibles"
                                 ):
-                                    dc = int(
-                                        avance_hora_card[
-                                            "delta_compromisos"
-                                        ]
-                                    )
-
                                     st.metric(
                                         "🤝 Compromisos",
                                         (
-                                            f"{formato_entero(avance_hora_card['compromisos_hoy'])}"
+                                            f"{formato_entero(avance['compromisos_hoy'])}"
                                             " / 25"
                                         ),
-                                        f"{dc:+d} vs ritmo",
+                                        f"{dc:+d} vs esperado",
                                     )
 
                                     st.caption(
-                                        "Esperado al corte: "
-                                        f"{formato_entero(avance_hora_card['esperado_compromisos'])}"
-                                        " · Faltan hoy: "
-                                        f"{formato_entero(avance_hora_card['faltan_compromisos'])}"
+                                        f"Esperado: {formato_entero(avance['esperado_compromisos'])}"
+                                        f" · Faltan: {formato_entero(avance['faltan_compromisos'])}"
                                     )
+
                                 else:
                                     st.metric(
                                         "🤝 Compromisos",
                                         "Sin dato horario",
                                     )
                                     st.caption(
-                                        "El CallCenter no identifica "
-                                        "compromisos por llamada."
+                                        "No disponible en el CallCenter."
                                     )
 
-                        else:
-                            st.caption(
-                                "Carga GEN CallCenter para visualizar "
-                                "el avance de hoy."
-                            )
+                        st.markdown(
+                            '<div class="month-bar-v71"></div>',
+                            unsafe_allow_html=True,
+                        )
 
-                        # Acumulado mensual como contexto secundario.
                         st.caption("MES · ACUMULADO")
 
-                        mes1, mes2, mes3 = st.columns(3)
+                        m1, m2, m3 = st.columns(3)
 
-                        with mes1:
-                            st.caption(
-                                "Gestiones"
-                            )
+                        with m1:
                             st.markdown(
-                                f"**{formato_entero(fila['Gestiones'])} / 2.400**  "
-                                f"· {formato_porcentaje(pct_g_ind)}"
+                                f"**{formato_entero(fila['Gestiones'])} / 2.400**"
                             )
-
-                        with mes2:
                             st.caption(
-                                "Compromisos"
-                            )
-                            st.markdown(
-                                f"**{formato_entero(fila['Compromisos'])} / 550**  "
-                                f"· {formato_porcentaje(pct_c_ind)}"
+                                f"Gestiones · {formato_porcentaje(pct_g)}"
                             )
 
-                        with mes3:
-                            st.caption(
-                                "Recuperación"
-                            )
+                        with m2:
                             st.markdown(
-                                f"**{formato_usd(fila['Recuperación acumulada']).replace(',00','')}**  "
-                                f"· {formato_porcentaje(pct_r_ind)}"
+                                f"**{formato_entero(fila['Compromisos'])} / 550**"
+                            )
+                            st.caption(
+                                f"Compromisos · {formato_porcentaje(pct_c)}"
+                            )
+
+                        with m3:
+                            st.markdown(
+                                f"**{formato_usd(fila['Recuperación acumulada']).replace(',00','')}**"
+                            )
+                            st.caption(
+                                f"Recuperación · {formato_porcentaje(pct_r)}"
                             )
 
                         asunto = quote(
@@ -6291,7 +6328,7 @@ elif menu == "✉️ Mensajes diarios":
                                     "✉️ Sin correo",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_correo_v66_{usuario}",
+                                    key=f"sin_correo_v71_{usuario}",
                                 )
 
                         with a2:
@@ -6299,7 +6336,7 @@ elif menu == "✉️ Mensajes diarios":
                                 if st.button(
                                     "✈️ Telegram",
                                     use_container_width=True,
-                                    key=f"telegram_v66_{usuario}",
+                                    key=f"telegram_v71_{usuario}",
                                 ):
                                     ok_tg, detalle_tg = (
                                         enviar_mensaje_telegram(
@@ -6309,9 +6346,7 @@ elif menu == "✉️ Mensajes diarios":
                                     )
 
                                     if ok_tg:
-                                        st.success(
-                                            "Enviado."
-                                        )
+                                        st.success("Enviado.")
                                         enviar_copia_coordinador(
                                             fila["Operador"],
                                             calculo["mensaje"],
@@ -6326,7 +6361,7 @@ elif menu == "✉️ Mensajes diarios":
                                     "✈️ Pendiente",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_v66_{usuario}",
+                                    key=f"sin_telegram_v71_{usuario}",
                                 )
 
                         with a3:
@@ -6338,20 +6373,21 @@ elif menu == "✉️ Mensajes diarios":
                                     "Mensaje",
                                     value=calculo["mensaje"],
                                     height=280,
-                                    key=f"msg_v66_{usuario}",
+                                    key=f"msg_v71_{usuario}",
                                     label_visibility="collapsed",
                                 )
 
         st.markdown(
-            textwrap.dedent("""
-            <div class="legend-v66">
-                <strong>Estados de hoy:</strong>
-                🔴 Crítico = brecha importante contra el ritmo ·
+            """
+            <div class="legend-v71">
+                <strong>Estados del día:</strong>
+                🔴 Crítico = brecha importante ·
                 🟠 Atención = debajo del esperado ·
                 🟢 En ritmo = dentro del esperado ·
-                🟢 Adelantado = por encima del ritmo.
+                🟢 Adelantado = por encima del esperado ·
+                ⚪ Aún no inicia = todavía no comenzó su jornada.
             </div>
-            """),
+            """,
             unsafe_allow_html=True,
         )
 
