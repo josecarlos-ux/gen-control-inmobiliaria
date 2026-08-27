@@ -1967,17 +1967,17 @@ def generar_imagen_recuperacion_telegram(
     img = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(img)
 
-    f_title = _fuente_reporte(54, True)
-    f_sub = _fuente_reporte(26, True)
-    f_kpi_lab = _fuente_reporte(20, True)
-    f_kpi_val = _fuente_reporte(34, True)
-    f_section = _fuente_reporte(28, True)
-    f_name = _fuente_reporte(46, True)
-    f_name_long = _fuente_reporte(39, True)
-    f_amount = _fuente_reporte(34, True)
-    f_pct = _fuente_reporte(38, True)
-    f_pos = _fuente_reporte(30, True)
-    f_footer = _fuente_reporte(22, True)
+    f_title = _fuente_reporte(64, True)
+    f_sub = _fuente_reporte(32, True)
+    f_kpi_lab = _fuente_reporte(26, True)
+    f_kpi_val = _fuente_reporte(44, True)
+    f_section = _fuente_reporte(34, True)
+    f_name = _fuente_reporte(60, True)
+    f_name_long = _fuente_reporte(50, True)
+    f_amount = _fuente_reporte(44, True)
+    f_pct = _fuente_reporte(48, True)
+    f_pos = _fuente_reporte(38, True)
+    f_footer = _fuente_reporte(28, True)
 
     # -----------------------------------------------------
     # HEADER
