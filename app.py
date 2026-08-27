@@ -504,8 +504,10 @@ def generar_mensaje_diario(fila, jornadas_info):
             f"| meta de {formato_usd(st.session_state.meta_recuperacion_cfg)} cumplida"
         )
 
+    saludo_individual, emoji_individual = saludo_segun_hora()
+
     mensaje = (
-        f"Buenos días, {nombre}. 👋\n\n"
+        f"{saludo_individual}, {nombre}. {emoji_individual}\n\n"
         f"Para mantenernos encaminados a las metas del mes, hoy necesitamos:\n\n"
         f"{linea_g}\n"
         f"{linea_c}\n"
@@ -1877,8 +1879,8 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    Genera SOLO la tabla visual de recuperación para Telegram.
-    El resumen general se envía como texto separado.
+    Genera una imagen PNG ejecutiva y legible en móvil para Telegram.
+    Incluye resumen + ranking, sin exceso de texto.
     """
     import io
 
@@ -1888,102 +1890,312 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
-    W = 1200
-    header_h = 105
+    total_rec = float(
+        tabla["Recuperación acumulada"].sum()
+    )
+    meta_equipo = float(meta_individual) * len(tabla)
+    pct_equipo = (
+        total_rec / meta_equipo * 100
+        if meta_equipo
+        else 0
+    )
+    brecha = max(
+        meta_equipo - total_rec,
+        0,
+    )
+
+    # Formato pensado para Telegram móvil: ancho grande y altura contenida.
+    W = 1280
+    header_h = 150
+    kpi_h = 165
+    table_header_h = 62
     row_h = 72
-    footer_h = 60
-    H = header_h + 62 + (len(tabla) * row_h) + footer_h
+    footer_h = 85
+    H = (
+        30
+        + header_h
+        + 20
+        + kpi_h
+        + 24
+        + table_header_h
+        + (len(tabla) * row_h)
+        + 20
+        + footer_h
+        + 30
+    )
 
-    navy = (10, 35, 62)
-    navy2 = (20, 58, 94)
-    green = (72, 170, 69)
+    # Paleta
+    navy = (8, 31, 54)
+    navy2 = (17, 52, 85)
+    green = (83, 177, 76)
+    blue = (48, 120, 220)
+    red = (229, 74, 74)
     white = (255, 255, 255)
-    light = (245, 248, 251)
-    dark = (27, 38, 50)
-    gray = (104, 115, 128)
-    red = (218, 72, 72)
-    gold = (232, 174, 38)
-    silver = (168, 177, 188)
-    bronze = (190, 104, 49)
+    bg = (242, 246, 250)
+    light = (249, 251, 253)
+    dark = (24, 35, 47)
+    gray = (105, 117, 130)
+    border = (213, 220, 228)
+    gold = (236, 177, 39)
+    silver = (171, 180, 191)
+    bronze = (193, 108, 51)
 
-    img = Image.new("RGB", (W, H), white)
+    img = Image.new(
+        "RGB",
+        (W, H),
+        bg,
+    )
     d = ImageDraw.Draw(img)
 
-    f_title = _fuente_reporte(38, True)
-    f_date = _fuente_reporte(20, True)
-    f_head = _fuente_reporte(19, True)
+    f_title = _fuente_reporte(46, True)
+    f_brand = _fuente_reporte(28, True)
+    f_sub = _fuente_reporte(22, True)
+    f_kpi_lab = _fuente_reporte(17, True)
+    f_kpi_val = _fuente_reporte(28, True)
+    f_head = _fuente_reporte(18, True)
     f_row = _fuente_reporte(20, False)
     f_row_b = _fuente_reporte(20, True)
     f_small = _fuente_reporte(16, False)
+    f_footer = _fuente_reporte(19, True)
 
-    # Encabezado
+    # -------------------------
+    # HEADER
+    # -------------------------
+    x1 = 25
+    x2 = W - 25
+    y = 25
+
     d.rounded_rectangle(
-        (20, 20, W - 20, header_h),
-        radius=22,
+        (x1, y, x2, y + header_h),
+        radius=24,
         fill=navy,
     )
 
     d.text(
-        (55, 40),
-        "RANKING DE RECUPERACIÓN",
+        (55, y + 35),
+        "GEN CONTROL",
+        font=f_brand,
+        fill=white,
+    )
+    d.text(
+        (55, y + 78),
+        "COBRANZA - INMOBILIARIA",
+        font=f_small,
+        fill=green,
+    )
+
+    titulo = "AVANCE DE RECUPERACIÓN"
+    bbox = d.textbbox(
+        (0, 0),
+        titulo,
+        font=f_title,
+    )
+    d.text(
+        (
+            (W - (bbox[2] - bbox[0])) / 2,
+            y + 27,
+        ),
+        titulo,
         font=f_title,
         fill=white,
     )
 
-    fecha_txt = fecha_local_actual().strftime("%d/%m/%Y")
-    bbox = d.textbbox((0, 0), fecha_txt, font=f_date)
-    d.text(
-        (W - 55 - (bbox[2] - bbox[0]), 50),
+    fecha_txt = fecha_local_actual().strftime(
+        "%d/%m/%Y"
+    )
+    bbox = d.textbbox(
+        (0, 0),
         fecha_txt,
-        font=f_date,
+        font=f_sub,
+    )
+    d.text(
+        (
+            (W - (bbox[2] - bbox[0])) / 2,
+            y + 92,
+        ),
+        fecha_txt,
+        font=f_sub,
         fill=green,
     )
 
-    # Cabecera de tabla
-    y = header_h + 15
+    # -------------------------
+    # KPI CARDS
+    # -------------------------
+    y = y + header_h + 20
+    gap = 14
+    card_w = (
+        (W - 50 - (gap * 3))
+        // 4
+    )
+
+    cards = [
+        (
+            "RECUPERADO",
+            formato_usd(total_rec),
+            formato_porcentaje(pct_equipo),
+            green,
+        ),
+        (
+            "META EQUIPO",
+            formato_usd(meta_equipo),
+            "Objetivo mensual",
+            blue,
+        ),
+        (
+            "BRECHA",
+            formato_usd(brecha),
+            formato_porcentaje(
+                max(100 - pct_equipo, 0)
+            ),
+            red,
+        ),
+        (
+            "% AVANCE",
+            formato_porcentaje(pct_equipo),
+            "Cumplimiento",
+            green,
+        ),
+    ]
+
+    for i, (
+        lab,
+        val,
+        sub,
+        color,
+    ) in enumerate(cards):
+        cx = 25 + i * (
+            card_w + gap
+        )
+
+        d.rounded_rectangle(
+            (
+                cx,
+                y,
+                cx + card_w,
+                y + kpi_h,
+            ),
+            radius=18,
+            fill=white,
+            outline=border,
+            width=2,
+        )
+
+        d.text(
+            (cx + 20, y + 22),
+            lab,
+            font=f_kpi_lab,
+            fill=color,
+        )
+
+        d.text(
+            (cx + 20, y + 66),
+            val,
+            font=f_kpi_val,
+            fill=dark,
+        )
+
+        d.text(
+            (cx + 20, y + 116),
+            sub,
+            font=f_small,
+            fill=gray,
+        )
+
+    # -------------------------
+    # TABLE TITLE
+    # -------------------------
+    y = y + kpi_h + 24
+
+    d.rounded_rectangle(
+        (
+            25,
+            y,
+            W - 25,
+            y + table_header_h,
+        ),
+        radius=16,
+        fill=navy,
+    )
+
+    d.text(
+        (
+            55,
+            y + 17,
+        ),
+        "🏆 RANKING DE RECUPERACIÓN POR OPERADOR",
+        font=f_sub,
+        fill=white,
+    )
+
+    # -------------------------
+    # TABLE HEADER
+    # -------------------------
+    y = y + table_header_h
+
     d.rectangle(
-        (20, y, W - 20, y + 50),
+        (
+            25,
+            y,
+            W - 25,
+            y + 52,
+        ),
         fill=navy2,
     )
 
-    # Columnas optimizadas para móvil
-    x_num = 45
-    x_op = 110
-    x_rec = 610
-    x_pct = 860
-    x_falta = 1010
+    x_num = 50
+    x_op = 115
+    x_rec = 600
+    x_pct = 865
+    x_meta = 1010
 
     headers = [
         (x_num, "#"),
         (x_op, "OPERADOR"),
         (x_rec, "RECUPERADO"),
-        (x_pct, "%"),
-        (x_falta, "FALTA"),
+        (x_pct, "% AVANCE"),
+        (x_meta, "FALTA"),
     ]
 
-    for x, texto in headers:
+    for x, txt in headers:
         d.text(
-            (x, y + 14),
-            texto,
+            (x, y + 15),
+            txt,
             font=f_head,
             fill=white,
         )
 
-    # Filas
-    y0 = y + 50
+    # -------------------------
+    # ROWS
+    # -------------------------
+    y0 = y + 52
 
     for i, fila in tabla.iterrows():
-        ry = y0 + (i * row_h)
+        ry = y0 + i * row_h
 
-        bg = white if i % 2 == 0 else light
+        row_bg = (
+            white
+            if i % 2 == 0
+            else light
+        )
+
         d.rectangle(
-            (20, ry, W - 20, ry + row_h),
-            fill=bg,
+            (
+                25,
+                ry,
+                W - 25,
+                ry + row_h,
+            ),
+            fill=row_bg,
         )
 
         d.line(
-            (20, ry + row_h, W - 20, ry + row_h),
-            fill=(218, 224, 230),
+            (
+                25,
+                ry + row_h,
+                W - 25,
+                ry + row_h,
+            ),
+            fill=border,
             width=1,
         )
 
@@ -1994,11 +2206,12 @@ def generar_imagen_recuperacion_telegram(
             fila["% Recuperación"]
         )
         falta = max(
-            float(meta_individual) - recuperacion,
+            float(meta_individual)
+            - recuperacion,
             0,
         )
 
-        puesto_color = (
+        color_pos = (
             gold
             if i == 0
             else silver
@@ -2009,77 +2222,140 @@ def generar_imagen_recuperacion_telegram(
         )
 
         d.rounded_rectangle(
-            (38, ry + 15, 82, ry + 57),
+            (
+                40,
+                ry + 15,
+                85,
+                ry + 58,
+            ),
             radius=10,
-            fill=puesto_color,
+            fill=color_pos,
         )
 
-        pos_txt = str(i + 1)
-        pos_bbox = d.textbbox((0, 0), pos_txt, font=f_row_b)
+        ptxt = str(i + 1)
+        pb = d.textbbox(
+            (0, 0),
+            ptxt,
+            font=f_row_b,
+        )
+
         d.text(
             (
-                60 - ((pos_bbox[2] - pos_bbox[0]) / 2),
+                62.5
+                - (pb[2] - pb[0]) / 2,
                 ry + 23,
             ),
-            pos_txt,
+            ptxt,
             font=f_row_b,
             fill=white,
         )
 
-        # Nombre completo, pero con tamaño que no se corte.
-        nombre = str(fila["Operador"])
-        fuente_nombre = f_row_b
+        nombre = str(
+            fila["Operador"]
+        )
 
-        if len(nombre) > 31:
-            fuente_nombre = _fuente_reporte(17, True)
+        fuente_nombre = (
+            _fuente_reporte(18, True)
+            if len(nombre) > 30
+            else f_row_b
+        )
 
         d.text(
-            (x_op, ry + 24),
+            (
+                x_op,
+                ry + 24,
+            ),
             nombre,
             font=fuente_nombre,
             fill=dark,
         )
 
         d.text(
-            (x_rec, ry + 24),
-            formato_usd(recuperacion),
+            (
+                x_rec,
+                ry + 24,
+            ),
+            formato_usd(
+                recuperacion
+            ),
             font=f_row_b,
             fill=green,
         )
 
         d.text(
-            (x_pct, ry + 24),
-            formato_porcentaje(porcentaje),
+            (
+                x_pct,
+                ry + 24,
+            ),
+            formato_porcentaje(
+                porcentaje
+            ),
             font=f_row_b,
             fill=dark,
         )
 
         d.text(
-            (x_falta, ry + 24),
-            formato_usd(falta).replace("USD ", ""),
+            (
+                x_meta,
+                ry + 24,
+            ),
+            formato_usd(
+                falta
+            ).replace(
+                "USD ",
+                "",
+            ),
             font=f_row,
-            fill=red if falta > 0 else green,
+            fill=(
+                red
+                if falta > 0
+                else green
+            ),
         )
 
-    # Pie
-    footer_y = y0 + (len(tabla) * row_h) + 12
+    # -------------------------
+    # FOOTER
+    # -------------------------
+    footer_y = (
+        y0
+        + len(tabla) * row_h
+        + 20
+    )
+
+    d.rounded_rectangle(
+        (
+            25,
+            footer_y,
+            W - 25,
+            footer_y + footer_h,
+        ),
+        radius=18,
+        fill=navy,
+    )
+
+    footer_txt = (
+        "¡VAMOS POR EL CIERRE DEL MES!  "
+        "Enfoque, constancia y actitud nos llevan al resultado."
+    )
 
     d.text(
-        (35, footer_y),
         (
-            f"Meta individual: {formato_usd(meta_individual)}  ·  "
-            "Ordenado de mayor a menor cumplimiento"
+            55,
+            footer_y + 29,
         ),
-        font=f_small,
-        fill=gray,
+        footer_txt,
+        font=f_footer,
+        fill=white,
     )
 
     buffer = io.BytesIO()
+
     img.save(
         buffer,
         format="PNG",
         optimize=True,
     )
+
     buffer.seek(0)
     return buffer
 
@@ -2144,12 +2420,26 @@ def enviar_foto_telegram(chat_id, imagen_bytes, caption=""):
     except Exception as e:
         return False, str(e)
 
+def saludo_segun_hora():
+    hora = datetime.now(
+        ZoneInfo("America/La_Paz")
+    ).hour
+
+    if 5 <= hora < 12:
+        return "Buenos días", "☀️"
+    elif 12 <= hora < 19:
+        return "Buenas tardes", "🌤️"
+    else:
+        return "Buenas noches", "🌙"
+
+
 def generar_mensaje_grupo_recuperacion(
     tabla_general,
     meta_individual,
 ):
     """
     Texto breve que acompaña la imagen del ranking en Telegram.
+    El saludo cambia automáticamente según la hora de Bolivia.
     """
     tabla = tabla_general.copy()
 
@@ -2173,11 +2463,12 @@ def generar_mensaje_grupo_recuperacion(
         0,
     )
 
+    saludo, emoji_saludo = saludo_segun_hora()
+
     return (
+        f"{emoji_saludo} {saludo}, equipo. 💪\n\n"
         f"📊 AVANCE DE RECUPERACIÓN | "
         f"{fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
-        f"Buen día, equipo. 💪\n"
-        f"Así vamos con la recuperación al día de hoy:\n\n"
         f"💰 Recuperado: {formato_usd(total_rec)}\n"
         f"🎯 Meta equipo: {formato_usd(meta_equipo)}\n"
         f"📈 Cumplimiento: {formato_porcentaje(pct_equipo)}\n"
