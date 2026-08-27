@@ -14,6 +14,7 @@ from urllib.parse import quote
 from urllib import request, parse
 from io import BytesIO
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from supabase import create_client
 from PIL import Image, ImageDraw, ImageFont
 
@@ -1859,58 +1860,43 @@ def enviar_mensaje_telegram(chat_id, texto):
 
 def _fuente_reporte(size, bold=False):
     """
-    Carga una fuente TrueType grande y legible.
-    Se intenta primero por nombre y luego por rutas comunes de Linux.
-    El fallback final usa una fuente TrueType alternativa, no la mini fuente
-    por defecto de PIL.
+    Fuente escalable REAL para las imágenes de Telegram.
+
+    Usa matplotlib.font_manager para encontrar una fuente TrueType
+    instalada en el entorno de Streamlit. Esto evita que PIL caiga en
+    ImageFont.load_default(), que era la causa de que todo se viera
+    diminuto aunque el código pidiera 40, 50 o 60 px.
     """
-    nombres = (
-        [
-            "DejaVuSans-Bold.ttf",
-            "LiberationSans-Bold.ttf",
-            "Arial Bold.ttf",
-        ]
-        if bold
-        else
-        [
-            "DejaVuSans.ttf",
-            "LiberationSans-Regular.ttf",
-            "Arial.ttf",
-        ]
-    )
+    try:
+        propiedad = font_manager.FontProperties(
+            family="DejaVu Sans",
+            weight="bold" if bold else "normal",
+        )
 
-    rutas = (
-        [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
-        ]
-        if bold
-        else
-        [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-        ]
-    )
+        ruta_fuente = font_manager.findfont(
+            propiedad,
+            fallback_to_default=True,
+        )
 
-    for candidato in nombres + rutas:
+        return ImageFont.truetype(
+            ruta_fuente,
+            size=int(size),
+        )
+
+    except Exception:
+        # Segundo intento con la fuente incluida por matplotlib.
         try:
+            ruta_fuente = font_manager.findfont(
+                "DejaVu Sans",
+                fallback_to_default=True,
+            )
             return ImageFont.truetype(
-                candidato,
-                size=size,
+                ruta_fuente,
+                size=int(size),
             )
         except Exception:
-            continue
-
-    # Último intento con DejaVu por nombre.
-    try:
-        return ImageFont.truetype(
-            "DejaVuSans.ttf",
-            size=size,
-        )
-    except Exception:
-        return ImageFont.load_default()
+            # Solo como último recurso.
+            return ImageFont.load_default()
 
 
 def generar_imagen_recuperacion_telegram(
@@ -1956,17 +1942,17 @@ def generar_imagen_recuperacion_telegram(
     d = ImageDraw.Draw(img)
 
     # Tipografías grandes, como en la referencia.
-    f_title = _fuente_reporte(58, True)
-    f_date = _fuente_reporte(30, True)
+    f_title = _fuente_reporte(62, True)
+    f_date = _fuente_reporte(34, True)
 
-    f_name = _fuente_reporte(50, True)
-    f_name_long = _fuente_reporte(44, True)
-    f_name_xlong = _fuente_reporte(40, True)
+    f_name = _fuente_reporte(58, True)
+    f_name_long = _fuente_reporte(52, True)
+    f_name_xlong = _fuente_reporte(46, True)
 
-    f_amount = _fuente_reporte(31, True)
-    f_pct = _fuente_reporte(46, True)
-    f_pos = _fuente_reporte(36, True)
-    f_footer = _fuente_reporte(26, True)
+    f_amount = _fuente_reporte(36, True)
+    f_pct = _fuente_reporte(52, True)
+    f_pos = _fuente_reporte(40, True)
+    f_footer = _fuente_reporte(28, True)
 
     # -----------------------------------------------------
     # HEADER
