@@ -3332,6 +3332,73 @@ st.markdown(
             font-weight:700;
             margin:6px 0 7px 2px;
         }
+
+        /* ===== CONTROL OPERATIVO V63 ===== */
+
+        .status-summary-v63 {
+            background:#ffffff;
+            border:1px solid #e6eaf0;
+            border-radius:14px;
+            padding:11px 13px;
+            min-height:74px;
+        }
+
+        .status-summary-label-v63 {
+            color:#667085;
+            font-size:10px;
+            font-weight:800;
+            text-transform:uppercase;
+            letter-spacing:.04em;
+        }
+
+        .status-summary-value-v63 {
+            color:#101828;
+            font-size:22px;
+            font-weight:800;
+            margin-top:3px;
+        }
+
+        .status-summary-foot-v63 {
+            color:#667085;
+            font-size:10px;
+            margin-top:2px;
+        }
+
+        .expected-note-v63 {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            background:#f8fafc;
+            border:1px solid #e7ebf0;
+            border-radius:10px;
+            padding:8px 10px;
+            margin:6px 0 10px 0;
+            font-size:10px;
+            color:#475467;
+        }
+
+        .expected-note-v63 strong {
+            color:#101828;
+        }
+
+        .operator-alert-v63 {
+            margin-top:4px;
+            font-size:10px;
+            font-weight:700;
+        }
+
+        .operator-alert-red-v63 {
+            color:#c01048;
+        }
+
+        .operator-alert-orange-v63 {
+            color:#b54708;
+        }
+
+        .operator-alert-green-v63 {
+            color:#067647;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -4196,18 +4263,94 @@ elif menu == "✉️ Mensajes diarios":
                 unsafe_allow_html=True,
             )
 
+        # Resumen de situación contra el esperado a la fecha.
+        esperado_resumen = float(jornadas_info["esperado_pct"])
+
+        prioridad_count = 0
+        seguimiento_count = 0
+        al_dia_count = 0
+
+        for _, fila_res in resultado.iterrows():
+            valores_res = [
+                float(fila_res["% Gestiones"]),
+                float(fila_res["% Compromisos"]),
+                float(fila_res["% Recuperación"]),
+            ]
+
+            brecha_res = max(
+                esperado_resumen - v
+                for v in valores_res
+            )
+
+            if brecha_res >= 15:
+                prioridad_count += 1
+            elif brecha_res > 0:
+                seguimiento_count += 1
+            else:
+                al_dia_count += 1
+
+        q1, q2, q3, q4 = st.columns(4)
+
+        with q1:
+            st.markdown(
+                f"""
+                <div class="status-summary-v63">
+                    <div class="status-summary-label-v63">Esperado hoy</div>
+                    <div class="status-summary-value-v63">{formato_porcentaje(esperado_resumen)}</div>
+                    <div class="status-summary-foot-v63">Según jornadas transcurridas</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with q2:
+            st.markdown(
+                f"""
+                <div class="status-summary-v63">
+                    <div class="status-summary-label-v63">Prioridad</div>
+                    <div class="status-summary-value-v63">{prioridad_count}</div>
+                    <div class="status-summary-foot-v63">Brecha ≥ 15 puntos</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with q3:
+            st.markdown(
+                f"""
+                <div class="status-summary-v63">
+                    <div class="status-summary-label-v63">Seguimiento</div>
+                    <div class="status-summary-value-v63">{seguimiento_count}</div>
+                    <div class="status-summary-foot-v63">Debajo del esperado</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with q4:
+            st.markdown(
+                f"""
+                <div class="status-summary-v63">
+                    <div class="status-summary-label-v63">Al día</div>
+                    <div class="status-summary-value-v63">{al_dia_count}</div>
+                    <div class="status-summary-foot-v63">Cumplen esperado</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         st.write("")
 
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
-        f1, f2, f3, f4 = st.columns([2.2, 1.1, 1.2, 1])
+        f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
 
         with f1:
             buscar_operador = st.text_input(
                 "Buscar operador",
                 placeholder="Nombre o usuario...",
-                key="buscar_operador_mensajes_v59",
+                key="buscar_operador_mensajes_v63",
             ).strip()
 
         with f2:
@@ -4221,23 +4364,35 @@ elif menu == "✉️ Mensajes diarios":
                     "Buen avance",
                     "Excelente",
                 ],
-                key="filtro_estado_mensajes_v59",
+                key="filtro_estado_mensajes_v63",
             )
 
         with f3:
+            filtro_canal = st.selectbox(
+                "Telegram",
+                [
+                    "Todos",
+                    "Configurado",
+                    "Pendiente",
+                ],
+                key="filtro_canal_mensajes_v63",
+            )
+
+        with f4:
             ordenar_mensajes = st.selectbox(
                 "Ordenar por",
                 [
+                    "Mayor prioridad",
                     "Nombre A-Z",
                     "Recuperación mayor",
                     "Recuperación menor",
                     "Gestiones mayor",
                     "Compromisos mayor",
                 ],
-                key="orden_mensajes_v59",
+                key="orden_mensajes_v63",
             )
 
-        with f4:
+        with f5:
             st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
 
             telegram_configurados_top = [
@@ -4332,7 +4487,25 @@ elif menu == "✉️ Mensajes diarios":
                 mascara_busqueda
             ].copy()
 
-        if ordenar_mensajes == "Nombre A-Z":
+        # Brecha contra el avance esperado a la fecha.
+        esperado_v63 = float(jornadas_info["esperado_pct"])
+
+        resultado_vista["_brecha_prioridad"] = resultado_vista.apply(
+            lambda r: max(
+                esperado_v63 - float(r["% Gestiones"]),
+                esperado_v63 - float(r["% Compromisos"]),
+                esperado_v63 - float(r["% Recuperación"]),
+            ),
+            axis=1,
+        )
+
+        if ordenar_mensajes == "Mayor prioridad":
+            resultado_vista = resultado_vista.sort_values(
+                "_brecha_prioridad",
+                ascending=False,
+                kind="stable",
+            )
+        elif ordenar_mensajes == "Nombre A-Z":
             resultado_vista = resultado_vista.sort_values(
                 "Operador",
                 ascending=True,
@@ -4397,6 +4570,25 @@ elif menu == "✉️ Mensajes diarios":
                     "nombre_mensaje"
                 ] = nombre_guardado_pre
 
+            chat_id_pre = normalizar_telegram_chat_id(
+                contacto_pre.get(
+                    "telegram_chat_id",
+                    "",
+                )
+            )
+
+            if (
+                filtro_canal == "Configurado"
+                and not chat_id_pre
+            ):
+                continue
+
+            if (
+                filtro_canal == "Pendiente"
+                and chat_id_pre
+            ):
+                continue
+
             calculo_pre = generar_mensaje_diario(
                 fila_pre,
                 jornadas_info,
@@ -4426,12 +4618,15 @@ elif menu == "✉️ Mensajes diarios":
                 clase_pre = "status-green"
 
             if filtro_estado == "⚠️ Prioridad":
-                brecha_max_pre = max(
-                    100 - float(fila_pre["% Gestiones"]),
-                    100 - float(fila_pre["% Compromisos"]),
-                    100 - float(fila_pre["% Recuperación"]),
+                esperado_pre = float(
+                    jornadas_info["esperado_pct"]
                 )
-                if brecha_max_pre < 20:
+                brecha_max_pre = max(
+                    esperado_pre - float(fila_pre["% Gestiones"]),
+                    esperado_pre - float(fila_pre["% Compromisos"]),
+                    esperado_pre - float(fila_pre["% Recuperación"]),
+                )
+                if brecha_max_pre < 15:
                     continue
             elif (
                 filtro_estado != "Todos"
@@ -4543,10 +4738,14 @@ elif menu == "✉️ Mensajes diarios":
                 # -------------------------------------------------
                 # Prioridad principal
                 # -------------------------------------------------
+                esperado_ind = float(
+                    jornadas_info["esperado_pct"]
+                )
+
                 brechas_pct = {
-                    "Gestiones": 100 - pct_g_ind,
-                    "Compromisos": 100 - pct_c_ind,
-                    "Recuperación": 100 - pct_r_ind,
+                    "Gestiones": esperado_ind - pct_g_ind,
+                    "Compromisos": esperado_ind - pct_c_ind,
+                    "Recuperación": esperado_ind - pct_r_ind,
                 }
 
                 prioridad = max(
@@ -4554,14 +4753,18 @@ elif menu == "✉️ Mensajes diarios":
                     key=brechas_pct.get,
                 )
 
-                if min(
-                    pct_g_ind,
-                    pct_c_ind,
-                    pct_r_ind,
-                ) >= 100:
-                    prioridad_texto = "Metas cumplidas"
+                mayor_brecha = float(
+                    brechas_pct[prioridad]
+                )
+
+                if (
+                    pct_g_ind >= esperado_ind
+                    and pct_c_ind >= esperado_ind
+                    and pct_r_ind >= esperado_ind
+                ):
+                    prioridad_texto = "Al día"
                     prioridad_clase = "priority-green-v62"
-                elif brechas_pct[prioridad] >= 20:
+                elif mayor_brecha >= 15:
                     prioridad_texto = f"Prioridad: {prioridad}"
                     prioridad_clase = "priority-red-v62"
                 else:
@@ -4569,11 +4772,9 @@ elif menu == "✉️ Mensajes diarios":
                     prioridad_clase = "priority-orange-v62"
 
                 def clase_barra(pct):
-                    if pct >= 100:
+                    if pct >= esperado_ind:
                         return "bar-green-v62"
-                    if pct >= jornadas_info["esperado_pct"] - 5:
-                        return "bar-green-v62"
-                    if pct >= jornadas_info["esperado_pct"] - 15:
+                    if pct >= esperado_ind - 10:
                         return "bar-orange-v62"
                     return "bar-red-v62"
 
@@ -4633,6 +4834,22 @@ elif menu == "✉️ Mensajes diarios":
                                         </span>
                                     </div>
                                 </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                        st.markdown(
+                            f"""
+                            <div class="expected-note-v63">
+                                <span>Esperado a la fecha:
+                                    <strong>{formato_porcentaje(esperado_ind)}</strong>
+                                </span>
+                                <span>
+                                    Mayor brecha:
+                                    <strong>{prioridad}</strong>
+                                    ({formato_porcentaje(max(mayor_brecha, 0))})
+                                </span>
                             </div>
                             """,
                             unsafe_allow_html=True,
