@@ -30,6 +30,8 @@ META_GESTIONES = 2400
 META_COMPROMISOS = 550
 META_DIARIA_GESTIONES = 98
 META_DIARIA_COMPROMISOS = 25
+JORNADA_INICIO_HORA = 8
+JORNADA_FIN_HORA = 17
 
 # =========================================================
 # REGLA DEFINITIVA DE RECUPERACIÓN
@@ -432,9 +434,12 @@ def generar_mensaje_diario(fila, jornadas_info):
 
     esperado = jornadas_info["esperado_pct"]
 
-    # Para el mensaje diario se mantienen siempre los mínimos operativos,
-    # aunque una meta mensual ya haya sido alcanzada.
-    minimo_g = int(st.session_state.meta_diaria_gestiones_cfg)
+    minimo_g = int(
+        st.session_state.get(
+            "meta_diaria_gestiones_cfg",
+            META_DIARIA_GESTIONES,
+        )
+    )
     minimo_c = int(st.session_state.meta_diaria_compromisos_cfg)
 
     faltante_r = max(meta_r - recuperacion, 0)
@@ -447,53 +452,23 @@ def generar_mensaje_diario(fila, jornadas_info):
         f"🔹 Gestiones: {formato_entero(gestiones)} / "
         f"{formato_entero(meta_g)} — {formato_porcentaje(pct_g)}{check_g}"
     )
-
     linea_c = (
         f"🔹 Compromisos: {formato_entero(compromisos)} / "
         f"{formato_entero(meta_c)} — {formato_porcentaje(pct_c)}{check_c}"
     )
-
     linea_r = (
         f"🔹 Recuperación: {formato_usd(recuperacion)} / "
         f"{formato_usd(meta_r)} — {formato_porcentaje(pct_r)}{check_r}"
     )
 
-    # Cierre automático según metas alcanzadas.
-    cumple_g = gestiones >= meta_g
-    cumple_c = compromisos >= meta_c
-    cumple_r = recuperacion >= meta_r
-
-    if cumple_g and cumple_c and cumple_r:
+    if gestiones >= meta_g and compromisos >= meta_c:
         cierre = (
-            "¡Metas mensuales cumplidas! 👏 "
-            "Mantengamos los mínimos diarios para sostener el resultado."
-        )
-    elif cumple_g and cumple_c:
-        cierre = (
-            "¡Metas de gestiones y compromisos cumplidas! 👏 "
             "Mantengamos los mínimos diarios y reforcemos la recuperación "
-            "para cerrar la brecha del mes."
-        )
-    elif cumple_c:
-        cierre = (
-            "¡Meta de compromisos cumplida! 👏 "
-            "Mantengamos los mínimos diarios y reforcemos la recuperación "
-            "para cerrar la brecha del mes."
-        )
-    elif cumple_g:
-        cierre = (
-            "¡Meta de gestiones cumplida! 👏 "
-            "Mantengamos los mínimos diarios y reforcemos compromisos "
-            "y recuperación."
+            "para sostener el resultado."
         )
     elif pct_r < esperado - 10:
         cierre = (
             "Mantengamos el ritmo y reforcemos la recuperación "
-            "para acercarnos a la meta mensual."
-        )
-    elif pct_c < esperado - 10:
-        cierre = (
-            "Mantengamos el ritmo y reforcemos los compromisos "
             "para acercarnos a la meta mensual."
         )
     else:
@@ -504,14 +479,26 @@ def generar_mensaje_diario(fila, jornadas_info):
 
     saludo_individual, emoji_individual = saludo_segun_hora()
 
-    objetivo_recuperacion = ""
-    if faltante_r > 0:
-        objetivo_recuperacion = (
-            f"\n• Recuperación pendiente: {formato_usd(faltante_r)}"
-        )
-    else:
-        objetivo_recuperacion = (
-            "\n• Recuperación: Meta mensual cumplida ✅"
+    avance_hora = calcular_avance_hora_operador(
+        usuario,
+        st.session_state.callcenter_df,
+    )
+
+    bloque_hoy = ""
+
+    if avance_hora["disponible"]:
+        bloque_hoy = (
+            f"\n\n⏱️ Avance de hoy · {avance_hora['hora_corte']}\n"
+            f"📞 Gestiones: {formato_entero(avance_hora['gestiones_hoy'])} / "
+            f"{formato_entero(minimo_g)}\n"
+            f"{texto_estado_ritmo(avance_hora['delta_gestiones'], 'gestiones')}\n"
+            f"🎯 Faltan {formato_entero(avance_hora['faltan_gestiones'])} "
+            f"para el mínimo diario\n\n"
+            f"🤝 Compromisos: {formato_entero(avance_hora['compromisos_hoy'])} / "
+            f"{formato_entero(minimo_c)}\n"
+            f"{texto_estado_ritmo(avance_hora['delta_compromisos'], 'compromisos')}\n"
+            f"🎯 Faltan {formato_entero(avance_hora['faltan_compromisos'])} "
+            f"para el mínimo diario"
         )
 
     mensaje = (
@@ -519,33 +506,20 @@ def generar_mensaje_diario(fila, jornadas_info):
         f"📊 Avance del mes\n"
         f"{linea_g}\n"
         f"{linea_c}\n"
-        f"{linea_r}\n\n"
-        f"🎯 Meta mínima de hoy\n"
-        f"• {formato_entero(minimo_g)} gestiones\n"
-        f"• {formato_entero(minimo_c)} compromisos"
-        f"{objetivo_recuperacion}\n\n"
+        f"{linea_r}"
+        f"{bloque_hoy}\n\n"
         f"{cierre} 💪"
     )
 
     return {
         "mensaje": mensaje,
-        # Se devuelven los mínimos diarios para mantener coherencia
-        # con las tarjetas y mensajes del módulo.
         "objetivo_gestiones": minimo_g,
         "objetivo_compromisos": minimo_c,
         "faltante_recuperacion": faltante_r,
-        "estado_gestiones": clasificar_avance(
-            pct_g,
-            esperado,
-        ),
-        "estado_compromisos": clasificar_avance(
-            pct_c,
-            esperado,
-        ),
-        "estado_recuperacion": clasificar_avance(
-            pct_r,
-            esperado,
-        ),
+        "avance_hora": avance_hora,
+        "estado_gestiones": clasificar_avance(pct_g, esperado),
+        "estado_compromisos": clasificar_avance(pct_c, esperado),
+        "estado_recuperacion": clasificar_avance(pct_r, esperado),
     }
 
 
@@ -1815,6 +1789,23 @@ def obtener_telegram_group_chat_id():
         return ""
 
 
+
+def obtener_telegram_coordinador_chat_id():
+    try:
+        chat_id = st.secrets.get("TELEGRAM_COORDINADOR_CHAT_ID")
+        if chat_id:
+            return normalizar_telegram_chat_id(chat_id)
+
+        telegram_cfg = st.secrets.get("telegram", {})
+        chat_id = (
+            telegram_cfg.get("coordinador_chat_id")
+            or telegram_cfg.get("TELEGRAM_COORDINADOR_CHAT_ID")
+        )
+        return normalizar_telegram_chat_id(chat_id)
+    except Exception:
+        return ""
+
+
 def obtener_telegram_bot_token():
     try:
         token = st.secrets.get("TELEGRAM_BOT_TOKEN")
@@ -2517,6 +2508,150 @@ def probar_conexion_telegram():
         )
     except Exception as e:
         return False, str(e)
+
+
+
+# =========================================================
+# AVANCE DE HOY / A LA HORA
+# =========================================================
+
+def calcular_avance_hora_operador(usuario, callcenter_df=None, ahora=None):
+    ahora = ahora or datetime.now(ZoneInfo("America/La_Paz"))
+    hoy = ahora.date()
+
+    meta_g_dia = int(
+        st.session_state.get(
+            "meta_diaria_gestiones_cfg",
+            META_DIARIA_GESTIONES,
+        )
+    )
+    meta_c_dia = int(
+        st.session_state.meta_diaria_compromisos_cfg
+    )
+
+    base = {
+        "disponible": False,
+        "gestiones_hoy": 0,
+        "compromisos_hoy": 0,
+        "esperado_gestiones": 0,
+        "esperado_compromisos": 0,
+        "delta_gestiones": 0,
+        "delta_compromisos": 0,
+        "faltan_gestiones": meta_g_dia,
+        "faltan_compromisos": meta_c_dia,
+        "hora_corte": ahora.strftime("%H:%M"),
+    }
+
+    if callcenter_df is None or callcenter_df.empty:
+        return base
+
+    df = callcenter_df.copy()
+
+    col_fecha = buscar_columna(df, ["fecha"])
+    col_usuario = buscar_columna(df, ["usuario"])
+    col_compromiso = buscar_columna(df, ["compromiso"])
+
+    if col_fecha is None or col_usuario is None:
+        return base
+
+    df["_fecha_hora"] = pd.to_datetime(
+        df[col_fecha],
+        dayfirst=True,
+        errors="coerce",
+    )
+    df = df.dropna(subset=["_fecha_hora"])
+
+    df["_usuario_norm"] = (
+        df[col_usuario]
+        .astype(str)
+        .apply(normalizar_texto)
+    )
+
+    df = df[
+        (df["_usuario_norm"] == normalizar_texto(usuario))
+        & (df["_fecha_hora"].dt.date == hoy)
+    ].copy()
+
+    gestiones_hoy = int(len(df))
+
+    if col_compromiso:
+        compromiso_txt = df[col_compromiso].astype(str).str.strip()
+        compromisos_hoy = int(
+            (
+                df[col_compromiso].notna()
+                & (compromiso_txt != "")
+                & (compromiso_txt.str.lower() != "nan")
+            ).sum()
+        )
+    else:
+        compromisos_hoy = 0
+
+    inicio = ahora.replace(
+        hour=JORNADA_INICIO_HORA,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    fin = ahora.replace(
+        hour=JORNADA_FIN_HORA,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+    total_seg = max((fin - inicio).total_seconds(), 1)
+    transcurrido = min(
+        max((ahora - inicio).total_seconds(), 0),
+        total_seg,
+    )
+    proporcion = transcurrido / total_seg
+
+    esperado_g = int(math.ceil(meta_g_dia * proporcion))
+    esperado_c = int(math.ceil(meta_c_dia * proporcion))
+
+    return {
+        "disponible": True,
+        "gestiones_hoy": gestiones_hoy,
+        "compromisos_hoy": compromisos_hoy,
+        "esperado_gestiones": esperado_g,
+        "esperado_compromisos": esperado_c,
+        "delta_gestiones": gestiones_hoy - esperado_g,
+        "delta_compromisos": compromisos_hoy - esperado_c,
+        "faltan_gestiones": max(meta_g_dia - gestiones_hoy, 0),
+        "faltan_compromisos": max(meta_c_dia - compromisos_hoy, 0),
+        "hora_corte": ahora.strftime("%H:%M"),
+    }
+
+
+def texto_estado_ritmo(delta, indicador):
+    if delta > 0:
+        return (
+            f"🟢 Vas {formato_entero(delta)} {indicador} "
+            f"por encima del ritmo esperado"
+        )
+    if delta == 0:
+        return "🟢 Vas exactamente en el ritmo esperado"
+    return (
+        f"🔴 Vas {formato_entero(abs(delta))} {indicador} "
+        f"por debajo del ritmo esperado"
+    )
+
+
+def enviar_copia_coordinador(operador, mensaje_original, detalle_envio):
+    chat_coord = obtener_telegram_coordinador_chat_id()
+
+    if not chat_coord:
+        return False, "Falta TELEGRAM_COORDINADOR_CHAT_ID."
+
+    copia = (
+        f"✅ MENSAJE ENVIADO\n\n"
+        f"👤 Operador: {operador}\n"
+        f"📬 Estado: {detalle_envio}\n\n"
+        f"--- Copia del mensaje ---\n"
+        f"{mensaje_original}"
+    )
+
+    return enviar_mensaje_telegram(chat_coord, copia)
 
 
 # =========================================================
@@ -4664,6 +4799,12 @@ elif menu == "✉️ Mensajes diarios":
                         enviados_top.append(
                             fila_envio["Operador"]
                         )
+
+                        enviar_copia_coordinador(
+                            fila_envio["Operador"],
+                            calculo_envio["mensaje"],
+                            detalle_envio,
+                        )
                     else:
                         errores_top.append(
                             f"{fila_envio['Operador']}: {detalle_envio}"
@@ -5155,14 +5296,47 @@ elif menu == "✉️ Mensajes diarios":
                             )
 
                         # Ya no se usa la franja azul repetitiva.
-                        st.markdown(
-                            """
-                            <div class="today-mini-v62">
-                                Hoy: mínimo 98 gestiones · 25 compromisos
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
+                        avance_hora_card = calculo.get(
+                            "avance_hora",
+                            {},
                         )
+
+                        if avance_hora_card.get("disponible"):
+                            delta_g_card = int(
+                                avance_hora_card["delta_gestiones"]
+                            )
+                            delta_c_card = int(
+                                avance_hora_card["delta_compromisos"]
+                            )
+
+                            color_g = "#067647" if delta_g_card >= 0 else "#c01048"
+                            color_c = "#067647" if delta_c_card >= 0 else "#c01048"
+
+                            st.markdown(
+                                f"""
+                                <div class="today-mini-v62">
+                                    ⏱️ Hoy {avance_hora_card['hora_corte']} ·
+                                    Gestiones <strong>{avance_hora_card['gestiones_hoy']}/98</strong>
+                                    <span style="color:{color_g};font-weight:800;">
+                                        ({delta_g_card:+d} vs ritmo)
+                                    </span>
+                                    · Compromisos <strong>{avance_hora_card['compromisos_hoy']}/25</strong>
+                                    <span style="color:{color_c};font-weight:800;">
+                                        ({delta_c_card:+d} vs ritmo)
+                                    </span>
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                """
+                                <div class="today-mini-v62">
+                                    Carga GEN CallCenter para ver avance a la hora
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
 
                         asunto = quote(
                             "Seguimiento diario de metas"
@@ -5212,6 +5386,19 @@ elif menu == "✉️ Mensajes diarios":
                                         st.success(
                                             "Enviado."
                                         )
+
+                                        ok_copia, detalle_copia = (
+                                            enviar_copia_coordinador(
+                                                fila["Operador"],
+                                                calculo["mensaje"],
+                                                detalle_tg,
+                                            )
+                                        )
+
+                                        if not ok_copia:
+                                            st.caption(
+                                                f"Copia al coordinador pendiente: {detalle_copia}"
+                                            )
                                     else:
                                         st.error(
                                             f"No se pudo enviar: {detalle_tg}"
@@ -5243,6 +5430,19 @@ elif menu == "✉️ Mensajes diarios":
             unsafe_allow_html=True,
         )
         st.markdown("### Envío y comunicación")
+
+        coordinador_chat_id = obtener_telegram_coordinador_chat_id()
+
+        if coordinador_chat_id:
+            st.success(
+                "✅ Copia al coordinador activa. Recibirás una confirmación "
+                "con el mensaje exacto después de cada envío individual exitoso."
+            )
+        else:
+            st.info(
+                "Agrega TELEGRAM_COORDINADOR_CHAT_ID en Streamlit Secrets "
+                "para recibir copia y confirmación de cada envío."
+            )
 
 
         telegram_group_chat_id = (
@@ -5442,6 +5642,12 @@ elif menu == "✉️ Mensajes diarios":
                     if ok_tg:
                         enviados.append(
                             fila_tg["Operador"]
+                        )
+
+                        enviar_copia_coordinador(
+                            fila_tg["Operador"],
+                            calculo_tg["mensaje"],
+                            detalle_tg,
                         )
                     else:
                         pendientes.append(
