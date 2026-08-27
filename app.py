@@ -1918,8 +1918,8 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    Ranking móvil con nombres muy grandes.
-    Diseñado para verse bien directamente en Telegram sin abrir la imagen.
+    V38 - Ranking ultra legible para Telegram móvil.
+    Los nombres son el elemento principal.
     """
     import io
 
@@ -1929,94 +1929,86 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
-    # Formato vertical compacto pero con tarjetas altas.
-    W = 720
+    W = 700
     margin = 18
     header_h = 105
-    section_h = 54
-    card_h = 168
+    row_h = 150
     gap = 12
-    footer_h = 62
+    footer_h = 58
 
     H = (
         margin
         + header_h
-        + 12
-        + section_h
-        + 12
-        + len(tabla) * (card_h + gap)
+        + 14
+        + len(tabla) * (row_h + gap)
         + footer_h
         + margin
     )
 
     navy = (7, 29, 52)
-    navy2 = (18, 55, 89)
-    green = (67, 166, 68)
-    green_dark = (38, 126, 48)
+    green = (60, 155, 68)
     white = (255, 255, 255)
-    bg = (242, 246, 249)
-    dark = (18, 29, 42)
-    gray = (100, 112, 126)
-    border = (214, 222, 229)
-    bar_bg = (220, 226, 232)
-    gold = (238, 181, 38)
-    silver = (171, 180, 190)
+    bg = (243, 247, 250)
+    dark = (17, 28, 40)
+    muted = (101, 112, 125)
+    border = (212, 220, 228)
+    bar_bg = (221, 227, 232)
+    gold = (237, 181, 40)
+    silver = (172, 181, 191)
     bronze = (192, 106, 49)
 
     img = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(img)
 
-    # Tipografías: el nombre es claramente el elemento dominante.
-    f_title = _fuente_reporte(36, True)
-    f_date = _fuente_reporte(18, True)
-    f_section = _fuente_reporte(22, True)
+    f_title = _fuente_reporte(38, True)
+    f_version = _fuente_reporte(16, True)
 
-    f_name = _fuente_reporte(42, True)
-    f_name_2 = _fuente_reporte(38, True)
-    f_name_3 = _fuente_reporte(34, True)
+    # Nombres mucho más grandes que en versiones anteriores.
+    f_name = _fuente_reporte(46, True)
+    f_name_med = _fuente_reporte(41, True)
+    f_name_long = _fuente_reporte(36, True)
 
-    f_amount = _fuente_reporte(23, True)
-    f_pct = _fuente_reporte(28, True)
-    f_pos = _fuente_reporte(22, True)
-    f_label = _fuente_reporte(14, False)
-    f_footer = _fuente_reporte(17, True)
+    f_amount = _fuente_reporte(24, True)
+    f_pct = _fuente_reporte(27, True)
+    f_pos = _fuente_reporte(24, True)
+    f_small = _fuente_reporte(15, False)
+    f_footer = _fuente_reporte(16, True)
 
-    def lineas_nombre(nombre, fuente, ancho_max):
-        palabras = str(nombre).split()
-        if not palabras:
-            return [""]
+    def cortar_nombre(nombre):
+        """
+        Devuelve 1 o 2 líneas. Nunca reduce el nombre a una fuente diminuta.
+        """
+        nombre = str(nombre).strip()
+        palabras = nombre.split()
 
-        lineas = []
-        actual = ""
+        if len(nombre) <= 24:
+            return [nombre], f_name
+
+        if len(nombre) <= 32:
+            fuente = f_name_med
+        else:
+            fuente = f_name_long
+
+        max_w = W - 150
+
+        linea1 = ""
+        linea2 = ""
 
         for palabra in palabras:
-            prueba = palabra if not actual else f"{actual} {palabra}"
-            bbox = d.textbbox((0, 0), prueba, font=fuente)
-            ancho = bbox[2] - bbox[0]
-
-            if ancho <= ancho_max:
-                actual = prueba
+            prueba = palabra if not linea1 else linea1 + " " + palabra
+            ancho = d.textbbox((0, 0), prueba, font=fuente)[2]
+            if ancho <= max_w and not linea2:
+                linea1 = prueba
             else:
-                if actual:
-                    lineas.append(actual)
-                actual = palabra
+                linea2 = palabra if not linea2 else linea2 + " " + palabra
 
-        if actual:
-            lineas.append(actual)
+        if not linea2:
+            return [linea1], fuente
 
-        if len(lineas) <= 2:
-            return lineas
+        return [linea1, linea2], fuente
 
-        return [
-            lineas[0],
-            " ".join(lineas[1:]),
-        ]
-
-    # -----------------------------------------------------
     # HEADER
-    # -----------------------------------------------------
     y = margin
-
     d.rounded_rectangle(
         (margin, y, W - margin, y + header_h),
         radius=22,
@@ -2024,44 +2016,104 @@ def generar_imagen_recuperacion_telegram(
     )
 
     d.text(
-        (margin + 24, y + 20),
-        "AVANCE DE RECUPERACIÓN",
+        (margin + 22, y + 20),
+        "RANKING DE RECUPERACIÓN",
         font=f_title,
         fill=white,
     )
 
     d.text(
-        (margin + 24, y + 67),
+        (margin + 22, y + 68),
         fecha_local_actual().strftime("%d/%m/%Y"),
-        font=f_date,
+        font=f_version,
         fill=green,
     )
 
-    # -----------------------------------------------------
-    # SECTION
-    # -----------------------------------------------------
-    y += header_h + 12
-
-    d.rounded_rectangle(
-        (margin, y, W - margin, y + section_h),
-        radius=14,
-        fill=navy2,
-    )
-
+    # Marca visible para verificar que realmente se cargó esta versión.
+    version_txt = "V38 · MÓVIL"
+    vb = d.textbbox((0, 0), version_txt, font=f_version)
     d.text(
-        (margin + 20, y + 15),
-        "RANKING DE RECUPERACIÓN",
-        font=f_section,
+        (W - margin - 22 - (vb[2] - vb[0]), y + 70),
+        version_txt,
+        font=f_version,
         fill=white,
     )
 
-    # -----------------------------------------------------
     # CARDS
-    # -----------------------------------------------------
-    y += section_h + 12
+    y += header_h + 14
 
     for i, fila in tabla.iterrows():
-        nombre = str(fila["Operador"]).strip()
+        card_y1 = y + i * (row_h + gap)
+        card_y2 = card_y1 + row_h
+
+        d.rounded_rectangle(
+            (margin, card_y1, W - margin, card_y2),
+            radius=20,
+            fill=white,
+            outline=border,
+            width=2,
+        )
+
+        pos_color = (
+            gold if i == 0 else
+            silver if i == 1 else
+            bronze if i == 2 else
+            navy
+        )
+
+        # Badge de posición
+        bx1 = margin + 14
+        by1 = card_y1 + 22
+        bx2 = bx1 + 58
+        by2 = by1 + 58
+
+        d.rounded_rectangle(
+            (bx1, by1, bx2, by2),
+            radius=13,
+            fill=pos_color,
+        )
+
+        pos = str(i + 1)
+        pb = d.textbbox((0, 0), pos, font=f_pos)
+        d.text(
+            (
+                (bx1 + bx2) / 2 - (pb[2] - pb[0]) / 2,
+                by1 + 13,
+            ),
+            pos,
+            font=f_pos,
+            fill=white,
+        )
+
+        # Nombre
+        nombre = str(fila["Operador"])
+        lineas, fuente_nombre = cortar_nombre(nombre)
+
+        name_x = bx2 + 18
+
+        if len(lineas) == 1:
+            d.text(
+                (name_x, card_y1 + 18),
+                lineas[0],
+                font=fuente_nombre,
+                fill=dark,
+            )
+            info_y = card_y1 + 79
+        else:
+            d.text(
+                (name_x, card_y1 + 8),
+                lineas[0],
+                font=fuente_nombre,
+                fill=dark,
+            )
+            d.text(
+                (name_x, card_y1 + 49),
+                lineas[1],
+                font=fuente_nombre,
+                fill=dark,
+            )
+            info_y = card_y1 + 95
+
         recuperacion = float(
             fila["Recuperación acumulada"]
         )
@@ -2069,231 +2121,72 @@ def generar_imagen_recuperacion_telegram(
             fila["% Recuperación"]
         )
 
-        card_y1 = y + i * (card_h + gap)
-        card_y2 = card_y1 + card_h
-
-        d.rounded_rectangle(
-            (
-                margin,
-                card_y1,
-                W - margin,
-                card_y2,
-            ),
-            radius=20,
-            fill=white,
-            outline=border,
-            width=2,
-        )
-
-        # Ranking badge
-        pos_color = (
-            gold if i == 0
-            else silver if i == 1
-            else bronze if i == 2
-            else navy
-        )
-
-        badge_x1 = margin + 14
-        badge_y1 = card_y1 + 22
-        badge_x2 = badge_x1 + 58
-        badge_y2 = badge_y1 + 58
-
-        d.rounded_rectangle(
-            (
-                badge_x1,
-                badge_y1,
-                badge_x2,
-                badge_y2,
-            ),
-            radius=14,
-            fill=pos_color,
-        )
-
-        pos_txt = str(i + 1)
-        pb = d.textbbox((0, 0), pos_txt, font=f_pos)
-        d.text(
-            (
-                (badge_x1 + badge_x2) / 2 - (pb[2] - pb[0]) / 2,
-                badge_y1 + 14,
-            ),
-            pos_txt,
-            font=f_pos,
-            fill=white,
-        )
-
-        # NOMBRE: grande y hasta 2 líneas.
-        name_x = badge_x2 + 18
-        name_max_w = W - margin - name_x - 18
-
-        fuente_nombre = f_name
-        lineas = lineas_nombre(
-            nombre,
-            fuente_nombre,
-            name_max_w,
-        )
-
-        # Si aun no cabe, bajar solo un poco.
-        if any(
-            (d.textbbox((0, 0), ln, font=fuente_nombre)[2]
-             - d.textbbox((0, 0), ln, font=fuente_nombre)[0])
-            > name_max_w
-            for ln in lineas
-        ):
-            fuente_nombre = f_name_2
-            lineas = lineas_nombre(
-                nombre,
-                fuente_nombre,
-                name_max_w,
-            )
-
-        if any(
-            (d.textbbox((0, 0), ln, font=fuente_nombre)[2]
-             - d.textbbox((0, 0), ln, font=fuente_nombre)[0])
-            > name_max_w
-            for ln in lineas
-        ):
-            fuente_nombre = f_name_3
-            lineas = lineas_nombre(
-                nombre,
-                fuente_nombre,
-                name_max_w,
-            )
-
-        if len(lineas) == 1:
-            name_y = card_y1 + 18
-            d.text(
-                (name_x, name_y),
-                lineas[0],
-                font=fuente_nombre,
-                fill=dark,
-            )
-            info_y = card_y1 + 80
-        else:
-            name_y = card_y1 + 10
-            d.text(
-                (name_x, name_y),
-                lineas[0],
-                font=fuente_nombre,
-                fill=dark,
-            )
-            d.text(
-                (name_x, name_y + 43),
-                lineas[1],
-                font=fuente_nombre,
-                fill=dark,
-            )
-            info_y = card_y1 + 98
-
-        # Recuperado
+        # Datos
         d.text(
             (name_x, info_y),
-            "Recuperado",
-            font=f_label,
-            fill=gray,
-        )
-
-        d.text(
-            (name_x, info_y + 18),
             formato_usd(recuperacion),
             font=f_amount,
-            fill=green_dark,
+            fill=green,
         )
 
-        # % grande a la derecha
-        pct_txt = formato_porcentaje(
-            porcentaje
-        )
-        pct_bbox = d.textbbox(
-            (0, 0),
-            pct_txt,
-            font=f_pct,
-        )
-
-        pct_x = W - margin - 18 - (pct_bbox[2] - pct_bbox[0])
+        pct_txt = formato_porcentaje(porcentaje)
+        pct_box = d.textbbox((0, 0), pct_txt, font=f_pct)
 
         d.text(
-            (pct_x, info_y + 12),
+            (
+                W - margin - 18 - (pct_box[2] - pct_box[0]),
+                info_y - 2,
+            ),
             pct_txt,
             font=f_pct,
             fill=dark,
         )
 
         # Barra
+        bar_y = card_y1 + row_h - 22
         bar_x1 = name_x
         bar_x2 = W - margin - 18
-        bar_y = card_y1 + 145
 
         d.rounded_rectangle(
-            (
-                bar_x1,
-                bar_y,
-                bar_x2,
-                bar_y + 12,
-            ),
+            (bar_x1, bar_y, bar_x2, bar_y + 11),
             radius=6,
             fill=bar_bg,
         )
 
         fill_x = bar_x1 + int(
             (bar_x2 - bar_x1)
-            * min(
-                max(
-                    porcentaje / 100,
-                    0,
-                ),
-                1,
-            )
+            * min(max(porcentaje / 100, 0), 1)
         )
 
         if fill_x > bar_x1:
             d.rounded_rectangle(
-                (
-                    bar_x1,
-                    bar_y,
-                    fill_x,
-                    bar_y + 12,
-                ),
+                (bar_x1, bar_y, fill_x, bar_y + 11),
                 radius=6,
                 fill=green,
             )
 
-    # -----------------------------------------------------
-    # FOOTER
-    # -----------------------------------------------------
     footer_y = (
         y
-        + len(tabla) * (card_h + gap)
+        + len(tabla) * (row_h + gap)
         - gap
         + 12
     )
 
     d.rounded_rectangle(
-        (
-            margin,
-            footer_y,
-            W - margin,
-            footer_y + footer_h,
-        ),
+        (margin, footer_y, W - margin, footer_y + footer_h),
         radius=16,
         fill=navy,
     )
 
     d.text(
-        (
-            margin + 20,
-            footer_y + 19,
-        ),
-        "¡Cada resultado suma! Vamos por la meta. 💪",
+        (margin + 20, footer_y + 18),
+        "¡Vamos por la meta! Cada resultado suma. 💪",
         font=f_footer,
         fill=white,
     )
 
     buffer = io.BytesIO()
-    img.save(
-        buffer,
-        format="PNG",
-        optimize=True,
-    )
+    img.save(buffer, format="PNG", optimize=True)
     buffer.seek(0)
 
     return buffer
@@ -3511,6 +3404,23 @@ elif menu == "✉️ Mensajes diarios":
                 meta_individual,
             )
         )
+
+        imagen_preview_telegram = (
+            generar_imagen_recuperacion_telegram(
+                tabla_general,
+                meta_individual,
+            )
+        )
+
+        with st.expander(
+            "👁️ Vista previa de la imagen que se enviará",
+            expanded=False,
+        ):
+            st.image(
+                imagen_preview_telegram,
+                caption="Debe mostrar V38 · MÓVIL en la esquina superior derecha.",
+                width=520,
+            )
 
         tg_col1, tg_col2 = st.columns(2)
 
