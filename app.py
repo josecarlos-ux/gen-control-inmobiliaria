@@ -2058,6 +2058,10 @@ if "callcenter_cargado_en" not in st.session_state:
 if "callcenter_nombre_archivo" not in st.session_state:
     st.session_state.callcenter_nombre_archivo = ""
 
+if "envios_diarios_cache" not in st.session_state:
+    st.session_state.envios_diarios_cache = {}
+
+
 if "config_desbloqueada" not in st.session_state:
     st.session_state.config_desbloqueada = False
 
@@ -3203,6 +3207,195 @@ def texto_estado_ritmo(delta, indicador):
         f"🔴 Vas {formato_entero(abs(delta))} {indicador} "
         f"por debajo del ritmo esperado"
     )
+
+
+
+# =========================================================
+# CONTROL DE ENVÍOS DIARIOS
+# =========================================================
+
+def _clave_envio_local(usuario, fecha=None, tipo="seguimiento"):
+    fecha = fecha or fecha_local_actual()
+    return f"{fecha.isoformat()}|{usuario}|{tipo}"
+
+
+def obtener_envio_diario(usuario, fecha=None, tipo="seguimiento"):
+    """
+    Busca si el operador ya recibió el mensaje del día.
+
+    Prioridad:
+    1) Supabase, tabla `envios_mensajes`, si existe.
+    2) Session State como respaldo para no romper la app.
+    """
+    fecha = fecha or fecha_local_actual()
+    clave = _clave_envio_local(
+        usuario,
+        fecha,
+        tipo,
+    )
+
+    # Primero memoria local de la sesión.
+    cache = st.session_state.get(
+        "envios_diarios_cache",
+        {},
+    )
+
+    if clave in cache:
+        return cache[clave]
+
+    sb = get_supabase()
+
+    if sb is not None:
+        try:
+            resp = (
+                sb.table("envios_mensajes")
+                .select("*")
+                .eq("fecha", fecha.isoformat())
+                .eq("usuario", str(usuario))
+                .eq("tipo", str(tipo))
+                .eq("estado", "enviado")
+                .order(
+                    "fecha_hora",
+                    desc=True,
+                )
+                .limit(1)
+                .execute()
+            )
+
+            if resp.data:
+                registro = resp.data[0]
+
+                st.session_state.envios_diarios_cache[
+                    clave
+                ] = registro
+
+                return registro
+
+        except Exception:
+            # La tabla puede no existir todavía.
+            pass
+
+    return None
+
+
+def registrar_envio_diario(
+    usuario,
+    operador,
+    canal="telegram",
+    tipo="seguimiento",
+    detalle="",
+):
+    """
+    Registra un envío exitoso. El cambio de fecha reinicia
+    automáticamente el control porque la clave incluye la fecha.
+    """
+    ahora = datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    registro = {
+        "fecha": ahora.date().isoformat(),
+        "fecha_hora": ahora.isoformat(),
+        "usuario": str(usuario),
+        "operador": str(operador),
+        "canal": str(canal),
+        "tipo": str(tipo),
+        "estado": "enviado",
+        "detalle": str(detalle or ""),
+    }
+
+    clave = _clave_envio_local(
+        usuario,
+        ahora.date(),
+        tipo,
+    )
+
+    st.session_state.envios_diarios_cache[
+        clave
+    ] = registro
+
+    sb = get_supabase()
+
+    if sb is not None:
+        try:
+            (
+                sb.table("envios_mensajes")
+                .insert(registro)
+                .execute()
+            )
+        except Exception:
+            # La app sigue funcionando con Session State.
+            pass
+
+    return registro
+
+
+def envio_ya_realizado_hoy(
+    usuario,
+    tipo="seguimiento",
+):
+    return obtener_envio_diario(
+        usuario,
+        fecha_local_actual(),
+        tipo,
+    ) is not None
+
+
+def hora_envio_hoy(
+    usuario,
+    tipo="seguimiento",
+):
+    registro = obtener_envio_diario(
+        usuario,
+        fecha_local_actual(),
+        tipo,
+    )
+
+    if not registro:
+        return ""
+
+    fecha_hora = str(
+        registro.get(
+            "fecha_hora",
+            "",
+        )
+    )
+
+    try:
+        dt = datetime.fromisoformat(
+            fecha_hora
+        )
+        return dt.strftime("%H:%M")
+    except Exception:
+        return ""
+
+
+def operador_fuera_de_horario(
+    usuario,
+    momento=None,
+):
+    """
+    Devuelve True si el momento actual ya es posterior
+    a la hora de salida configurada del operador.
+    """
+    momento = momento or datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    horario = obtener_horario_operador(
+        usuario,
+        momento.date(),
+    )
+
+    if not horario:
+        return False
+
+    salida = _hora_en_fecha(
+        momento,
+        horario["salida"],
+    )
+
+    return momento >= salida
 
 
 def enviar_copia_coordinador(operador, mensaje_original, detalle_envio):
@@ -6458,6 +6651,20 @@ elif menu == "✉️ Mensajes diarios":
             "base procesada actualmente en GEN Control."
         )
 
+        enviados_hoy_total = sum(
+            1
+            for usuario_ctrl in resultado["Usuario"].tolist()
+            if envio_ya_realizado_hoy(
+                usuario_ctrl,
+                "seguimiento",
+            )
+        )
+
+        st.caption(
+            f"✅ Seguimientos enviados hoy: {enviados_hoy_total}/{len(resultado)} · "
+            "los ya enviados no se incluyen nuevamente en el envío masivo."
+        )
+
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
@@ -6523,11 +6730,20 @@ elif menu == "✉️ Mensajes diarios":
                 )
             ]
 
+            telegram_pendientes_top = [
+                usuario
+                for usuario in telegram_configurados_top
+                if not envio_ya_realizado_hoy(
+                    usuario,
+                    "seguimiento",
+                )
+            ]
+
             if st.button(
-                f"✈️ Enviar a todos ({len(telegram_configurados_top)})",
+                f"✈️ Enviar pendientes ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
-                disabled=(len(telegram_configurados_top) == 0),
+                disabled=(len(telegram_pendientes_top) == 0),
                 key="enviar_todos_top_v59",
             ):
                 enviados_top = []
@@ -6543,6 +6759,12 @@ elif menu == "✉️ Mensajes diarios":
                     )
 
                     if not chat_id_envio:
+                        continue
+
+                    if envio_ya_realizado_hoy(
+                        usuario_envio,
+                        "seguimiento",
+                    ):
                         continue
 
                     calculo_envio = generar_mensaje_operador_actual(
@@ -6564,6 +6786,14 @@ elif menu == "✉️ Mensajes diarios":
                     if ok_envio:
                         enviados_top.append(
                             fila_envio["Operador"]
+                        )
+
+                        registrar_envio_diario(
+                            usuario_envio,
+                            fila_envio["Operador"],
+                            canal="telegram",
+                            tipo="seguimiento",
+                            detalle=detalle_envio,
                         )
 
                         enviar_copia_coordinador(
@@ -7125,10 +7355,46 @@ elif menu == "✉️ Mensajes diarios":
                             unsafe_allow_html=True,
                         )
 
+                        enviado_hoy = envio_ya_realizado_hoy(
+                            usuario,
+                            "seguimiento",
+                        )
+
+                        hora_envio_actual = hora_envio_hoy(
+                            usuario,
+                            "seguimiento",
+                        )
+
+                        fuera_horario = operador_fuera_de_horario(
+                            usuario
+                        )
+
+                        if enviado_hoy:
+                            texto_envio_estado = (
+                                f"✅ Seguimiento enviado"
+                                + (
+                                    f" · {hora_envio_actual}"
+                                    if hora_envio_actual
+                                    else ""
+                                )
+                            )
+
+                            if fuera_horario:
+                                texto_envio_estado += " · Jornada finalizada"
+
+                            st.success(
+                                texto_envio_estado
+                            )
+
+                        elif fuera_horario:
+                            st.warning(
+                                "Jornada finalizada · seguimiento aún pendiente."
+                            )
+
                         a1, a2 = st.columns(2)
 
                         with a1:
-                            if telegram_chat_id:
+                            if telegram_chat_id and not enviado_hoy:
                                 if st.button(
                                     "✈️ Enviar",
                                     use_container_width=True,
@@ -7150,9 +7416,18 @@ elif menu == "✉️ Mensajes diarios":
                                         )
 
                                         if ok_tg:
+                                            registrar_envio_diario(
+                                                usuario,
+                                                fila["Operador"],
+                                                canal="telegram",
+                                                tipo="seguimiento",
+                                                detalle=detalle_tg,
+                                            )
+
                                             st.success(
                                                 "Enviado con datos actuales."
                                             )
+
                                             enviar_copia_coordinador(
                                                 fila["Operador"],
                                                 calculo_actual["mensaje"],
@@ -7162,12 +7437,19 @@ elif menu == "✉️ Mensajes diarios":
                                             st.error(
                                                 f"No se pudo enviar: {detalle_tg}"
                                             )
+                            elif enviado_hoy:
+                                st.button(
+                                    "✅ Enviado",
+                                    disabled=True,
+                                    use_container_width=True,
+                                    key=f"ya_enviado_v80_{usuario}",
+                                )
                             else:
                                 st.button(
                                     "✈️ Pendiente",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_v74_{usuario}",
+                                    key=f"sin_telegram_v80_{usuario}",
                                 )
 
                         with a2:
@@ -7214,6 +7496,11 @@ elif menu == "✉️ Mensajes diarios":
             unsafe_allow_html=True,
         )
         st.markdown("### Envío y comunicación")
+
+        st.caption(
+            "Control anti-duplicados activo: cada operador se registra por fecha. "
+            "Al día siguiente vuelve a quedar habilitado automáticamente."
+        )
 
         coordinador_chat_id = obtener_telegram_coordinador_chat_id()
 
