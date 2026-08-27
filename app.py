@@ -1879,8 +1879,8 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    Imagen vertical optimizada para Telegram móvil.
-    Prioriza nombres grandes y legibilidad.
+    Ranking para Telegram con nombres grandes y uniformes.
+    Ningún operador recibe una tipografía mayor por estar primero.
     """
     import io
 
@@ -1890,13 +1890,13 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
+    # Formato vertical para que Telegram lo muestre grande en celular.
     W = 1080
-    header_h = 120
-    title_h = 62
-    col_h = 52
-    row_h = 112
-    footer_h = 68
-
+    header_h = 118
+    title_h = 60
+    col_h = 54
+    row_h = 118
+    footer_h = 66
     H = (
         24 + header_h + 16 + title_h + col_h
         + len(tabla) * row_h
@@ -1909,8 +1909,8 @@ def generar_imagen_recuperacion_telegram(
     white = (255, 255, 255)
     bg = (244, 247, 250)
     light = (249, 251, 253)
-    dark = (24, 35, 47)
-    gray = (103, 114, 126)
+    dark = (20, 31, 44)
+    gray = (105, 116, 128)
     border = (214, 221, 229)
     gold = (235, 176, 36)
     silver = (168, 178, 189)
@@ -1923,15 +1923,17 @@ def generar_imagen_recuperacion_telegram(
     f_date = _fuente_reporte(22, True)
     f_section = _fuente_reporte(25, True)
     f_head = _fuente_reporte(18, True)
-    f_name = _fuente_reporte(32, True)
-    f_name_long = _fuente_reporte(28, True)
-    f_name_xlong = _fuente_reporte(25, True)
+
+    # Una sola jerarquía para TODOS los nombres.
+    f_name = _fuente_reporte(31, True)
+    f_name_medium = _fuente_reporte(28, True)
+    f_name_long = _fuente_reporte(25, True)
+
     f_value = _fuente_reporte(23, True)
-    f_pct = _fuente_reporte(26, True)
+    f_pct = _fuente_reporte(27, True)
     f_small = _fuente_reporte(16, False)
     f_footer = _fuente_reporte(19, True)
 
-    # Header
     y = 24
     d.rounded_rectangle(
         (24, y, W - 24, y + header_h),
@@ -1939,19 +1941,18 @@ def generar_imagen_recuperacion_telegram(
         fill=navy,
     )
     d.text(
-        (48, y + 25),
+        (48, y + 24),
         "AVANCE DE RECUPERACIÓN",
         font=f_title,
         fill=white,
     )
     d.text(
-        (48, y + 78),
+        (48, y + 77),
         fecha_local_actual().strftime("%d/%m/%Y"),
         font=f_date,
         fill=green,
     )
 
-    # Ranking title
     y += header_h + 16
     d.rounded_rectangle(
         (24, y, W - 24, y + title_h),
@@ -1959,13 +1960,12 @@ def generar_imagen_recuperacion_telegram(
         fill=navy,
     )
     d.text(
-        (48, y + 17),
-        "RANKING POR OPERADOR",
+        (48, y + 16),
+        "RANKING DE RECUPERACIÓN POR OPERADOR",
         font=f_section,
         fill=white,
     )
 
-    # Column header
     y += title_h
     d.rectangle(
         (24, y, W - 24, y + col_h),
@@ -1978,17 +1978,18 @@ def generar_imagen_recuperacion_telegram(
     x_pct = 905
 
     for x, txt in [
-        (x_num, "#"),
+        (x_num, "POS."),
         (x_op, "OPERADOR"),
         (x_rec, "RECUPERADO"),
         (x_pct, "%"),
     ]:
-        d.text((x, y + 15), txt, font=f_head, fill=white)
+        d.text((x, y + 16), txt, font=f_head, fill=white)
 
-    # Rows
     y0 = y + col_h
+
     for i, fila in tabla.iterrows():
         ry = y0 + i * row_h
+
         d.rectangle(
             (24, ry, W - 24, ry + row_h),
             fill=white if i % 2 == 0 else light,
@@ -1999,18 +2000,20 @@ def generar_imagen_recuperacion_telegram(
             width=1,
         )
 
+        nombre = str(fila["Operador"])
         recuperacion = float(fila["Recuperación acumulada"])
         porcentaje = float(fila["% Recuperación"])
-        nombre = str(fila["Operador"])
 
+        # El puesto se distingue solo por el indicador, NO por el tamaño del nombre.
         puesto_color = (
-            gold if i == 0 else
-            silver if i == 1 else
-            bronze if i == 2 else navy
+            gold if i == 0
+            else silver if i == 1
+            else bronze if i == 2
+            else navy
         )
 
         d.rounded_rectangle(
-            (38, ry + 31, 88, ry + 81),
+            (38, ry + 34, 88, ry + 84),
             radius=11,
             fill=puesto_color,
         )
@@ -2018,42 +2021,43 @@ def generar_imagen_recuperacion_telegram(
         pos = str(i + 1)
         pb = d.textbbox((0, 0), pos, font=f_value)
         d.text(
-            (63 - (pb[2] - pb[0]) / 2, ry + 41),
+            (63 - (pb[2] - pb[0]) / 2, ry + 44),
             pos,
             font=f_value,
             fill=white,
         )
 
-        # Nombre mucho más grande.
-        if len(nombre) <= 24:
+        # Todos parten del mismo tamaño; solo se reduce si el nombre no cabe.
+        if len(nombre) <= 25:
             fuente_nombre = f_name
-        elif len(nombre) <= 31:
-            fuente_nombre = f_name_long
+        elif len(nombre) <= 32:
+            fuente_nombre = f_name_medium
         else:
-            fuente_nombre = f_name_xlong
+            fuente_nombre = f_name_long
 
         d.text(
-            (x_op, ry + 20),
+            (x_op, ry + 25),
             nombre,
             font=fuente_nombre,
             fill=dark,
         )
+
         d.text(
-            (x_op, ry + 72),
+            (x_op, ry + 78),
             "Recuperación acumulada",
             font=f_small,
             fill=gray,
         )
 
         d.text(
-            (x_rec, ry + 34),
+            (x_rec, ry + 39),
             formato_usd(recuperacion),
             font=f_value,
             fill=green,
         )
 
         d.text(
-            (x_pct, ry + 32),
+            (x_pct, ry + 36),
             formato_porcentaje(porcentaje),
             font=f_pct,
             fill=dark,
@@ -2061,15 +2065,16 @@ def generar_imagen_recuperacion_telegram(
 
         bx1 = x_pct
         bx2 = W - 48
-        by = ry + 77
+        by = ry + 83
+
         d.rounded_rectangle(
             (bx1, by, bx2, by + 12),
             radius=6,
             fill=(222, 228, 233),
         )
+
         fill_x = bx1 + int(
-            (bx2 - bx1)
-            * min(max(porcentaje / 100, 0), 1)
+            (bx2 - bx1) * min(max(porcentaje / 100, 0), 1)
         )
         if fill_x > bx1:
             d.rounded_rectangle(
@@ -2085,8 +2090,8 @@ def generar_imagen_recuperacion_telegram(
         fill=navy,
     )
     d.text(
-        (48, footer_y + 22),
-        "Cada resultado suma. ¡Vamos por la meta! 💪",
+        (48, footer_y + 21),
+        "Enfoque, constancia y actitud. ¡Vamos por la meta! 💪",
         font=f_footer,
         fill=white,
     )
