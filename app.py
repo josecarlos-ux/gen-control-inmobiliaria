@@ -1945,7 +1945,7 @@ def generar_imagen_recuperacion_telegram(
 
     # Formato horizontal 16:9 aproximado.
     W = 1600
-    H = 900
+    H = 990
     margin = 28
 
     navy = (7, 29, 52)
@@ -1972,11 +1972,11 @@ def generar_imagen_recuperacion_telegram(
     f_kpi_lab = _fuente_reporte(20, True)
     f_kpi_val = _fuente_reporte(34, True)
     f_section = _fuente_reporte(28, True)
-    f_name = _fuente_reporte(34, True)
-    f_name_long = _fuente_reporte(29, True)
-    f_amount = _fuente_reporte(25, True)
-    f_pct = _fuente_reporte(30, True)
-    f_pos = _fuente_reporte(23, True)
+    f_name = _fuente_reporte(46, True)
+    f_name_long = _fuente_reporte(39, True)
+    f_amount = _fuente_reporte(34, True)
+    f_pct = _fuente_reporte(38, True)
+    f_pos = _fuente_reporte(30, True)
     f_footer = _fuente_reporte(22, True)
 
     # -----------------------------------------------------
@@ -2065,8 +2065,8 @@ def generar_imagen_recuperacion_telegram(
     cards_y = section_y + 76
     col_gap = 20
     col_w = (W - 2 * margin - col_gap) // 2
-    row_gap = 14
-    row_h = 102
+    row_gap = 16
+    row_h = 118
 
     for i, fila in tabla.iterrows():
         col = i % 2
@@ -2092,7 +2092,7 @@ def generar_imagen_recuperacion_telegram(
         )
 
         d.rounded_rectangle(
-            (x1 + 16, y1 + 22, x1 + 66, y1 + 72),
+            (x1 + 16, y1 + 25, x1 + 76, y1 + 85),
             radius=12,
             fill=pos_color,
         )
@@ -2101,8 +2101,8 @@ def generar_imagen_recuperacion_telegram(
         pb = d.textbbox((0, 0), pos, font=f_pos)
         d.text(
             (
-                x1 + 41 - (pb[2] - pb[0]) / 2,
-                y1 + 34,
+                x1 + 46 - (pb[2] - pb[0]) / 2,
+                y1 + 39,
             ),
             pos,
             font=f_pos,
@@ -2115,7 +2115,7 @@ def generar_imagen_recuperacion_telegram(
         )
 
         d.text(
-            (x1 + 84, y1 + 15),
+            (x1 + 94, y1 + 12),
             nombre,
             font=fuente_nombre,
             fill=dark,
@@ -2129,7 +2129,7 @@ def generar_imagen_recuperacion_telegram(
         )
 
         d.text(
-            (x1 + 84, y1 + 58),
+            (x1 + 94, y1 + 68),
             formato_usd(recuperacion),
             font=f_amount,
             fill=green_dark,
@@ -2141,16 +2141,16 @@ def generar_imagen_recuperacion_telegram(
         d.text(
             (
                 x2 - 22 - (pct_box[2] - pct_box[0]),
-                y1 + 53,
+                y1 + 65,
             ),
             pct_txt,
             font=f_pct,
             fill=dark,
         )
 
-        bar_x1 = x1 + 84
+        bar_x1 = x1 + 94
         bar_x2 = x2 - 22
-        bar_y = y1 + 88
+        bar_y = y1 + 104
 
         d.rounded_rectangle(
             (bar_x1, bar_y, bar_x2, bar_y + 8),
@@ -2173,7 +2173,7 @@ def generar_imagen_recuperacion_telegram(
     # -----------------------------------------------------
     # FOOTER
     # -----------------------------------------------------
-    footer_y = H - 70
+    footer_y = H - 72
 
     d.rounded_rectangle(
         (margin, footer_y, W - margin, H - margin),
