@@ -1918,14 +1918,14 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    UNA sola imagen optimizada para Telegram móvil.
-
-    Objetivo visual:
-    - nombres realmente grandes;
-    - montos y porcentajes grandes;
-    - mínimo espacio vacío;
+    UNA sola imagen vertical para Telegram,
+    inspirada en la referencia aprobada:
+    - nombres grandes;
+    - porcentaje grande a la derecha;
+    - monto debajo del nombre;
+    - barra de avance visible;
     - 8 operadores en una sola imagen;
-    - misma jerarquía tipográfica para todos.
+    - diseño limpio y proporcional para celular.
     """
     import io
 
@@ -1935,70 +1935,60 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
-    # Lienzo más compacto para que Telegram no reduzca tanto el contenido.
-    W = 760
-    margin = 18
-    header_h = 96
-    row_h = 128
-    gap = 8
-    footer_h = 56
-
-    H = (
-        margin
-        + header_h
-        + 12
-        + len(tabla) * (row_h + gap)
-        + footer_h
-        + margin
-    )
+    # Formato vertical similar a 1080 x 1536.
+    W = 1080
+    H = 1540
+    margin = 22
 
     navy = (7, 29, 52)
     green = (67, 166, 68)
-    green_dark = (37, 126, 48)
+    green_dark = (30, 137, 46)
     white = (255, 255, 255)
-    bg = (243, 247, 250)
+    bg = (247, 249, 251)
     dark = (18, 29, 42)
-    border = (214, 222, 229)
-    bar_bg = (220, 226, 232)
-    gold = (238, 181, 38)
-    silver = (171, 180, 190)
-    bronze = (192, 106, 49)
+    border = (218, 224, 230)
+    bar_bg = (224, 229, 234)
+    gold = (242, 182, 24)
+    silver = (172, 181, 191)
+    bronze = (195, 108, 48)
 
     img = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(img)
 
-    # Tipografía grande respecto al ancho del lienzo.
-    f_title = _fuente_reporte(40, True)
-    f_date = _fuente_reporte(20, True)
+    # Tipografías grandes, como en la referencia.
+    f_title = _fuente_reporte(58, True)
+    f_date = _fuente_reporte(30, True)
 
-    # Todos parten del mismo tamaño visual.
-    f_name = _fuente_reporte(38, True)
-    f_name_long = _fuente_reporte(34, True)
-    f_name_xlong = _fuente_reporte(30, True)
+    f_name = _fuente_reporte(50, True)
+    f_name_long = _fuente_reporte(44, True)
+    f_name_xlong = _fuente_reporte(40, True)
 
-    f_amount = _fuente_reporte(25, True)
-    f_pct = _fuente_reporte(30, True)
-    f_pos = _fuente_reporte(22, True)
-    f_footer = _fuente_reporte(17, True)
+    f_amount = _fuente_reporte(31, True)
+    f_pct = _fuente_reporte(46, True)
+    f_pos = _fuente_reporte(36, True)
+    f_footer = _fuente_reporte(26, True)
 
     # -----------------------------------------------------
     # HEADER
     # -----------------------------------------------------
+    header_y1 = margin
+    header_y2 = 155
+
     d.rounded_rectangle(
         (
             margin,
-            margin,
+            header_y1,
             W - margin,
-            margin + header_h,
+            header_y2,
         ),
-        radius=20,
+        radius=28,
         fill=navy,
     )
 
     d.text(
         (
-            margin + 22,
-            margin + 18,
+            margin + 34,
+            header_y1 + 27,
         ),
         "RANKING DE RECUPERACIÓN",
         font=f_title,
@@ -2007,22 +1997,24 @@ def generar_imagen_recuperacion_telegram(
 
     d.text(
         (
-            margin + 22,
-            margin + 62,
+            margin + 34,
+            header_y1 + 91,
         ),
         fecha_local_actual().strftime("%d/%m/%Y"),
         font=f_date,
         fill=green,
     )
 
-    y = margin + header_h + 12
+    # -----------------------------------------------------
+    # TARJETAS
+    # -----------------------------------------------------
+    cards_top = 177
+    card_h = 153
+    gap = 10
 
-    # -----------------------------------------------------
-    # FILAS
-    # -----------------------------------------------------
     for i, fila in tabla.iterrows():
-        y1 = y + i * (row_h + gap)
-        y2 = y1 + row_h
+        y1 = cards_top + i * (card_h + gap)
+        y2 = y1 + card_h
 
         d.rounded_rectangle(
             (
@@ -2031,12 +2023,13 @@ def generar_imagen_recuperacion_telegram(
                 W - margin,
                 y2,
             ),
-            radius=17,
+            radius=24,
             fill=white,
             outline=border,
             width=2,
         )
 
+        # Puesto
         pos_color = (
             gold if i == 0
             else silver if i == 1
@@ -2044,35 +2037,36 @@ def generar_imagen_recuperacion_telegram(
             else navy
         )
 
-        bx1 = margin + 12
-        by1 = y1 + 20
-        bx2 = bx1 + 50
-        by2 = by1 + 50
+        badge_x1 = margin + 18
+        badge_y1 = y1 + 28
+        badge_x2 = badge_x1 + 78
+        badge_y2 = badge_y1 + 78
 
         d.rounded_rectangle(
             (
-                bx1,
-                by1,
-                bx2,
-                by2,
+                badge_x1,
+                badge_y1,
+                badge_x2,
+                badge_y2,
             ),
-            radius=11,
+            radius=16,
             fill=pos_color,
         )
 
-        pos = str(i + 1)
-        pb = d.textbbox(
+        pos_txt = str(i + 1)
+        pos_box = d.textbbox(
             (0, 0),
-            pos,
+            pos_txt,
             font=f_pos,
         )
 
         d.text(
             (
-                (bx1 + bx2) / 2 - (pb[2] - pb[0]) / 2,
-                by1 + 12,
+                (badge_x1 + badge_x2) / 2
+                - (pos_box[2] - pos_box[0]) / 2,
+                badge_y1 + 18,
             ),
-            pos,
+            pos_txt,
             font=f_pos,
             fill=white,
         )
@@ -2089,30 +2083,29 @@ def generar_imagen_recuperacion_telegram(
             fila["% Recuperación"]
         )
 
-        name_x = bx2 + 16
+        # El nombre es el elemento principal.
+        name_x = badge_x2 + 34
 
-        # Espacio real para nombre, dejando lugar al porcentaje.
+        # Porcentaje grande a la derecha.
         pct_txt = formato_porcentaje(
             porcentaje
         )
-
         pct_box = d.textbbox(
             (0, 0),
             pct_txt,
             font=f_pct,
         )
-
         pct_w = pct_box[2] - pct_box[0]
 
-        max_name_w = (
+        # Reservar espacio al porcentaje.
+        available_name_w = (
             W
             - margin
-            - 24
+            - 30
             - pct_w
             - name_x
         )
 
-        # Mantener nombres grandes y solo reducir si realmente no caben.
         fuente_nombre = f_name
 
         name_box = d.textbbox(
@@ -2123,10 +2116,9 @@ def generar_imagen_recuperacion_telegram(
 
         if (
             name_box[2] - name_box[0]
-            > max_name_w
+            > available_name_w
         ):
             fuente_nombre = f_name_long
-
             name_box = d.textbbox(
                 (0, 0),
                 nombre,
@@ -2135,26 +2127,25 @@ def generar_imagen_recuperacion_telegram(
 
         if (
             name_box[2] - name_box[0]
-            > max_name_w
+            > available_name_w
         ):
             fuente_nombre = f_name_xlong
 
-        # Nombre: elemento principal de la fila.
         d.text(
             (
                 name_x,
-                y1 + 14,
+                y1 + 23,
             ),
             nombre,
             font=fuente_nombre,
             fill=dark,
         )
 
-        # Monto grande debajo.
+        # Monto debajo del nombre.
         d.text(
             (
                 name_x,
-                y1 + 66,
+                y1 + 87,
             ),
             formato_usd(
                 recuperacion
@@ -2163,33 +2154,33 @@ def generar_imagen_recuperacion_telegram(
             fill=green_dark,
         )
 
-        # Porcentaje grande a la derecha.
+        # % grande, alineado a la derecha.
         d.text(
             (
                 W
                 - margin
-                - 18
+                - 28
                 - pct_w,
-                y1 + 62,
+                y1 + 45,
             ),
             pct_txt,
             font=f_pct,
             fill=dark,
         )
 
-        # Barra más gruesa y cercana a los datos.
+        # Barra de progreso, gruesa y limpia.
         bar_x1 = name_x
-        bar_x2 = W - margin - 18
-        bar_y = y2 - 18
+        bar_x2 = W - margin - 28
+        bar_y = y2 - 23
 
         d.rounded_rectangle(
             (
                 bar_x1,
                 bar_y,
                 bar_x2,
-                bar_y + 10,
+                bar_y + 14,
             ),
-            radius=5,
+            radius=7,
             fill=bar_bg,
         )
 
@@ -2212,39 +2203,43 @@ def generar_imagen_recuperacion_telegram(
                     bar_x1,
                     bar_y,
                     fill_x,
-                    bar_y + 10,
+                    bar_y + 14,
                 ),
-                radius=5,
+                radius=7,
                 fill=green,
             )
 
     # -----------------------------------------------------
     # FOOTER
     # -----------------------------------------------------
-    footer_y = (
-        y
-        + len(tabla) * (row_h + gap)
-        - gap
-        + 10
-    )
+    footer_y1 = 1490
+    footer_y2 = H - margin
 
     d.rounded_rectangle(
         (
             margin,
-            footer_y,
+            footer_y1,
             W - margin,
-            footer_y + footer_h,
+            footer_y2,
         ),
-        radius=15,
+        radius=22,
         fill=navy,
+    )
+
+    footer_txt = "🏆 Ranking actualizado de recuperación"
+
+    footer_box = d.textbbox(
+        (0, 0),
+        footer_txt,
+        font=f_footer,
     )
 
     d.text(
         (
-            margin + 18,
-            footer_y + 17,
+            (W - (footer_box[2] - footer_box[0])) / 2,
+            footer_y1 + 16,
         ),
-        "¡Cada resultado suma! Vamos por la meta. 💪",
+        footer_txt,
         font=f_footer,
         fill=white,
     )
