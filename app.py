@@ -489,18 +489,26 @@ def generar_mensaje_diario(fila, jornadas_info):
 
     if avance_hora["disponible"]:
         bloque_hoy = (
-            f"\n\n⏱️ Avance de hoy · {avance_hora['hora_corte']}\n"
+            f"\n\n⏱️ Avance de hoy · corte {avance_hora['hora_corte']}\n"
             f"📞 Gestiones: {formato_entero(avance_hora['gestiones_hoy'])} / "
             f"{formato_entero(minimo_g)}\n"
             f"{texto_estado_ritmo(avance_hora['delta_gestiones'], 'gestiones')}\n"
             f"🎯 Faltan {formato_entero(avance_hora['faltan_gestiones'])} "
-            f"para el mínimo diario\n\n"
-            f"🤝 Compromisos: {formato_entero(avance_hora['compromisos_hoy'])} / "
-            f"{formato_entero(minimo_c)}\n"
-            f"{texto_estado_ritmo(avance_hora['delta_compromisos'], 'compromisos')}\n"
-            f"🎯 Faltan {formato_entero(avance_hora['faltan_compromisos'])} "
             f"para el mínimo diario"
         )
+
+        if avance_hora.get(
+            "compromisos_disponibles"
+        ):
+            bloque_hoy += (
+                f"\n\n🤝 Compromisos: "
+                f"{formato_entero(avance_hora['compromisos_hoy'])} / "
+                f"{formato_entero(minimo_c)}\n"
+                f"{texto_estado_ritmo(avance_hora['delta_compromisos'], 'compromisos')}\n"
+                f"🎯 Faltan "
+                f"{formato_entero(avance_hora['faltan_compromisos'])} "
+                f"para el mínimo diario"
+            )
 
     mensaje = (
         f"{saludo_individual}, {nombre}. {emoji_individual}\n\n"
@@ -2524,13 +2532,22 @@ def probar_conexion_telegram():
 
 def obtener_corte_callcenter(callcenter_df):
     """
-    Devuelve la fecha/hora de corte real disponible en el archivo.
+    Hora de corte operativa del reporte.
 
-    La hora mostrada en GEN Control ya no depende de la hora actual
-    del computador/servidor. Se toma la fecha/hora más reciente
-    registrada en GEN CallCenter, que representa hasta qué momento
-    contiene información el archivo cargado.
+    Prioridad:
+    1) momento en que GEN CallCenter fue cargado a la app;
+    2) última fecha/hora contenida en el archivo, como respaldo.
+
+    Esto evita que el esperado siga avanzando después de cargar
+    un archivo que ya quedó congelado.
     """
+    cargado_en = st.session_state.get(
+        "callcenter_cargado_en"
+    )
+
+    if cargado_en is not None:
+        return cargado_en
+
     if callcenter_df is None or callcenter_df.empty:
         return None
 
@@ -2561,12 +2578,6 @@ def calcular_avance_hora_operador(
     callcenter_df=None,
     ahora=None,
 ):
-    """
-    Calcula el avance del operador usando la HORA DE CORTE DEL ARCHIVO.
-
-    `ahora` solo se conserva por compatibilidad; cuando existe CallCenter,
-    siempre manda la última fecha/hora contenida en ese archivo.
-    """
     meta_g_dia = int(
         st.session_state.get(
             "meta_diaria_gestiones_cfg",
@@ -2577,30 +2588,40 @@ def calcular_avance_hora_operador(
         st.session_state.meta_diaria_compromisos_cfg
     )
 
-    corte_archivo = obtener_corte_callcenter(
+    corte_operativo = obtener_corte_callcenter(
         callcenter_df
     )
 
-    if corte_archivo is None:
-        return {
-            "disponible": False,
-            "gestiones_hoy": 0,
-            "compromisos_hoy": 0,
-            "esperado_gestiones": 0,
-            "esperado_compromisos": 0,
-            "delta_gestiones": 0,
-            "delta_compromisos": 0,
-            "faltan_gestiones": meta_g_dia,
-            "faltan_compromisos": meta_c_dia,
-            "hora_corte": "--:--",
-            "fecha_corte": None,
-        }
+    base = {
+        "disponible": False,
+        "gestiones_hoy": 0,
+        "compromisos_hoy": None,
+        "compromisos_disponibles": False,
+        "esperado_gestiones": 0,
+        "esperado_compromisos": 0,
+        "delta_gestiones": 0,
+        "delta_compromisos": None,
+        "faltan_gestiones": meta_g_dia,
+        "faltan_compromisos": None,
+        "hora_corte": "--:--",
+        "fecha_corte": None,
+        "progreso_jornada_pct": 0.0,
+    }
 
-    # Convertir Timestamp de pandas a datetime normal si hace falta.
-    if hasattr(corte_archivo, "to_pydatetime"):
-        corte_archivo = corte_archivo.to_pydatetime()
+    if (
+        corte_operativo is None
+        or callcenter_df is None
+        or callcenter_df.empty
+    ):
+        return base
 
-    fecha_corte = corte_archivo.date()
+    if hasattr(
+        corte_operativo,
+        "to_pydatetime",
+    ):
+        corte_operativo = (
+            corte_operativo.to_pydatetime()
+        )
 
     df = callcenter_df.copy()
 
@@ -2618,19 +2639,7 @@ def calcular_avance_hora_operador(
     )
 
     if col_fecha is None or col_usuario is None:
-        return {
-            "disponible": False,
-            "gestiones_hoy": 0,
-            "compromisos_hoy": 0,
-            "esperado_gestiones": 0,
-            "esperado_compromisos": 0,
-            "delta_gestiones": 0,
-            "delta_compromisos": 0,
-            "faltan_gestiones": meta_g_dia,
-            "faltan_compromisos": meta_c_dia,
-            "hora_corte": corte_archivo.strftime("%H:%M"),
-            "fecha_corte": fecha_corte,
-        }
+        return base
 
     df["_fecha_hora"] = pd.to_datetime(
         df[col_fecha],
@@ -2642,37 +2651,117 @@ def calcular_avance_hora_operador(
         subset=["_fecha_hora"]
     )
 
+    # La FECHA la tomamos del propio archivo.
+    fechas_validas = (
+        df["_fecha_hora"]
+        .dt.date
+        .dropna()
+    )
+
+    if fechas_validas.empty:
+        return base
+
+    fecha_corte = max(
+        fechas_validas
+    )
+
+    # Construir aliases válidos del operador.
+    datos_op = OPERADORES.get(
+        usuario,
+        {},
+    )
+
+    aliases = {
+        normalizar_texto(usuario),
+        normalizar_texto(
+            datos_op.get("nombre", "")
+        ),
+        normalizar_texto(
+            datos_op.get("nombre_mensaje", "")
+        ),
+        normalizar_texto(
+            datos_op.get("correo", "")
+        ),
+    }
+
+    correo_op = str(
+        datos_op.get("correo", "")
+    ).strip()
+
+    if "@" in correo_op:
+        aliases.add(
+            normalizar_texto(
+                correo_op.split("@")[0]
+            )
+        )
+
+    aliases = {
+        x
+        for x in aliases
+        if x
+    }
+
     df["_usuario_norm"] = (
         df[col_usuario]
         .astype(str)
         .apply(normalizar_texto)
     )
 
-    usuario_norm = normalizar_texto(
-        usuario
+    mascara_usuario = (
+        df["_usuario_norm"].isin(
+            aliases
+        )
     )
 
-    # Solo registros de la fecha de corte y hasta el corte del archivo.
-    df = df[
-        (df["_usuario_norm"] == usuario_norm)
-        & (df["_fecha_hora"].dt.date == fecha_corte)
-        & (df["_fecha_hora"] <= corte_archivo)
+    # Si el reporte trae "Nombre Apellido (usuario)" o formatos similares,
+    # aceptar coincidencia contenida por alias de al menos 4 caracteres.
+    if not mascara_usuario.any():
+        aliases_largos = [
+            x
+            for x in aliases
+            if len(x) >= 4
+        ]
+
+        mascara_usuario = df[
+            "_usuario_norm"
+        ].apply(
+            lambda valor: any(
+                alias in valor
+                or valor in alias
+                for alias in aliases_largos
+            )
+        )
+
+    df_hoy = df[
+        mascara_usuario
+        & (
+            df["_fecha_hora"].dt.date
+            == fecha_corte
+        )
     ].copy()
 
+    # La hora de carga define hasta qué momento comparar el esperado,
+    # pero no recorta registros del archivo por una hora distinta.
     gestiones_hoy = int(
-        len(df)
+        len(df_hoy)
     )
 
-    if col_compromiso:
+    compromisos_disponibles = (
+        col_compromiso is not None
+    )
+
+    compromisos_hoy = None
+
+    if compromisos_disponibles:
         compromiso_txt = (
-            df[col_compromiso]
+            df_hoy[col_compromiso]
             .astype(str)
             .str.strip()
         )
 
         compromisos_hoy = int(
             (
-                df[col_compromiso].notna()
+                df_hoy[col_compromiso].notna()
                 & (compromiso_txt != "")
                 & (
                     compromiso_txt.str.lower()
@@ -2680,18 +2769,22 @@ def calcular_avance_hora_operador(
                 )
             ).sum()
         )
-    else:
-        compromisos_hoy = 0
 
-    # Esperado a la HORA DE CORTE DEL ARCHIVO.
-    inicio = corte_archivo.replace(
+    # El esperado usa la hora en que se cargó/descargó el reporte.
+    corte_para_ritmo = corte_operativo.replace(
+        year=fecha_corte.year,
+        month=fecha_corte.month,
+        day=fecha_corte.day,
+    )
+
+    inicio = corte_para_ritmo.replace(
         hour=JORNADA_INICIO_HORA,
         minute=0,
         second=0,
         microsecond=0,
     )
 
-    fin = corte_archivo.replace(
+    fin = corte_para_ritmo.replace(
         hour=JORNADA_FIN_HORA,
         minute=0,
         second=0,
@@ -2705,7 +2798,10 @@ def calcular_avance_hora_operador(
 
     transcurrido_seg = min(
         max(
-            (corte_archivo - inicio).total_seconds(),
+            (
+                corte_para_ritmo
+                - inicio
+            ).total_seconds(),
             0,
         ),
         total_seg,
@@ -2730,31 +2826,42 @@ def calcular_avance_hora_operador(
         )
     )
 
+    delta_c = (
+        compromisos_hoy
+        - esperado_c
+        if compromisos_disponibles
+        else None
+    )
+
+    faltan_c = (
+        max(
+            meta_c_dia
+            - compromisos_hoy,
+            0,
+        )
+        if compromisos_disponibles
+        else None
+    )
+
     return {
         "disponible": True,
         "gestiones_hoy": gestiones_hoy,
         "compromisos_hoy": compromisos_hoy,
+        "compromisos_disponibles": compromisos_disponibles,
         "esperado_gestiones": esperado_g,
         "esperado_compromisos": esperado_c,
         "delta_gestiones": (
             gestiones_hoy
             - esperado_g
         ),
-        "delta_compromisos": (
-            compromisos_hoy
-            - esperado_c
-        ),
+        "delta_compromisos": delta_c,
         "faltan_gestiones": max(
             meta_g_dia
             - gestiones_hoy,
             0,
         ),
-        "faltan_compromisos": max(
-            meta_c_dia
-            - compromisos_hoy,
-            0,
-        ),
-        "hora_corte": corte_archivo.strftime(
+        "faltan_compromisos": faltan_c,
+        "hora_corte": corte_para_ritmo.strftime(
             "%H:%M"
         ),
         "fecha_corte": fecha_corte,
@@ -4099,8 +4206,13 @@ with st.sidebar:
 
     st.markdown("---")
 
-    ahora_sidebar = datetime.now(
-        ZoneInfo("America/La_Paz")
+    ahora_sidebar = (
+        st.session_state.get(
+            "callcenter_cargado_en"
+        )
+        or datetime.now(
+            ZoneInfo("America/La_Paz")
+        )
     )
 
     st.markdown(
@@ -5020,17 +5132,35 @@ elif menu == "✉️ Mensajes diarios":
                 x["gestiones_hoy"]
                 for x in avances_hoy_v66
             )
-            total_c_hoy_v66 = sum(
+            compromisos_validos_v69 = [
                 x["compromisos_hoy"]
                 for x in avances_hoy_v66
+                if x.get(
+                    "compromisos_disponibles"
+                )
+            ]
+
+            total_c_hoy_v66 = (
+                sum(
+                    compromisos_validos_v69
+                )
+                if compromisos_validos_v69
+                else None
             )
             esperado_g_hoy_v66 = sum(
                 x["esperado_gestiones"]
                 for x in avances_hoy_v66
             )
-            esperado_c_hoy_v66 = sum(
-                x["esperado_compromisos"]
-                for x in avances_hoy_v66
+            esperado_c_hoy_v66 = (
+                sum(
+                    x["esperado_compromisos"]
+                    for x in avances_hoy_v66
+                    if x.get(
+                        "compromisos_disponibles"
+                    )
+                )
+                if compromisos_validos_v69
+                else None
             )
 
             delta_g_hoy_v66 = (
@@ -5040,6 +5170,8 @@ elif menu == "✉️ Mensajes diarios":
             delta_c_hoy_v66 = (
                 total_c_hoy_v66
                 - esperado_c_hoy_v66
+                if total_c_hoy_v66 is not None
+                else None
             )
 
             corte_panel_v68 = obtener_corte_callcenter(
@@ -5143,37 +5275,47 @@ elif menu == "✉️ Mensajes diarios":
                     )
 
                 with d3:
-                    st.metric(
-                        "🤝 Compromisos hoy",
-                        formato_entero(
-                            total_c_hoy_v66
-                        ),
-                        (
-                            f"{delta_c_hoy_v66:+d} "
-                            "vs ritmo esperado"
-                        ),
-                    )
-                    st.caption(
-                        f"Esperados al corte: "
-                        f"{formato_entero(esperado_c_hoy_v66)}"
-                    )
-
-                    progreso_c_v68 = (
-                        total_c_hoy_v66
-                        / esperado_c_hoy_v66
-                        if esperado_c_hoy_v66
-                        else 0
-                    )
-
-                    st.progress(
-                        min(
-                            max(
-                                progreso_c_v68,
-                                0,
+                    if total_c_hoy_v66 is not None:
+                        st.metric(
+                            "🤝 Compromisos hoy",
+                            formato_entero(
+                                total_c_hoy_v66
                             ),
-                            1,
+                            (
+                                f"{delta_c_hoy_v66:+d} "
+                                "vs ritmo esperado"
+                            ),
                         )
-                    )
+                        st.caption(
+                            f"Esperados al corte: "
+                            f"{formato_entero(esperado_c_hoy_v66)}"
+                        )
+
+                        progreso_c_v68 = (
+                            total_c_hoy_v66
+                            / esperado_c_hoy_v66
+                            if esperado_c_hoy_v66
+                            else 0
+                        )
+
+                        st.progress(
+                            min(
+                                max(
+                                    progreso_c_v68,
+                                    0,
+                                ),
+                                1,
+                            )
+                        )
+                    else:
+                        st.metric(
+                            "🤝 Compromisos hoy",
+                            "No disponible",
+                        )
+                        st.caption(
+                            "El GEN CallCenter cargado no trae "
+                            "un campo de compromiso por llamada."
+                        )
 
         else:
             st.info(
@@ -5689,113 +5831,109 @@ elif menu == "✉️ Mensajes diarios":
                         if avance_hora_card.get(
                             "disponible"
                         ):
-                            g_h = int(
-                                avance_hora_card[
-                                    "gestiones_hoy"
-                                ]
-                            )
-                            c_h = int(
-                                avance_hora_card[
-                                    "compromisos_hoy"
-                                ]
-                            )
-                            eg_h = int(
-                                avance_hora_card[
-                                    "esperado_gestiones"
-                                ]
-                            )
-                            ec_h = int(
-                                avance_hora_card[
-                                    "esperado_compromisos"
-                                ]
+                            st.caption(
+                                f"⏱️ HOY · corte {avance_hora_card['hora_corte']}"
                             )
 
-                            g_color = (
-                                "#067647"
-                                if dg >= 0
-                                else "#c01048"
-                            )
-                            c_color = (
-                                "#067647"
-                                if dc >= 0
-                                else "#c01048"
+                            hoy_g_col, hoy_c_col = st.columns(
+                                2
                             )
 
-                            st.markdown(
-                                textwrap.dedent(f"""
-                                <div class="operator-today-shell-v66">
-                                    <div class="operator-today-title-v66">
-                                        HOY · {avance_hora_card['hora_corte']}
-                                    </div>
-                                    <div class="operator-today-grid-v66">
-                                        <div class="operator-today-item-v66">
-                                            <div class="operator-today-value-v66">
-                                                📞 {g_h} / 98
-                                            </div>
-                                            <div class="operator-today-sub-v66">
-                                                Esperado ahora: {eg_h}
-                                                · <span style="color:{g_color};font-weight:850;">
-                                                    {dg:+d} vs ritmo
-                                                </span>
-                                            </div>
-                                            <div class="operator-today-sub-v66">
-                                                Faltan {avance_hora_card['faltan_gestiones']} hoy
-                                            </div>
-                                        </div>
+                            with hoy_g_col:
+                                dg = int(
+                                    avance_hora_card[
+                                        "delta_gestiones"
+                                    ]
+                                )
 
-                                        <div class="operator-today-item-v66">
-                                            <div class="operator-today-value-v66">
-                                                🤝 {c_h} / 25
-                                            </div>
-                                            <div class="operator-today-sub-v66">
-                                                Esperado ahora: {ec_h}
-                                                · <span style="color:{c_color};font-weight:850;">
-                                                    {dc:+d} vs ritmo
-                                                </span>
-                                            </div>
-                                            <div class="operator-today-sub-v66">
-                                                Faltan {avance_hora_card['faltan_compromisos']} hoy
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                """),
-                                unsafe_allow_html=True,
-                            )
+                                st.metric(
+                                    "📞 Gestiones",
+                                    (
+                                        f"{formato_entero(avance_hora_card['gestiones_hoy'])}"
+                                        " / 98"
+                                    ),
+                                    f"{dg:+d} vs ritmo",
+                                )
+
+                                st.caption(
+                                    "Esperado al corte: "
+                                    f"{formato_entero(avance_hora_card['esperado_gestiones'])}"
+                                    " · Faltan hoy: "
+                                    f"{formato_entero(avance_hora_card['faltan_gestiones'])}"
+                                )
+
+                            with hoy_c_col:
+                                if avance_hora_card.get(
+                                    "compromisos_disponibles"
+                                ):
+                                    dc = int(
+                                        avance_hora_card[
+                                            "delta_compromisos"
+                                        ]
+                                    )
+
+                                    st.metric(
+                                        "🤝 Compromisos",
+                                        (
+                                            f"{formato_entero(avance_hora_card['compromisos_hoy'])}"
+                                            " / 25"
+                                        ),
+                                        f"{dc:+d} vs ritmo",
+                                    )
+
+                                    st.caption(
+                                        "Esperado al corte: "
+                                        f"{formato_entero(avance_hora_card['esperado_compromisos'])}"
+                                        " · Faltan hoy: "
+                                        f"{formato_entero(avance_hora_card['faltan_compromisos'])}"
+                                    )
+                                else:
+                                    st.metric(
+                                        "🤝 Compromisos",
+                                        "Sin dato horario",
+                                    )
+                                    st.caption(
+                                        "El CallCenter no identifica "
+                                        "compromisos por llamada."
+                                    )
+
                         else:
                             st.caption(
-                                "Carga GEN CallCenter para visualizar el avance de hoy."
+                                "Carga GEN CallCenter para visualizar "
+                                "el avance de hoy."
                             )
 
-                        # Mensual queda como contexto secundario.
-                        st.markdown(
-                            textwrap.dedent(f"""
-                            <div class="monthly-strip-v66">
-                                <div class="monthly-item-v66">
-                                    <div class="monthly-label-v66">Mes · Gestiones</div>
-                                    <div class="monthly-value-v66">
-                                        {formato_entero(fila['Gestiones'])} / 2.400
-                                        · {formato_porcentaje(pct_g_ind)}
-                                    </div>
-                                </div>
-                                <div class="monthly-item-v66">
-                                    <div class="monthly-label-v66">Mes · Compromisos</div>
-                                    <div class="monthly-value-v66">
-                                        {formato_entero(fila['Compromisos'])} / 550
-                                        · {formato_porcentaje(pct_c_ind)}
-                                    </div>
-                                </div>
-                                <div class="monthly-item-v66">
-                                    <div class="monthly-label-v66">Mes · Recuperación</div>
-                                    <div class="monthly-value-v66">
-                                        {formato_usd(fila['Recuperación acumulada']).replace(',00','')}
-                                        · {formato_porcentaje(pct_r_ind)}
-                                    </div>
-                                </div>
-                            </div>
-                            """),
-                            unsafe_allow_html=True,
-                        )
+                        # Acumulado mensual como contexto secundario.
+                        st.caption("MES · ACUMULADO")
+
+                        mes1, mes2, mes3 = st.columns(3)
+
+                        with mes1:
+                            st.caption(
+                                "Gestiones"
+                            )
+                            st.markdown(
+                                f"**{formato_entero(fila['Gestiones'])} / 2.400**  "
+                                f"· {formato_porcentaje(pct_g_ind)}"
+                            )
+
+                        with mes2:
+                            st.caption(
+                                "Compromisos"
+                            )
+                            st.markdown(
+                                f"**{formato_entero(fila['Compromisos'])} / 550**  "
+                                f"· {formato_porcentaje(pct_c_ind)}"
+                            )
+
+                        with mes3:
+                            st.caption(
+                                "Recuperación"
+                            )
+                            st.markdown(
+                                f"**{formato_usd(fila['Recuperación acumulada']).replace(',00','')}**  "
+                                f"· {formato_porcentaje(pct_r_ind)}"
+                            )
 
                         asunto = quote(
                             "Seguimiento diario de metas"
