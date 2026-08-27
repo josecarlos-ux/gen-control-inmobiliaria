@@ -1858,20 +1858,59 @@ def enviar_mensaje_telegram(chat_id, texto):
 
 
 def _fuente_reporte(size, bold=False):
-    candidatos = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        if bold else
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"
-        if bold else
-        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-    ]
-    for ruta in candidatos:
+    """
+    Carga una fuente TrueType grande y legible.
+    Se intenta primero por nombre y luego por rutas comunes de Linux.
+    El fallback final usa una fuente TrueType alternativa, no la mini fuente
+    por defecto de PIL.
+    """
+    nombres = (
+        [
+            "DejaVuSans-Bold.ttf",
+            "LiberationSans-Bold.ttf",
+            "Arial Bold.ttf",
+        ]
+        if bold
+        else
+        [
+            "DejaVuSans.ttf",
+            "LiberationSans-Regular.ttf",
+            "Arial.ttf",
+        ]
+    )
+
+    rutas = (
+        [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+        ]
+        if bold
+        else
+        [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+        ]
+    )
+
+    for candidato in nombres + rutas:
         try:
-            return ImageFont.truetype(ruta, size=size)
+            return ImageFont.truetype(
+                candidato,
+                size=size,
+            )
         except Exception:
-            pass
-    return ImageFont.load_default()
+            continue
+
+    # Último intento con DejaVu por nombre.
+    try:
+        return ImageFont.truetype(
+            "DejaVuSans.ttf",
+            size=size,
+        )
+    except Exception:
+        return ImageFont.load_default()
 
 
 def generar_imagen_recuperacion_telegram(
@@ -1879,15 +1918,8 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    Imagen vertical realmente optimizada para Telegram móvil.
-
-    Claves del diseño:
-    - ancho reducido para que Telegram no achique demasiado el contenido;
-    - nombres grandes;
-    - nombres largos se dividen en 2 líneas en vez de reducir demasiado la fuente;
-    - una tarjeta por operador;
-    - recuperado y porcentaje debajo del nombre;
-    - sin información repetida del resumen general.
+    Ranking móvil con nombres muy grandes.
+    Diseñado para verse bien directamente en Telegram sin abrir la imagen.
     """
     import io
 
@@ -1897,22 +1929,21 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
-    # Telegram suele mostrar una imagen vertical ocupando casi todo el ancho
-    # del chat. Con 560 px, la tipografía conserva mejor tamaño visual.
-    W = 560
-    margin = 16
-    header_h = 92
-    section_h = 46
-    card_h = 156
-    gap = 10
-    footer_h = 54
+    # Formato vertical compacto pero con tarjetas altas.
+    W = 720
+    margin = 18
+    header_h = 105
+    section_h = 54
+    card_h = 168
+    gap = 12
+    footer_h = 62
 
     H = (
         margin
         + header_h
-        + 10
+        + 12
         + section_h
-        + 10
+        + 12
         + len(tabla) * (card_h + gap)
         + footer_h
         + margin
@@ -1921,11 +1952,11 @@ def generar_imagen_recuperacion_telegram(
     navy = (7, 29, 52)
     navy2 = (18, 55, 89)
     green = (67, 166, 68)
-    green_dark = (37, 126, 48)
+    green_dark = (38, 126, 48)
     white = (255, 255, 255)
     bg = (242, 246, 249)
     dark = (18, 29, 42)
-    gray = (103, 114, 127)
+    gray = (100, 112, 126)
     border = (214, 222, 229)
     bar_bg = (220, 226, 232)
     gold = (238, 181, 38)
@@ -1935,25 +1966,22 @@ def generar_imagen_recuperacion_telegram(
     img = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(img)
 
-    f_title = _fuente_reporte(31, True)
-    f_date = _fuente_reporte(17, True)
-    f_section = _fuente_reporte(19, True)
+    # Tipografías: el nombre es claramente el elemento dominante.
+    f_title = _fuente_reporte(36, True)
+    f_date = _fuente_reporte(18, True)
+    f_section = _fuente_reporte(22, True)
 
-    # El nombre es el elemento principal.
-    f_name = _fuente_reporte(29, True)
-    f_name_2 = _fuente_reporte(27, True)
+    f_name = _fuente_reporte(42, True)
+    f_name_2 = _fuente_reporte(38, True)
+    f_name_3 = _fuente_reporte(34, True)
 
-    f_amount = _fuente_reporte(20, True)
-    f_pct = _fuente_reporte(22, True)
-    f_pos = _fuente_reporte(19, True)
-    f_label = _fuente_reporte(13, False)
-    f_footer = _fuente_reporte(15, True)
+    f_amount = _fuente_reporte(23, True)
+    f_pct = _fuente_reporte(28, True)
+    f_pos = _fuente_reporte(22, True)
+    f_label = _fuente_reporte(14, False)
+    f_footer = _fuente_reporte(17, True)
 
-    def dividir_nombre_en_lineas(nombre, fuente, ancho_max):
-        """
-        Divide el nombre en máximo 2 líneas según ancho real en píxeles.
-        Así evitamos reducir demasiado la fuente.
-        """
+    def lineas_nombre(nombre, fuente, ancho_max):
         palabras = str(nombre).split()
         if not palabras:
             return [""]
@@ -1963,7 +1991,8 @@ def generar_imagen_recuperacion_telegram(
 
         for palabra in palabras:
             prueba = palabra if not actual else f"{actual} {palabra}"
-            ancho = d.textbbox((0, 0), prueba, font=fuente)[2]
+            bbox = d.textbbox((0, 0), prueba, font=fuente)
+            ancho = bbox[2] - bbox[0]
 
             if ancho <= ancho_max:
                 actual = prueba
@@ -1978,7 +2007,6 @@ def generar_imagen_recuperacion_telegram(
         if len(lineas) <= 2:
             return lineas
 
-        # Si quedaron más de 2, juntar el resto en la segunda línea.
         return [
             lineas[0],
             " ".join(lineas[1:]),
@@ -1991,49 +2019,49 @@ def generar_imagen_recuperacion_telegram(
 
     d.rounded_rectangle(
         (margin, y, W - margin, y + header_h),
-        radius=20,
+        radius=22,
         fill=navy,
     )
 
     d.text(
-        (margin + 20, y + 17),
+        (margin + 24, y + 20),
         "AVANCE DE RECUPERACIÓN",
         font=f_title,
         fill=white,
     )
 
     d.text(
-        (margin + 20, y + 57),
+        (margin + 24, y + 67),
         fecha_local_actual().strftime("%d/%m/%Y"),
         font=f_date,
         fill=green,
     )
 
     # -----------------------------------------------------
-    # TÍTULO RANKING
+    # SECTION
     # -----------------------------------------------------
-    y += header_h + 10
+    y += header_h + 12
 
     d.rounded_rectangle(
         (margin, y, W - margin, y + section_h),
-        radius=13,
+        radius=14,
         fill=navy2,
     )
 
     d.text(
-        (margin + 18, y + 12),
-        "RANKING POR OPERADOR",
+        (margin + 20, y + 15),
+        "RANKING DE RECUPERACIÓN",
         font=f_section,
         fill=white,
     )
 
     # -----------------------------------------------------
-    # TARJETAS
+    # CARDS
     # -----------------------------------------------------
-    y += section_h + 10
+    y += section_h + 12
 
     for i, fila in tabla.iterrows():
-        nombre = str(fila["Operador"])
+        nombre = str(fila["Operador"]).strip()
         recuperacion = float(
             fila["Recuperación acumulada"]
         )
@@ -2051,13 +2079,13 @@ def generar_imagen_recuperacion_telegram(
                 W - margin,
                 card_y2,
             ),
-            radius=18,
+            radius=20,
             fill=white,
             outline=border,
             width=2,
         )
 
-        # Posición
+        # Ranking badge
         pos_color = (
             gold if i == 0
             else silver if i == 1
@@ -2065,93 +2093,113 @@ def generar_imagen_recuperacion_telegram(
             else navy
         )
 
+        badge_x1 = margin + 14
+        badge_y1 = card_y1 + 22
+        badge_x2 = badge_x1 + 58
+        badge_y2 = badge_y1 + 58
+
         d.rounded_rectangle(
             (
-                margin + 14,
-                card_y1 + 18,
-                margin + 64,
-                card_y1 + 68,
+                badge_x1,
+                badge_y1,
+                badge_x2,
+                badge_y2,
             ),
-            radius=12,
+            radius=14,
             fill=pos_color,
         )
 
         pos_txt = str(i + 1)
-        pb = d.textbbox(
-            (0, 0),
-            pos_txt,
-            font=f_pos,
-        )
-
+        pb = d.textbbox((0, 0), pos_txt, font=f_pos)
         d.text(
             (
-                margin + 39 - (pb[2] - pb[0]) / 2,
-                card_y1 + 31,
+                (badge_x1 + badge_x2) / 2 - (pb[2] - pb[0]) / 2,
+                badge_y1 + 14,
             ),
             pos_txt,
             font=f_pos,
             fill=white,
         )
 
-        # Nombre en 1 o 2 líneas GRANDES.
-        nombre_x = margin + 82
-        nombre_max_w = W - margin - nombre_x - 12
-
-        lineas = dividir_nombre_en_lineas(
-            nombre,
-            f_name,
-            nombre_max_w,
-        )
+        # NOMBRE: grande y hasta 2 líneas.
+        name_x = badge_x2 + 18
+        name_max_w = W - margin - name_x - 18
 
         fuente_nombre = f_name
-        # Si la segunda línea todavía queda demasiado larga,
-        # usar una reducción mínima, no una fuente pequeña.
+        lineas = lineas_nombre(
+            nombre,
+            fuente_nombre,
+            name_max_w,
+        )
+
+        # Si aun no cabe, bajar solo un poco.
         if any(
-            d.textbbox((0, 0), ln, font=fuente_nombre)[2] > nombre_max_w
+            (d.textbbox((0, 0), ln, font=fuente_nombre)[2]
+             - d.textbbox((0, 0), ln, font=fuente_nombre)[0])
+            > name_max_w
             for ln in lineas
         ):
             fuente_nombre = f_name_2
+            lineas = lineas_nombre(
+                nombre,
+                fuente_nombre,
+                name_max_w,
+            )
+
+        if any(
+            (d.textbbox((0, 0), ln, font=fuente_nombre)[2]
+             - d.textbbox((0, 0), ln, font=fuente_nombre)[0])
+            > name_max_w
+            for ln in lineas
+        ):
+            fuente_nombre = f_name_3
+            lineas = lineas_nombre(
+                nombre,
+                fuente_nombre,
+                name_max_w,
+            )
 
         if len(lineas) == 1:
-            nombre_y = card_y1 + 18
+            name_y = card_y1 + 18
             d.text(
-                (nombre_x, nombre_y),
+                (name_x, name_y),
                 lineas[0],
                 font=fuente_nombre,
                 fill=dark,
             )
-            datos_y = card_y1 + 72
+            info_y = card_y1 + 80
         else:
-            nombre_y = card_y1 + 12
+            name_y = card_y1 + 10
             d.text(
-                (nombre_x, nombre_y),
+                (name_x, name_y),
                 lineas[0],
                 font=fuente_nombre,
                 fill=dark,
             )
             d.text(
-                (nombre_x, nombre_y + 34),
+                (name_x, name_y + 43),
                 lineas[1],
                 font=fuente_nombre,
                 fill=dark,
             )
-            datos_y = card_y1 + 86
+            info_y = card_y1 + 98
 
-        # Datos debajo, separados y grandes.
+        # Recuperado
         d.text(
-            (nombre_x, datos_y),
+            (name_x, info_y),
             "Recuperado",
             font=f_label,
             fill=gray,
         )
 
         d.text(
-            (nombre_x, datos_y + 18),
+            (name_x, info_y + 18),
             formato_usd(recuperacion),
             font=f_amount,
             fill=green_dark,
         )
 
+        # % grande a la derecha
         pct_txt = formato_porcentaje(
             porcentaje
         )
@@ -2164,23 +2212,23 @@ def generar_imagen_recuperacion_telegram(
         pct_x = W - margin - 18 - (pct_bbox[2] - pct_bbox[0])
 
         d.text(
-            (pct_x, datos_y + 14),
+            (pct_x, info_y + 12),
             pct_txt,
             font=f_pct,
             fill=dark,
         )
 
-        # Barra de progreso amplia
-        bar_x1 = nombre_x
+        # Barra
+        bar_x1 = name_x
         bar_x2 = W - margin - 18
-        bar_y = card_y1 + 133
+        bar_y = card_y1 + 145
 
         d.rounded_rectangle(
             (
                 bar_x1,
                 bar_y,
                 bar_x2,
-                bar_y + 11,
+                bar_y + 12,
             ),
             radius=6,
             fill=bar_bg,
@@ -2203,7 +2251,7 @@ def generar_imagen_recuperacion_telegram(
                     bar_x1,
                     bar_y,
                     fill_x,
-                    bar_y + 11,
+                    bar_y + 12,
                 ),
                 radius=6,
                 fill=green,
@@ -2232,8 +2280,8 @@ def generar_imagen_recuperacion_telegram(
 
     d.text(
         (
-            margin + 18,
-            footer_y + 17,
+            margin + 20,
+            footer_y + 19,
         ),
         "¡Cada resultado suma! Vamos por la meta. 💪",
         font=f_footer,
@@ -2241,13 +2289,11 @@ def generar_imagen_recuperacion_telegram(
     )
 
     buffer = io.BytesIO()
-
     img.save(
         buffer,
         format="PNG",
         optimize=True,
     )
-
     buffer.seek(0)
 
     return buffer
