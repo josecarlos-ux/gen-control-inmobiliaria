@@ -3399,6 +3399,149 @@ st.markdown(
         .operator-alert-green-v63 {
             color:#067647;
         }
+
+        /* ===== FASE VISUAL V64 ===== */
+
+        .top-action-row-v64 {
+            display:flex;
+            justify-content:flex-end;
+            gap:10px;
+            margin:2px 0 10px 0;
+        }
+
+        .color-kpi-v64 {
+            border-radius:14px;
+            padding:13px 14px;
+            min-height:86px;
+            border:1px solid;
+            box-shadow:0 2px 8px rgba(16,24,40,.04);
+        }
+
+        .kpi-purple-v64 {
+            background:#f6f3ff;
+            border-color:#dfd6ff;
+        }
+
+        .kpi-blue-v64 {
+            background:#eef7ff;
+            border-color:#cfe6ff;
+        }
+
+        .kpi-green-v64 {
+            background:#effcf4;
+            border-color:#ccefd8;
+        }
+
+        .kpi-orange-v64 {
+            background:#fff7ed;
+            border-color:#fed7aa;
+        }
+
+        .kpi-red-v64 {
+            background:#fff1f3;
+            border-color:#fecdd3;
+        }
+
+        .kpi-value-color-v64 {
+            font-size:24px;
+            font-weight:800;
+            color:#101828;
+            margin-top:4px;
+        }
+
+        .kpi-label-color-v64 {
+            font-size:10px;
+            font-weight:800;
+            letter-spacing:.04em;
+            text-transform:uppercase;
+        }
+
+        .kpi-foot-color-v64 {
+            font-size:10px;
+            color:#667085;
+            margin-top:3px;
+        }
+
+        .kpi-icon-v64 {
+            font-size:20px;
+            margin-bottom:2px;
+        }
+
+        .operator-card-accent-v64 {
+            position:relative;
+        }
+
+        .operator-card-accent-v64::before {
+            content:"";
+            position:absolute;
+            left:-1px;
+            top:12px;
+            bottom:12px;
+            width:4px;
+            border-radius:999px;
+            background:#d0d5dd;
+        }
+
+        .channel-ok-v64 {
+            color:#067647;
+            font-weight:700;
+        }
+
+        .channel-pending-v64 {
+            color:#b54708;
+            font-weight:700;
+        }
+
+        .gap-badge-v64 {
+            display:inline-flex;
+            align-items:center;
+            gap:4px;
+            border-radius:999px;
+            padding:4px 8px;
+            font-size:10px;
+            font-weight:800;
+        }
+
+        .gap-red-v64 {
+            background:#fff1f3;
+            color:#c01048;
+        }
+
+        .gap-orange-v64 {
+            background:#fff6ed;
+            color:#b54708;
+        }
+
+        .gap-green-v64 {
+            background:#ecfdf3;
+            color:#067647;
+        }
+
+        .recovery-focus-v64 {
+            color:#b54708;
+            font-weight:800;
+        }
+
+        .toolbar-shell-v64 {
+            background:#ffffff;
+            border:1px solid #e6eaf0;
+            border-radius:14px;
+            padding:10px 12px 2px 12px;
+            margin:8px 0 10px 0;
+        }
+
+        .mini-chip-v64 {
+            display:inline-flex;
+            align-items:center;
+            gap:5px;
+            border-radius:999px;
+            padding:4px 8px;
+            background:#f2f4f7;
+            color:#475467;
+            font-size:10px;
+            font-weight:700;
+            margin-right:6px;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -4189,8 +4332,35 @@ elif menu == "✉️ Mensajes diarios":
             unsafe_allow_html=True,
         )
 
+        top_a1, top_a2, top_a3 = st.columns([5, 1.25, 1.25])
+
+        with top_a2:
+            with st.popover(
+                "📄 Mensaje general",
+                use_container_width=True,
+            ):
+                st.text_area(
+                    "Mensaje general",
+                    value=mensaje_general,
+                    height=220,
+                    disabled=True,
+                    label_visibility="collapsed",
+                    key="mensaje_general_popover_v64",
+                )
+
+        with top_a3:
+            with st.popover(
+                "📊 Tabla recuperación",
+                use_container_width=True,
+            ):
+                st.dataframe(
+                    tabla_compartir,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
         # -------------------------------------------------
-        # RESUMEN SUPERIOR
+        # RESUMEN SUPERIOR — V64
         # -------------------------------------------------
         operadores_con_correo = 0
         operadores_con_telegram = 0
@@ -4209,19 +4379,37 @@ elif menu == "✉️ Mensajes diarios":
 
             if correo_tmp:
                 operadores_con_correo += 1
-
             if telegram_tmp:
                 operadores_con_telegram += 1
 
-        s1, s2, s3, s4 = st.columns(4)
+        promedio_rec_v64 = float(
+            resultado["% Recuperación"].mean()
+        )
+
+        total_rec_v64 = float(
+            resultado["Recuperación acumulada"].sum()
+        )
+
+        meta_rec_equipo_v64 = (
+            float(st.session_state.meta_recuperacion_cfg)
+            * CANTIDAD_OPERADORES
+        )
+
+        faltante_rec_equipo_v64 = max(
+            meta_rec_equipo_v64 - total_rec_v64,
+            0,
+        )
+
+        s1, s2, s3, s4, s5 = st.columns(5)
 
         with s1:
             st.markdown(
                 f"""
-                <div class="summary-tile">
-                    <div class="summary-tile-label">Operadores</div>
-                    <div class="summary-tile-value">{len(resultado)}</div>
-                    <div class="summary-tile-foot">Activos en el reporte</div>
+                <div class="color-kpi-v64 kpi-purple-v64">
+                    <div class="kpi-icon-v64">👥</div>
+                    <div class="kpi-label-color-v64">Operadores</div>
+                    <div class="kpi-value-color-v64">{len(resultado)}</div>
+                    <div class="kpi-foot-color-v64">Activos en el reporte</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -4230,10 +4418,11 @@ elif menu == "✉️ Mensajes diarios":
         with s2:
             st.markdown(
                 f"""
-                <div class="summary-tile">
-                    <div class="summary-tile-label">Correos</div>
-                    <div class="summary-tile-value">{operadores_con_correo}</div>
-                    <div class="summary-tile-foot">Configurados</div>
+                <div class="color-kpi-v64 kpi-blue-v64">
+                    <div class="kpi-icon-v64">✉️</div>
+                    <div class="kpi-label-color-v64">Correos</div>
+                    <div class="kpi-value-color-v64">{operadores_con_correo}</div>
+                    <div class="kpi-foot-color-v64">Configurados</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -4242,10 +4431,11 @@ elif menu == "✉️ Mensajes diarios":
         with s3:
             st.markdown(
                 f"""
-                <div class="summary-tile">
-                    <div class="summary-tile-label">Telegram</div>
-                    <div class="summary-tile-value">{operadores_con_telegram}</div>
-                    <div class="summary-tile-foot">Configurados</div>
+                <div class="color-kpi-v64 kpi-green-v64">
+                    <div class="kpi-icon-v64">✈️</div>
+                    <div class="kpi-label-color-v64">Telegram</div>
+                    <div class="kpi-value-color-v64">{operadores_con_telegram}</div>
+                    <div class="kpi-foot-color-v64">Configurados</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -4254,14 +4444,30 @@ elif menu == "✉️ Mensajes diarios":
         with s4:
             st.markdown(
                 """
-                <div class="summary-tile">
-                    <div class="summary-tile-label">Mínimos diarios</div>
-                    <div class="summary-tile-value">98 / 25</div>
-                    <div class="summary-tile-foot">Gestiones / compromisos</div>
+                <div class="color-kpi-v64 kpi-orange-v64">
+                    <div class="kpi-icon-v64">🎯</div>
+                    <div class="kpi-label-color-v64">Mínimos diarios</div>
+                    <div class="kpi-value-color-v64">98 / 25</div>
+                    <div class="kpi-foot-color-v64">Gestiones / compromisos</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+
+        with s5:
+            st.markdown(
+                f"""
+                <div class="color-kpi-v64 kpi-blue-v64">
+                    <div class="kpi-icon-v64">📈</div>
+                    <div class="kpi-label-color-v64">Recuperación promedio</div>
+                    <div class="kpi-value-color-v64">{formato_porcentaje(promedio_rec_v64)}</div>
+                    <div class="kpi-foot-color-v64">Del objetivo mensual</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        st.write("")
 
         # Resumen de situación contra el esperado a la fecha.
         esperado_resumen = float(jornadas_info["esperado_pct"])
@@ -4289,15 +4495,16 @@ elif menu == "✉️ Mensajes diarios":
             else:
                 al_dia_count += 1
 
-        q1, q2, q3, q4 = st.columns(4)
+        q1, q2, q3, q4, q5 = st.columns(5)
 
         with q1:
             st.markdown(
                 f"""
-                <div class="status-summary-v63">
-                    <div class="status-summary-label-v63">Esperado hoy</div>
-                    <div class="status-summary-value-v63">{formato_porcentaje(esperado_resumen)}</div>
-                    <div class="status-summary-foot-v63">Según jornadas transcurridas</div>
+                <div class="color-kpi-v64 kpi-blue-v64">
+                    <div class="kpi-icon-v64">📊</div>
+                    <div class="kpi-label-color-v64">Esperado hoy</div>
+                    <div class="kpi-value-color-v64">{formato_porcentaje(esperado_resumen)}</div>
+                    <div class="kpi-foot-color-v64">Según jornadas transcurridas</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -4306,10 +4513,11 @@ elif menu == "✉️ Mensajes diarios":
         with q2:
             st.markdown(
                 f"""
-                <div class="status-summary-v63">
-                    <div class="status-summary-label-v63">Prioridad</div>
-                    <div class="status-summary-value-v63">{prioridad_count}</div>
-                    <div class="status-summary-foot-v63">Brecha ≥ 15 puntos</div>
+                <div class="color-kpi-v64 kpi-red-v64">
+                    <div class="kpi-icon-v64">⚠️</div>
+                    <div class="kpi-label-color-v64">Prioridad</div>
+                    <div class="kpi-value-color-v64">{prioridad_count}</div>
+                    <div class="kpi-foot-color-v64">Brecha ≥ 15 puntos</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -4318,10 +4526,11 @@ elif menu == "✉️ Mensajes diarios":
         with q3:
             st.markdown(
                 f"""
-                <div class="status-summary-v63">
-                    <div class="status-summary-label-v63">Seguimiento</div>
-                    <div class="status-summary-value-v63">{seguimiento_count}</div>
-                    <div class="status-summary-foot-v63">Debajo del esperado</div>
+                <div class="color-kpi-v64 kpi-orange-v64">
+                    <div class="kpi-icon-v64">🟠</div>
+                    <div class="kpi-label-color-v64">Seguimiento</div>
+                    <div class="kpi-value-color-v64">{seguimiento_count}</div>
+                    <div class="kpi-foot-color-v64">Debajo del esperado</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -4330,10 +4539,24 @@ elif menu == "✉️ Mensajes diarios":
         with q4:
             st.markdown(
                 f"""
-                <div class="status-summary-v63">
-                    <div class="status-summary-label-v63">Al día</div>
-                    <div class="status-summary-value-v63">{al_dia_count}</div>
-                    <div class="status-summary-foot-v63">Cumplen esperado</div>
+                <div class="color-kpi-v64 kpi-green-v64">
+                    <div class="kpi-icon-v64">✅</div>
+                    <div class="kpi-label-color-v64">Al día</div>
+                    <div class="kpi-value-color-v64">{al_dia_count}</div>
+                    <div class="kpi-foot-color-v64">Cumplen esperado</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with q5:
+            st.markdown(
+                f"""
+                <div class="color-kpi-v64 kpi-purple-v64">
+                    <div class="kpi-icon-v64">💰</div>
+                    <div class="kpi-label-color-v64">Faltante recuperación</div>
+                    <div class="kpi-value-color-v64">{formato_usd(faltante_rec_equipo_v64).replace(',00','')}</div>
+                    <div class="kpi-foot-color-v64">Del objetivo del equipo</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -4797,9 +5020,9 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
                 estado_tg = (
-                    "✈ Telegram ✓"
+                    '<span class="channel-ok-v64">✈ Telegram ✓</span>'
                     if telegram_chat_id
-                    else "✈ Telegram pendiente"
+                    else '<span class="channel-pending-v64">✈ Telegram pendiente</span>'
                 )
 
                 with cols[pos]:
@@ -4848,7 +5071,9 @@ elif menu == "✉️ Mensajes diarios":
                                 <span>
                                     Mayor brecha:
                                     <strong>{prioridad}</strong>
-                                    ({formato_porcentaje(max(mayor_brecha, 0))})
+                                    <span class="gap-badge-v64 {'gap-red-v64' if mayor_brecha >= 15 else 'gap-orange-v64' if mayor_brecha > 0 else 'gap-green-v64'}">
+                                        {formato_porcentaje(max(mayor_brecha, 0))}
+                                    </span>
                                 </span>
                             </div>
                             """,
