@@ -3677,6 +3677,241 @@ st.markdown(
             font-weight:700;
             margin-right:6px;
         }
+
+        /* ===== FASE V66 · CONTROL DEL DÍA ===== */
+
+        .hello-v66 {
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:16px;
+            margin-bottom:12px;
+        }
+
+        .hello-title-v66 {
+            font-size:27px;
+            font-weight:850;
+            color:#101828;
+            line-height:1.05;
+        }
+
+        .hello-sub-v66 {
+            color:#667085;
+            font-size:12px;
+            margin-top:5px;
+        }
+
+        .kpi-v66 {
+            border-radius:15px;
+            padding:13px 14px;
+            min-height:92px;
+            border:1px solid #e5e9ef;
+            box-shadow:0 2px 8px rgba(16,24,40,.04);
+            background:#fff;
+        }
+
+        .kpi-v66-purple {background:linear-gradient(135deg,#f7f3ff,#fff);border-color:#e4d8ff;}
+        .kpi-v66-blue   {background:linear-gradient(135deg,#edf7ff,#fff);border-color:#cde6ff;}
+        .kpi-v66-green  {background:linear-gradient(135deg,#eefcf4,#fff);border-color:#ccefd8;}
+        .kpi-v66-orange {background:linear-gradient(135deg,#fff7ed,#fff);border-color:#fed7aa;}
+        .kpi-v66-red    {background:linear-gradient(135deg,#fff1f3,#fff);border-color:#fecdd3;}
+
+        .kpi-label-v66 {
+            color:#667085;
+            font-size:9px;
+            font-weight:850;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+        }
+
+        .kpi-value-v66 {
+            color:#101828;
+            font-size:23px;
+            font-weight:850;
+            margin-top:5px;
+        }
+
+        .kpi-foot-v66 {
+            color:#667085;
+            font-size:10px;
+            margin-top:4px;
+        }
+
+        .day-shell-v66 {
+            background:#fff;
+            border:1px solid #e5e9ef;
+            border-radius:16px;
+            padding:14px;
+            margin:10px 0 12px 0;
+            box-shadow:0 2px 10px rgba(16,24,40,.04);
+        }
+
+        .day-title-v66 {
+            color:#101828;
+            font-size:15px;
+            font-weight:850;
+            margin-bottom:10px;
+        }
+
+        .day-grid-v66 {
+            display:grid;
+            grid-template-columns:1fr 1.6fr 1.6fr;
+            gap:12px;
+        }
+
+        .day-card-v66 {
+            border:1px solid #e7ebf0;
+            border-radius:13px;
+            padding:12px;
+            background:#fbfcfe;
+        }
+
+        .day-card-blue-v66 {
+            background:#f2f7ff;
+            border-color:#d4e4ff;
+        }
+
+        .day-card-green-v66 {
+            background:#f1fbf5;
+            border-color:#d2efdc;
+        }
+
+        .day-card-label-v66 {
+            color:#667085;
+            font-size:9px;
+            font-weight:850;
+            text-transform:uppercase;
+            letter-spacing:.05em;
+        }
+
+        .day-main-v66 {
+            color:#101828;
+            font-size:24px;
+            font-weight:850;
+            margin-top:5px;
+        }
+
+        .day-detail-v66 {
+            color:#667085;
+            font-size:10px;
+            margin-top:4px;
+        }
+
+        .day-delta-red-v66 {
+            color:#c01048;
+            font-weight:850;
+        }
+
+        .day-delta-green-v66 {
+            color:#067647;
+            font-weight:850;
+        }
+
+        .day-progress-bg-v66 {
+            height:8px;
+            border-radius:999px;
+            overflow:hidden;
+            background:#e9edf2;
+            margin-top:9px;
+        }
+
+        .day-progress-fill-v66 {
+            height:100%;
+            border-radius:999px;
+        }
+
+        .operator-today-shell-v66 {
+            border-radius:11px;
+            padding:9px 10px;
+            margin:6px 0 7px 0;
+            border:1px solid #e7ebf0;
+            background:#f8fafc;
+        }
+
+        .operator-today-title-v66 {
+            font-size:9px;
+            font-weight:850;
+            color:#667085;
+            text-transform:uppercase;
+            letter-spacing:.04em;
+            margin-bottom:7px;
+        }
+
+        .operator-today-grid-v66 {
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:8px;
+        }
+
+        .operator-today-item-v66 {
+            background:#fff;
+            border:1px solid #e8ecf1;
+            border-radius:9px;
+            padding:7px 8px;
+        }
+
+        .operator-today-value-v66 {
+            font-size:16px;
+            font-weight:850;
+            color:#101828;
+        }
+
+        .operator-today-sub-v66 {
+            font-size:9px;
+            color:#667085;
+            margin-top:2px;
+        }
+
+        .monthly-strip-v66 {
+            display:grid;
+            grid-template-columns:1fr 1fr 1.2fr;
+            gap:6px;
+            margin-top:7px;
+        }
+
+        .monthly-item-v66 {
+            border-top:1px solid #eef1f4;
+            padding-top:6px;
+        }
+
+        .monthly-label-v66 {
+            color:#98a2b3;
+            font-size:8px;
+            font-weight:800;
+            text-transform:uppercase;
+        }
+
+        .monthly-value-v66 {
+            color:#344054;
+            font-size:11px;
+            font-weight:750;
+            margin-top:2px;
+        }
+
+        .status-critical-v66 {
+            background:#fff1f3;
+            border-color:#fecdd3 !important;
+        }
+
+        .status-attention-v66 {
+            background:#fffaf2;
+            border-color:#fed7aa !important;
+        }
+
+        .status-good-v66 {
+            background:#f3fbf6;
+            border-color:#ccefd8 !important;
+        }
+
+        .legend-v66 {
+            background:#f8fafc;
+            border:1px solid #e7ebf0;
+            border-radius:11px;
+            padding:8px 10px;
+            margin-top:10px;
+            color:#667085;
+            font-size:10px;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -4452,16 +4687,27 @@ elif menu == "✉️ Mensajes diarios":
         st.divider()
 
         # -------------------------------------------------
-        # ENCABEZADO VISUAL
+        # ENCABEZADO + CONTROL DEL DÍA — V66
         # -------------------------------------------------
+        ahora_v66 = datetime.now(
+            ZoneInfo("America/La_Paz")
+        )
+
+        saludo_v66, emoji_v66 = saludo_segun_hora()
+
         st.markdown(
-            """
-            <div class="messages-title-wrap">
-                <div class="messages-title-icon">✈</div>
-                <div class="messages-title-text">Mensajes individuales</div>
-            </div>
-            <div class="messages-subtitle-text">
-                Seguimiento individual de metas, brechas y canales de contacto.
+            f"""
+            <div class="hello-v66">
+                <div>
+                    <div class="hello-title-v66">
+                        {saludo_v66}, José Carlos. {emoji_v66}
+                    </div>
+                    <div class="hello-sub-v66">
+                        {ahora_v66.strftime('%d/%m/%Y')} ·
+                        {ahora_v66.strftime('%H:%M')} hrs ·
+                        Seguimiento de metas y avance a la hora
+                    </div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -4480,7 +4726,7 @@ elif menu == "✉️ Mensajes diarios":
                     height=220,
                     disabled=True,
                     label_visibility="collapsed",
-                    key="mensaje_general_popover_v64",
+                    key="mensaje_general_popover_v66",
                 )
 
         with top_a3:
@@ -4495,209 +4741,289 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
         # -------------------------------------------------
-        # RESUMEN SUPERIOR — V64
+        # KPIs COMPACTOS
         # -------------------------------------------------
         operadores_con_correo = 0
         operadores_con_telegram = 0
 
         for _, fila_tmp in resultado.iterrows():
             usuario_tmp = fila_tmp["Usuario"]
-            contacto_tmp = datos_contacto.get(usuario_tmp, {})
+            contacto_tmp = datos_contacto.get(
+                usuario_tmp,
+                {},
+            )
 
             correo_tmp = (
                 contacto_tmp.get("correo")
-                or str(fila_tmp.get("Correo", "")).strip()
+                or str(
+                    fila_tmp.get("Correo", "")
+                ).strip()
             )
-            telegram_tmp = normalizar_telegram_chat_id(
-                contacto_tmp.get("telegram_chat_id", "")
+
+            telegram_tmp = (
+                normalizar_telegram_chat_id(
+                    contacto_tmp.get(
+                        "telegram_chat_id",
+                        "",
+                    )
+                )
             )
 
             if correo_tmp:
                 operadores_con_correo += 1
+
             if telegram_tmp:
                 operadores_con_telegram += 1
 
-        promedio_rec_v64 = float(
+        promedio_rec_v66 = float(
             resultado["% Recuperación"].mean()
         )
 
-        total_rec_v64 = float(
-            resultado["Recuperación acumulada"].sum()
+        esperado_resumen = float(
+            jornadas_info["esperado_pct"]
         )
 
-        meta_rec_equipo_v64 = (
-            float(st.session_state.meta_recuperacion_cfg)
-            * CANTIDAD_OPERADORES
-        )
+        k1, k2, k3, k4, k5, k6 = st.columns(6)
 
-        faltante_rec_equipo_v64 = max(
-            meta_rec_equipo_v64 - total_rec_v64,
-            0,
-        )
+        kpis_v66 = [
+            (
+                k1,
+                "kpi-v66-purple",
+                "👥 OPERADORES",
+                str(len(resultado)),
+                "Activos en el reporte",
+            ),
+            (
+                k2,
+                "kpi-v66-blue",
+                "✉️ CORREOS",
+                str(operadores_con_correo),
+                "Configurados",
+            ),
+            (
+                k3,
+                "kpi-v66-green",
+                "✈️ TELEGRAM",
+                str(operadores_con_telegram),
+                "Configurados",
+            ),
+            (
+                k4,
+                "kpi-v66-orange",
+                "🎯 MÍNIMOS",
+                "98 / 25",
+                "Gestiones / compromisos",
+            ),
+            (
+                k5,
+                "kpi-v66-blue",
+                "📈 ESPERADO MES",
+                formato_porcentaje(esperado_resumen),
+                "Según jornadas transcurridas",
+            ),
+            (
+                k6,
+                "kpi-v66-purple",
+                "💰 RECUPERACIÓN",
+                formato_porcentaje(promedio_rec_v66),
+                "Promedio mensual",
+            ),
+        ]
 
-        s1, s2, s3, s4, s5 = st.columns(5)
+        for columna_kpi, clase_kpi, etiqueta_kpi, valor_kpi, pie_kpi in kpis_v66:
+            with columna_kpi:
+                st.markdown(
+                    f"""
+                    <div class="kpi-v66 {clase_kpi}">
+                        <div class="kpi-label-v66">{etiqueta_kpi}</div>
+                        <div class="kpi-value-v66">{valor_kpi}</div>
+                        <div class="kpi-foot-v66">{pie_kpi}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-        with s1:
+        # -------------------------------------------------
+        # AVANCE DEL DÍA A LA HORA
+        # -------------------------------------------------
+        avances_hoy_v66 = []
+
+        for _, fila_hoy_v66 in resultado.iterrows():
+            avance_tmp_v66 = calcular_avance_hora_operador(
+                fila_hoy_v66["Usuario"],
+                st.session_state.callcenter_df,
+                ahora_v66,
+            )
+
+            if avance_tmp_v66.get("disponible"):
+                avances_hoy_v66.append(
+                    avance_tmp_v66
+                )
+
+        if avances_hoy_v66:
+            total_g_hoy_v66 = sum(
+                x["gestiones_hoy"]
+                for x in avances_hoy_v66
+            )
+            total_c_hoy_v66 = sum(
+                x["compromisos_hoy"]
+                for x in avances_hoy_v66
+            )
+            esperado_g_hoy_v66 = sum(
+                x["esperado_gestiones"]
+                for x in avances_hoy_v66
+            )
+            esperado_c_hoy_v66 = sum(
+                x["esperado_compromisos"]
+                for x in avances_hoy_v66
+            )
+
+            delta_g_hoy_v66 = (
+                total_g_hoy_v66
+                - esperado_g_hoy_v66
+            )
+            delta_c_hoy_v66 = (
+                total_c_hoy_v66
+                - esperado_c_hoy_v66
+            )
+
+            inicio_v66 = ahora_v66.replace(
+                hour=JORNADA_INICIO_HORA,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+            fin_v66 = ahora_v66.replace(
+                hour=JORNADA_FIN_HORA,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+            total_seg_v66 = max(
+                (fin_v66 - inicio_v66).total_seconds(),
+                1,
+            )
+            trans_v66 = min(
+                max(
+                    (ahora_v66 - inicio_v66).total_seconds(),
+                    0,
+                ),
+                total_seg_v66,
+            )
+
+            jornada_pct_v66 = (
+                trans_v66 / total_seg_v66 * 100
+            )
+
+            horas_restantes_v66 = max(
+                (fin_v66 - ahora_v66).total_seconds()
+                / 3600,
+                0,
+            )
+
+            pct_g_bar_v66 = min(
+                (
+                    total_g_hoy_v66
+                    / esperado_g_hoy_v66
+                    * 100
+                )
+                if esperado_g_hoy_v66
+                else 0,
+                100,
+            )
+            pct_c_bar_v66 = min(
+                (
+                    total_c_hoy_v66
+                    / esperado_c_hoy_v66
+                    * 100
+                )
+                if esperado_c_hoy_v66
+                else 0,
+                100,
+            )
+
+            color_g_v66 = (
+                "#22a447"
+                if delta_g_hoy_v66 >= 0
+                else "#e5484d"
+            )
+            color_c_v66 = (
+                "#22a447"
+                if delta_c_hoy_v66 >= 0
+                else "#e5484d"
+            )
+
             st.markdown(
                 f"""
-                <div class="color-kpi-v64 kpi-purple-v64">
-                    <div class="kpi-icon-v64">👥</div>
-                    <div class="kpi-label-color-v64">Operadores</div>
-                    <div class="kpi-value-color-v64">{len(resultado)}</div>
-                    <div class="kpi-foot-color-v64">Activos en el reporte</div>
+                <div class="day-shell-v66">
+                    <div class="day-title-v66">
+                        ⏱️ Avance del día · a las {ahora_v66.strftime('%H:%M')}
+                    </div>
+                    <div class="day-grid-v66">
+
+                        <div class="day-card-v66">
+                            <div class="day-card-label-v66">Jornada</div>
+                            <div class="day-main-v66">
+                                {formato_porcentaje(jornada_pct_v66)}
+                            </div>
+                            <div class="day-detail-v66">
+                                08:00 → {ahora_v66.strftime('%H:%M')} → 17:00
+                            </div>
+                            <div class="day-detail-v66">
+                                Restan {horas_restantes_v66:.1f} h
+                            </div>
+                        </div>
+
+                        <div class="day-card-v66 day-card-blue-v66">
+                            <div class="day-card-label-v66">📞 Gestiones · hoy</div>
+                            <div class="day-main-v66">
+                                {formato_entero(total_g_hoy_v66)}
+                                <span style="font-size:13px;color:#667085;">
+                                    / esperado {formato_entero(esperado_g_hoy_v66)}
+                                </span>
+                            </div>
+                            <div class="day-detail-v66">
+                                <span class="{'day-delta-green-v66' if delta_g_hoy_v66 >= 0 else 'day-delta-red-v66'}">
+                                    {delta_g_hoy_v66:+d} vs ritmo esperado
+                                </span>
+                            </div>
+                            <div class="day-progress-bg-v66">
+                                <div class="day-progress-fill-v66"
+                                     style="width:{pct_g_bar_v66}%;background:{color_g_v66};">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="day-card-v66 day-card-green-v66">
+                            <div class="day-card-label-v66">🤝 Compromisos · hoy</div>
+                            <div class="day-main-v66">
+                                {formato_entero(total_c_hoy_v66)}
+                                <span style="font-size:13px;color:#667085;">
+                                    / esperado {formato_entero(esperado_c_hoy_v66)}
+                                </span>
+                            </div>
+                            <div class="day-detail-v66">
+                                <span class="{'day-delta-green-v66' if delta_c_hoy_v66 >= 0 else 'day-delta-red-v66'}">
+                                    {delta_c_hoy_v66:+d} vs ritmo esperado
+                                </span>
+                            </div>
+                            <div class="day-progress-bg-v66">
+                                <div class="day-progress-fill-v66"
+                                     style="width:{pct_c_bar_v66}%;background:{color_c_v66};">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-
-        with s2:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-blue-v64">
-                    <div class="kpi-icon-v64">✉️</div>
-                    <div class="kpi-label-color-v64">Correos</div>
-                    <div class="kpi-value-color-v64">{operadores_con_correo}</div>
-                    <div class="kpi-foot-color-v64">Configurados</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+        else:
+            st.info(
+                "Carga el reporte GEN CallCenter para activar el avance del día a la hora."
             )
-
-        with s3:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-green-v64">
-                    <div class="kpi-icon-v64">✈️</div>
-                    <div class="kpi-label-color-v64">Telegram</div>
-                    <div class="kpi-value-color-v64">{operadores_con_telegram}</div>
-                    <div class="kpi-foot-color-v64">Configurados</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with s4:
-            st.markdown(
-                """
-                <div class="color-kpi-v64 kpi-orange-v64">
-                    <div class="kpi-icon-v64">🎯</div>
-                    <div class="kpi-label-color-v64">Mínimos diarios</div>
-                    <div class="kpi-value-color-v64">98 / 25</div>
-                    <div class="kpi-foot-color-v64">Gestiones / compromisos</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with s5:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-blue-v64">
-                    <div class="kpi-icon-v64">📈</div>
-                    <div class="kpi-label-color-v64">Recuperación promedio</div>
-                    <div class="kpi-value-color-v64">{formato_porcentaje(promedio_rec_v64)}</div>
-                    <div class="kpi-foot-color-v64">Del objetivo mensual</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.write("")
-
-        # Resumen de situación contra el esperado a la fecha.
-        esperado_resumen = float(jornadas_info["esperado_pct"])
-
-        prioridad_count = 0
-        seguimiento_count = 0
-        al_dia_count = 0
-
-        for _, fila_res in resultado.iterrows():
-            valores_res = [
-                float(fila_res["% Gestiones"]),
-                float(fila_res["% Compromisos"]),
-                float(fila_res["% Recuperación"]),
-            ]
-
-            brecha_res = max(
-                esperado_resumen - v
-                for v in valores_res
-            )
-
-            if brecha_res >= 15:
-                prioridad_count += 1
-            elif brecha_res > 0:
-                seguimiento_count += 1
-            else:
-                al_dia_count += 1
-
-        q1, q2, q3, q4, q5 = st.columns(5)
-
-        with q1:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-blue-v64">
-                    <div class="kpi-icon-v64">📊</div>
-                    <div class="kpi-label-color-v64">Esperado hoy</div>
-                    <div class="kpi-value-color-v64">{formato_porcentaje(esperado_resumen)}</div>
-                    <div class="kpi-foot-color-v64">Según jornadas transcurridas</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with q2:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-red-v64">
-                    <div class="kpi-icon-v64">⚠️</div>
-                    <div class="kpi-label-color-v64">Prioridad</div>
-                    <div class="kpi-value-color-v64">{prioridad_count}</div>
-                    <div class="kpi-foot-color-v64">Brecha ≥ 15 puntos</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with q3:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-orange-v64">
-                    <div class="kpi-icon-v64">🟠</div>
-                    <div class="kpi-label-color-v64">Seguimiento</div>
-                    <div class="kpi-value-color-v64">{seguimiento_count}</div>
-                    <div class="kpi-foot-color-v64">Debajo del esperado</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with q4:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-green-v64">
-                    <div class="kpi-icon-v64">✅</div>
-                    <div class="kpi-label-color-v64">Al día</div>
-                    <div class="kpi-value-color-v64">{al_dia_count}</div>
-                    <div class="kpi-foot-color-v64">Cumplen esperado</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with q5:
-            st.markdown(
-                f"""
-                <div class="color-kpi-v64 kpi-purple-v64">
-                    <div class="kpi-icon-v64">💰</div>
-                    <div class="kpi-label-color-v64">Faltante recuperación</div>
-                    <div class="kpi-value-color-v64">{formato_usd(faltante_rec_equipo_v64).replace(',00','')}</div>
-                    <div class="kpi-foot-color-v64">Del objetivo del equipo</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.write("")
 
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
@@ -4740,6 +5066,7 @@ elif menu == "✉️ Mensajes diarios":
             ordenar_mensajes = st.selectbox(
                 "Ordenar por",
                 [
+                    "Prioridad de hoy",
                     "Mayor prioridad",
                     "Nombre A-Z",
                     "Recuperación mayor",
@@ -4863,7 +5190,33 @@ elif menu == "✉️ Mensajes diarios":
             axis=1,
         )
 
-        if ordenar_mensajes == "Mayor prioridad":
+        if ordenar_mensajes == "Prioridad de hoy":
+            def prioridad_hoy_sort_v66(row):
+                av = calcular_avance_hora_operador(
+                    row["Usuario"],
+                    st.session_state.callcenter_df,
+                )
+                if not av.get("disponible"):
+                    return 0
+                return min(
+                    int(av["delta_gestiones"]),
+                    int(av["delta_compromisos"]),
+                )
+
+            resultado_vista["_prioridad_hoy_v66"] = (
+                resultado_vista.apply(
+                    prioridad_hoy_sort_v66,
+                    axis=1,
+                )
+            )
+
+            resultado_vista = resultado_vista.sort_values(
+                "_prioridad_hoy_v66",
+                ascending=True,
+                kind="stable",
+            )
+
+        elif ordenar_mensajes == "Mayor prioridad":
             resultado_vista = resultado_vista.sort_values(
                 "_brecha_prioridad",
                 ascending=False,
@@ -5013,7 +5366,8 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         # -------------------------------------------------
-        # TARJETAS DE OPERADORES — V62
+        # TARJETAS DE OPERADORES — V66
+        # Hoy primero · mensual como contexto
         # -------------------------------------------------
         for bloque_inicio in range(
             0,
@@ -5028,8 +5382,8 @@ elif menu == "✉️ Mensajes diarios":
                 ]
             ):
                 fila, calculo, estado_texto, clase_estado = item
-
                 usuario = fila["Usuario"]
+
                 contacto = datos_contacto.get(
                     usuario,
                     {},
@@ -5042,11 +5396,18 @@ elif menu == "✉️ Mensajes diarios":
                     ).strip()
                 )
 
-                telegram_chat_id = normalizar_telegram_chat_id(
-                    contacto.get(
-                        "telegram_chat_id",
-                        "",
+                telegram_chat_id = (
+                    normalizar_telegram_chat_id(
+                        contacto.get(
+                            "telegram_chat_id",
+                            "",
+                        )
                     )
+                )
+
+                avance_hora_card = calculo.get(
+                    "avance_hora",
+                    {},
                 )
 
                 pct_g_ind = float(
@@ -5059,33 +5420,6 @@ elif menu == "✉️ Mensajes diarios":
                     fila["% Recuperación"]
                 )
 
-                faltante_g = max(
-                    int(
-                        st.session_state.meta_gestiones_cfg
-                    )
-                    - int(fila["Gestiones"]),
-                    0,
-                )
-
-                faltante_c = max(
-                    int(
-                        st.session_state.meta_compromisos_cfg
-                    )
-                    - int(fila["Compromisos"]),
-                    0,
-                )
-
-                faltante_r = max(
-                    float(
-                        st.session_state.meta_recuperacion_cfg
-                    )
-                    - float(
-                        fila["Recuperación acumulada"]
-                    ),
-                    0,
-                )
-
-                # Iniciales
                 partes_nombre = str(
                     fila["Operador"]
                 ).split()
@@ -5099,68 +5433,48 @@ elif menu == "✉️ Mensajes diarios":
                     else partes_nombre[0][:2]
                 ).upper()
 
-                # -------------------------------------------------
-                # Prioridad principal
-                # -------------------------------------------------
-                esperado_ind = float(
-                    jornadas_info["esperado_pct"]
-                )
+                # Estado HOY según la mayor brecha contra ritmo.
+                if avance_hora_card.get("disponible"):
+                    dg = int(
+                        avance_hora_card[
+                            "delta_gestiones"
+                        ]
+                    )
+                    dc = int(
+                        avance_hora_card[
+                            "delta_compromisos"
+                        ]
+                    )
 
-                brechas_pct = {
-                    "Gestiones": esperado_ind - pct_g_ind,
-                    "Compromisos": esperado_ind - pct_c_ind,
-                    "Recuperación": esperado_ind - pct_r_ind,
-                }
+                    peor_delta = min(
+                        dg,
+                        dc,
+                    )
 
-                prioridad = max(
-                    brechas_pct,
-                    key=brechas_pct.get,
-                )
-
-                mayor_brecha = float(
-                    brechas_pct[prioridad]
-                )
-
-                if (
-                    pct_g_ind >= esperado_ind
-                    and pct_c_ind >= esperado_ind
-                    and pct_r_ind >= esperado_ind
-                ):
-                    prioridad_texto = "Al día"
-                    prioridad_clase = "priority-green-v62"
-                elif mayor_brecha >= 15:
-                    prioridad_texto = f"Prioridad: {prioridad}"
-                    prioridad_clase = "priority-red-v62"
+                    if peor_delta <= -10:
+                        estado_hoy = "🔴 Crítico"
+                        clase_tarjeta = "status-critical-v66"
+                        color_estado = "#c01048"
+                    elif peor_delta < 0:
+                        estado_hoy = "🟠 Atención"
+                        clase_tarjeta = "status-attention-v66"
+                        color_estado = "#b54708"
+                    elif dg > 5 and dc > 2:
+                        estado_hoy = "🟢 Adelantado"
+                        clase_tarjeta = "status-good-v66"
+                        color_estado = "#067647"
+                    else:
+                        estado_hoy = "🟢 En ritmo"
+                        clase_tarjeta = "status-good-v66"
+                        color_estado = "#067647"
                 else:
-                    prioridad_texto = f"Seguimiento: {prioridad}"
-                    prioridad_clase = "priority-orange-v62"
+                    dg = 0
+                    dc = 0
+                    estado_hoy = "Sin datos de hoy"
+                    clase_tarjeta = ""
+                    color_estado = "#667085"
 
-                def clase_barra(pct):
-                    if pct >= esperado_ind:
-                        return "bar-green-v62"
-                    if pct >= esperado_ind - 10:
-                        return "bar-orange-v62"
-                    return "bar-red-v62"
-
-                def ancho_barra(pct):
-                    return min(max(float(pct), 0), 100)
-
-                # Valores compactos para recuperación
-                rec_valor = float(
-                    fila["Recuperación acumulada"]
-                )
-
-                rec_principal = formato_usd(
-                    rec_valor
-                ).replace(",00", "")
-
-                rec_faltante_txt = (
-                    "Meta cumplida"
-                    if faltante_r <= 0
-                    else f"Faltan {formato_usd(faltante_r).replace(',00', '')}"
-                )
-
-                estado_tg = (
+                estado_tg_html = (
                     '<span class="channel-ok-v64">✈ Telegram ✓</span>'
                     if telegram_chat_id
                     else '<span class="channel-pending-v64">✈ Telegram pendiente</span>'
@@ -5170,32 +5484,45 @@ elif menu == "✉️ Mensajes diarios":
                     with st.container(
                         border=True,
                     ):
-
                         st.markdown(
                             f"""
-                            <div class="operator-head-v59">
-                                <div class="operator-id-wrap-v59">
-                                    <div class="operator-avatar-v59">
-                                        {iniciales}
-                                    </div>
-                                    <div>
-                                        <div class="operator-name-v59">
-                                            {fila['Operador']}
+                            <div class="{clase_tarjeta}" style="
+                                margin:-8px -8px 6px -8px;
+                                padding:9px 10px;
+                                border-radius:11px 11px 8px 8px;
+                                border:1px solid transparent;
+                            ">
+                                <div class="operator-head-v59" style="margin-bottom:0;">
+                                    <div class="operator-id-wrap-v59">
+                                        <div class="operator-avatar-v59">
+                                            {iniciales}
                                         </div>
-                                        <div class="channel-mini-v62">
-                                            <span>✉ {correo_actual or 'Sin correo'}</span>
-                                            <span>{estado_tg}</span>
+                                        <div>
+                                            <div class="operator-name-v59">
+                                                {fila['Operador']}
+                                            </div>
+                                            <div class="channel-mini-v62">
+                                                <span>✉ {correo_actual or 'Sin correo'}</span>
+                                                {estado_tg_html}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="operator-status-wrap-v59">
-                                    <span class="operator-status-pill {clase_estado}">
-                                        {estado_texto}
-                                    </span>
-                                    <div>
-                                        <span class="priority-chip-v62 {prioridad_clase}">
-                                            {prioridad_texto}
-                                        </span>
+                                    <div style="text-align:right;">
+                                        <div style="
+                                            color:{color_estado};
+                                            font-size:11px;
+                                            font-weight:850;
+                                        ">
+                                            {estado_hoy}
+                                        </div>
+                                        <div style="
+                                            color:#667085;
+                                            font-size:9px;
+                                            margin-top:3px;
+                                        ">
+                                            Recuperación mensual:
+                                            {formato_porcentaje(pct_r_ind)}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -5203,140 +5530,116 @@ elif menu == "✉️ Mensajes diarios":
                             unsafe_allow_html=True,
                         )
 
-                        st.markdown(
-                            f"""
-                            <div class="expected-note-v63">
-                                <span>Esperado a la fecha:
-                                    <strong>{formato_porcentaje(esperado_ind)}</strong>
-                                </span>
-                                <span>
-                                    Mayor brecha:
-                                    <strong>{prioridad}</strong>
-                                    <span class="gap-badge-v64 {'gap-red-v64' if mayor_brecha >= 15 else 'gap-orange-v64' if mayor_brecha > 0 else 'gap-green-v64'}">
-                                        {formato_porcentaje(max(mayor_brecha, 0))}
-                                    </span>
-                                </span>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                        if avance_hora_card.get(
+                            "disponible"
+                        ):
+                            g_h = int(
+                                avance_hora_card[
+                                    "gestiones_hoy"
+                                ]
+                            )
+                            c_h = int(
+                                avance_hora_card[
+                                    "compromisos_hoy"
+                                ]
+                            )
+                            eg_h = int(
+                                avance_hora_card[
+                                    "esperado_gestiones"
+                                ]
+                            )
+                            ec_h = int(
+                                avance_hora_card[
+                                    "esperado_compromisos"
+                                ]
+                            )
 
-                        m1, m2, m3 = st.columns(3)
+                            g_color = (
+                                "#067647"
+                                if dg >= 0
+                                else "#c01048"
+                            )
+                            c_color = (
+                                "#067647"
+                                if dc >= 0
+                                else "#c01048"
+                            )
 
-                        with m1:
                             st.markdown(
                                 f"""
-                                <div class="metric-box-v62">
-                                    <div class="metric-label-v62">Gestiones</div>
-                                    <div class="metric-value-v62">
-                                        {formato_entero(fila['Gestiones'])}
+                                <div class="operator-today-shell-v66">
+                                    <div class="operator-today-title-v66">
+                                        HOY · {avance_hora_card['hora_corte']}
                                     </div>
-                                    <div class="metric-sub-v62">
-                                        {formato_porcentaje(pct_g_ind)} · Meta {formato_entero(st.session_state.meta_gestiones_cfg)}
-                                    </div>
-                                    <div class="metric-bar-bg-v62">
-                                        <div class="metric-bar-fill-v62 {clase_barra(pct_g_ind)}"
-                                             style="width:{ancho_barra(pct_g_ind)}%;">
+                                    <div class="operator-today-grid-v66">
+                                        <div class="operator-today-item-v66">
+                                            <div class="operator-today-value-v66">
+                                                📞 {g_h} / 98
+                                            </div>
+                                            <div class="operator-today-sub-v66">
+                                                Esperado ahora: {eg_h}
+                                                · <span style="color:{g_color};font-weight:850;">
+                                                    {dg:+d} vs ritmo
+                                                </span>
+                                            </div>
+                                            <div class="operator-today-sub-v66">
+                                                Faltan {avance_hora_card['faltan_gestiones']} hoy
+                                            </div>
+                                        </div>
+
+                                        <div class="operator-today-item-v66">
+                                            <div class="operator-today-value-v66">
+                                                🤝 {c_h} / 25
+                                            </div>
+                                            <div class="operator-today-sub-v66">
+                                                Esperado ahora: {ec_h}
+                                                · <span style="color:{c_color};font-weight:850;">
+                                                    {dc:+d} vs ritmo
+                                                </span>
+                                            </div>
+                                            <div class="operator-today-sub-v66">
+                                                Faltan {avance_hora_card['faltan_compromisos']} hoy
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="metric-foot-v62">
-                                        {'✅ Meta cumplida' if faltante_g <= 0 else f'Faltan {formato_entero(faltante_g)}'}
-                                    </div>
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-
-                        with m2:
-                            st.markdown(
-                                f"""
-                                <div class="metric-box-v62">
-                                    <div class="metric-label-v62">Compromisos</div>
-                                    <div class="metric-value-v62">
-                                        {formato_entero(fila['Compromisos'])}
-                                    </div>
-                                    <div class="metric-sub-v62">
-                                        {formato_porcentaje(pct_c_ind)} · Meta {formato_entero(st.session_state.meta_compromisos_cfg)}
-                                    </div>
-                                    <div class="metric-bar-bg-v62">
-                                        <div class="metric-bar-fill-v62 {clase_barra(pct_c_ind)}"
-                                             style="width:{ancho_barra(pct_c_ind)}%;">
-                                        </div>
-                                    </div>
-                                    <div class="metric-foot-v62">
-                                        {'✅ Meta cumplida' if faltante_c <= 0 else f'Faltan {formato_entero(faltante_c)}'}
-                                    </div>
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-
-                        with m3:
-                            st.markdown(
-                                f"""
-                                <div class="metric-box-v62">
-                                    <div class="metric-label-v62">Recuperación</div>
-                                    <div class="metric-value-v62">
-                                        {rec_principal}
-                                    </div>
-                                    <div class="metric-sub-v62">
-                                        {formato_porcentaje(pct_r_ind)} · Meta USD 170.400
-                                    </div>
-                                    <div class="metric-bar-bg-v62">
-                                        <div class="metric-bar-fill-v62 {clase_barra(pct_r_ind)}"
-                                             style="width:{ancho_barra(pct_r_ind)}%;">
-                                        </div>
-                                    </div>
-                                    <div class="metric-foot-v62">
-                                        {rec_faltante_txt}
-                                    </div>
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-
-                        # Ya no se usa la franja azul repetitiva.
-                        avance_hora_card = calculo.get(
-                            "avance_hora",
-                            {},
-                        )
-
-                        if avance_hora_card.get("disponible"):
-                            delta_g_card = int(
-                                avance_hora_card["delta_gestiones"]
-                            )
-                            delta_c_card = int(
-                                avance_hora_card["delta_compromisos"]
-                            )
-
-                            color_g = "#067647" if delta_g_card >= 0 else "#c01048"
-                            color_c = "#067647" if delta_c_card >= 0 else "#c01048"
-
-                            st.markdown(
-                                f"""
-                                <div class="today-mini-v62">
-                                    ⏱️ Hoy {avance_hora_card['hora_corte']} ·
-                                    Gestiones <strong>{avance_hora_card['gestiones_hoy']}/98</strong>
-                                    <span style="color:{color_g};font-weight:800;">
-                                        ({delta_g_card:+d} vs ritmo)
-                                    </span>
-                                    · Compromisos <strong>{avance_hora_card['compromisos_hoy']}/25</strong>
-                                    <span style="color:{color_c};font-weight:800;">
-                                        ({delta_c_card:+d} vs ritmo)
-                                    </span>
                                 </div>
                                 """,
                                 unsafe_allow_html=True,
                             )
                         else:
-                            st.markdown(
-                                """
-                                <div class="today-mini-v62">
-                                    Carga GEN CallCenter para ver avance a la hora
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
+                            st.caption(
+                                "Carga GEN CallCenter para visualizar el avance de hoy."
                             )
+
+                        # Mensual queda como contexto secundario.
+                        st.markdown(
+                            f"""
+                            <div class="monthly-strip-v66">
+                                <div class="monthly-item-v66">
+                                    <div class="monthly-label-v66">Mes · Gestiones</div>
+                                    <div class="monthly-value-v66">
+                                        {formato_entero(fila['Gestiones'])} / 2.400
+                                        · {formato_porcentaje(pct_g_ind)}
+                                    </div>
+                                </div>
+                                <div class="monthly-item-v66">
+                                    <div class="monthly-label-v66">Mes · Compromisos</div>
+                                    <div class="monthly-value-v66">
+                                        {formato_entero(fila['Compromisos'])} / 550
+                                        · {formato_porcentaje(pct_c_ind)}
+                                    </div>
+                                </div>
+                                <div class="monthly-item-v66">
+                                    <div class="monthly-label-v66">Mes · Recuperación</div>
+                                    <div class="monthly-value-v66">
+                                        {formato_usd(fila['Recuperación acumulada']).replace(',00','')}
+                                        · {formato_porcentaje(pct_r_ind)}
+                                    </div>
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
 
                         asunto = quote(
                             "Seguimiento diario de metas"
@@ -5345,8 +5648,6 @@ elif menu == "✉️ Mensajes diarios":
                             calculo["mensaje"]
                         )
 
-                        # Solo acciones necesarias:
-                        # correo y Telegram como envío; mensaje en popover.
                         a1, a2, a3 = st.columns(3)
 
                         with a1:
@@ -5365,7 +5666,7 @@ elif menu == "✉️ Mensajes diarios":
                                     "✉️ Sin correo",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_correo_v62_{usuario}",
+                                    key=f"sin_correo_v66_{usuario}",
                                 )
 
                         with a2:
@@ -5373,7 +5674,7 @@ elif menu == "✉️ Mensajes diarios":
                                 if st.button(
                                     "✈️ Telegram",
                                     use_container_width=True,
-                                    key=f"telegram_v62_{usuario}",
+                                    key=f"telegram_v66_{usuario}",
                                 ):
                                     ok_tg, detalle_tg = (
                                         enviar_mensaje_telegram(
@@ -5386,19 +5687,11 @@ elif menu == "✉️ Mensajes diarios":
                                         st.success(
                                             "Enviado."
                                         )
-
-                                        ok_copia, detalle_copia = (
-                                            enviar_copia_coordinador(
-                                                fila["Operador"],
-                                                calculo["mensaje"],
-                                                detalle_tg,
-                                            )
+                                        enviar_copia_coordinador(
+                                            fila["Operador"],
+                                            calculo["mensaje"],
+                                            detalle_tg,
                                         )
-
-                                        if not ok_copia:
-                                            st.caption(
-                                                f"Copia al coordinador pendiente: {detalle_copia}"
-                                            )
                                     else:
                                         st.error(
                                             f"No se pudo enviar: {detalle_tg}"
@@ -5408,7 +5701,7 @@ elif menu == "✉️ Mensajes diarios":
                                     "✈️ Pendiente",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_v62_{usuario}",
+                                    key=f"sin_telegram_v66_{usuario}",
                                 )
 
                         with a3:
@@ -5419,10 +5712,23 @@ elif menu == "✉️ Mensajes diarios":
                                 st.text_area(
                                     "Mensaje",
                                     value=calculo["mensaje"],
-                                    height=270,
-                                    key=f"msg_v62_{usuario}",
+                                    height=280,
+                                    key=f"msg_v66_{usuario}",
                                     label_visibility="collapsed",
                                 )
+
+        st.markdown(
+            """
+            <div class="legend-v66">
+                <strong>Estados de hoy:</strong>
+                🔴 Crítico = brecha importante contra el ritmo ·
+                🟠 Atención = debajo del esperado ·
+                🟢 En ritmo = dentro del esperado ·
+                🟢 Adelantado = por encima del ritmo.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         st.divider()
         st.markdown(
