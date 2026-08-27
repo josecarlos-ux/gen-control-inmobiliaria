@@ -2518,11 +2518,181 @@ st.markdown(
         }
 
         [data-testid="stSidebar"] {
-            background: #13233f;
+            background:
+                linear-gradient(180deg, #10233f 0%, #0d1d35 100%);
+            border-right: 1px solid rgba(255,255,255,.06);
+        }
+
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 1rem;
         }
 
         [data-testid="stSidebar"] * {
             color: white;
+        }
+
+        /* Marca / encabezado */
+        .sidebar-brand {
+            display:flex;
+            align-items:center;
+            gap:12px;
+            padding:10px 8px 16px 8px;
+        }
+
+        .sidebar-logo {
+            width:42px;
+            height:42px;
+            border-radius:12px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:linear-gradient(135deg,#2f80ed 0%,#37c9a5 100%);
+            font-size:20px;
+            font-weight:800;
+            box-shadow:0 8px 20px rgba(0,0,0,.18);
+        }
+
+        .sidebar-brand-title {
+            font-size:17px;
+            font-weight:800;
+            line-height:1.15;
+        }
+
+        .sidebar-brand-sub {
+            font-size:11px;
+            color:#a8b6ca !important;
+            margin-top:3px;
+        }
+
+        .sidebar-section-label {
+            color:#7183a0 !important;
+            font-size:10px;
+            font-weight:800;
+            letter-spacing:.10em;
+            text-transform:uppercase;
+            margin:8px 0 6px 8px;
+        }
+
+        /* Navegación */
+        [data-testid="stSidebar"] div[role="radiogroup"] {
+            gap:4px;
+        }
+
+        [data-testid="stSidebar"] div[role="radiogroup"] label {
+            border-radius:11px;
+            padding:8px 10px;
+            transition:background .15s ease, transform .15s ease;
+            border:1px solid transparent;
+        }
+
+        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+            background:rgba(255,255,255,.06);
+        }
+
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+            background:linear-gradient(90deg, rgba(47,128,237,.32), rgba(55,201,165,.14));
+            border:1px solid rgba(93,163,255,.22);
+            box-shadow:inset 3px 0 0 #53d4b3;
+        }
+
+        [data-testid="stSidebar"] div[role="radiogroup"] label p {
+            font-size:13px;
+            font-weight:650;
+        }
+
+        /* Tarjeta de actualización */
+        .sidebar-status-card {
+            margin-top:10px;
+            padding:14px;
+            border-radius:14px;
+            background:linear-gradient(135deg, rgba(26,106,112,.38), rgba(14,65,88,.52));
+            border:1px solid rgba(85,214,173,.14);
+        }
+
+        .sidebar-status-top {
+            display:flex;
+            align-items:center;
+            gap:7px;
+            font-size:12px;
+            font-weight:700;
+        }
+
+        .sidebar-status-dot {
+            width:8px;
+            height:8px;
+            border-radius:50%;
+            background:#45d19a;
+            box-shadow:0 0 0 4px rgba(69,209,154,.10);
+        }
+
+        .sidebar-status-date {
+            font-size:13px;
+            font-weight:800;
+            margin-top:10px;
+        }
+
+        .sidebar-status-time {
+            color:#8fa1ba !important;
+            font-size:10px;
+            margin-top:2px;
+        }
+
+        /* Perfil */
+        .sidebar-profile {
+            display:flex;
+            align-items:center;
+            gap:10px;
+            padding:12px 8px;
+            margin-top:6px;
+        }
+
+        .sidebar-avatar {
+            width:38px;
+            height:38px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:linear-gradient(135deg,#5a67d8,#805ad5);
+            font-weight:800;
+            font-size:13px;
+        }
+
+        .sidebar-profile-name {
+            font-size:13px;
+            font-weight:800;
+        }
+
+        .sidebar-profile-role {
+            color:#8fa1ba !important;
+            font-size:10px;
+            margin-top:2px;
+        }
+
+        .sidebar-version {
+            margin:12px 0 4px 0;
+            padding:9px 11px;
+            border-radius:10px;
+            background:rgba(255,255,255,.04);
+            border:1px solid rgba(255,255,255,.06);
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            font-size:10px;
+            color:#8fa1ba !important;
+        }
+
+        .sidebar-version-badge {
+            background:rgba(69,209,154,.14);
+            color:#6ee7b7 !important;
+            border-radius:999px;
+            padding:3px 7px;
+            font-weight:700;
+        }
+
+        [data-testid="stSidebar"] hr {
+            border-color:rgba(255,255,255,.08);
+            margin:.75rem 0;
         }
 
         .gen-header {
@@ -2799,10 +2969,23 @@ st.markdown(
 
 with st.sidebar:
 
-    st.markdown("## 📊 GEN Control")
-    st.caption("Cobranzas Inmobiliarias")
+    st.markdown(
+        """
+        <div class="sidebar-brand">
+            <div class="sidebar-logo">G</div>
+            <div>
+                <div class="sidebar-brand-title">GEN Control</div>
+                <div class="sidebar-brand-sub">Cobranzas Inmobiliarias</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown("---")
+    st.markdown(
+        '<div class="sidebar-section-label">Navegación</div>',
+        unsafe_allow_html=True,
+    )
 
     menu = st.radio(
         "Navegación",
@@ -2820,16 +3003,52 @@ with st.sidebar:
 
     st.markdown("---")
 
-    fecha_actual = fecha_local_actual().strftime("%d/%m/%Y")
+    ahora_sidebar = datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
 
-    st.success(
-        f"● Datos actualizados\n\n{fecha_actual}"
+    st.markdown(
+        f"""
+        <div class="sidebar-status-card">
+            <div class="sidebar-status-top">
+                <span class="sidebar-status-dot"></span>
+                Datos actualizados
+            </div>
+            <div class="sidebar-status-date">
+                {ahora_sidebar.strftime('%d/%m/%Y')}
+            </div>
+            <div class="sidebar-status-time">
+                {ahora_sidebar.strftime('%H:%M')} · Hora Bolivia
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     st.markdown("---")
 
-    st.markdown("**José Carlos**")
-    st.caption("Coordinador")
+    st.markdown(
+        """
+        <div class="sidebar-profile">
+            <div class="sidebar-avatar">JC</div>
+            <div>
+                <div class="sidebar-profile-name">José Carlos</div>
+                <div class="sidebar-profile-role">Coordinador</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="sidebar-version">
+            <span>GEN Control</span>
+            <span class="sidebar-version-badge">Actualizado</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # =========================================================
