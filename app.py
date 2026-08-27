@@ -1727,6 +1727,12 @@ if "archivos_cargados" not in st.session_state:
 if "callcenter_df" not in st.session_state:
     st.session_state.callcenter_df = None
 
+if "callcenter_cargado_en" not in st.session_state:
+    st.session_state.callcenter_cargado_en = None
+
+if "callcenter_nombre_archivo" not in st.session_state:
+    st.session_state.callcenter_nombre_archivo = ""
+
 if "config_desbloqueada" not in st.session_state:
     st.session_state.config_desbloqueada = False
 
@@ -2513,13 +2519,54 @@ def probar_conexion_telegram():
 
 
 # =========================================================
+# HORA DE CORTE DEL ARCHIVO CALLCENTER
+# =========================================================
+
+def obtener_corte_callcenter(callcenter_df):
+    """
+    Devuelve la fecha/hora de corte real disponible en el archivo.
+
+    La hora mostrada en GEN Control ya no depende de la hora actual
+    del computador/servidor. Se toma la fecha/hora más reciente
+    registrada en GEN CallCenter, que representa hasta qué momento
+    contiene información el archivo cargado.
+    """
+    if callcenter_df is None or callcenter_df.empty:
+        return None
+
+    df = callcenter_df.copy()
+    col_fecha = buscar_columna(df, ["fecha"])
+
+    if col_fecha is None:
+        return None
+
+    serie = pd.to_datetime(
+        df[col_fecha],
+        dayfirst=True,
+        errors="coerce",
+    ).dropna()
+
+    if serie.empty:
+        return None
+
+    return serie.max()
+
+
+# =========================================================
 # AVANCE DE HOY / A LA HORA
 # =========================================================
 
-def calcular_avance_hora_operador(usuario, callcenter_df=None, ahora=None):
-    ahora = ahora or datetime.now(ZoneInfo("America/La_Paz"))
-    hoy = ahora.date()
+def calcular_avance_hora_operador(
+    usuario,
+    callcenter_df=None,
+    ahora=None,
+):
+    """
+    Calcula el avance del operador usando la HORA DE CORTE DEL ARCHIVO.
 
+    `ahora` solo se conserva por compatibilidad; cuando existe CallCenter,
+    siempre manda la última fecha/hora contenida en ese archivo.
+    """
     meta_g_dia = int(
         st.session_state.get(
             "meta_diaria_gestiones_cfg",
@@ -2530,37 +2577,70 @@ def calcular_avance_hora_operador(usuario, callcenter_df=None, ahora=None):
         st.session_state.meta_diaria_compromisos_cfg
     )
 
-    base = {
-        "disponible": False,
-        "gestiones_hoy": 0,
-        "compromisos_hoy": 0,
-        "esperado_gestiones": 0,
-        "esperado_compromisos": 0,
-        "delta_gestiones": 0,
-        "delta_compromisos": 0,
-        "faltan_gestiones": meta_g_dia,
-        "faltan_compromisos": meta_c_dia,
-        "hora_corte": ahora.strftime("%H:%M"),
-    }
+    corte_archivo = obtener_corte_callcenter(
+        callcenter_df
+    )
 
-    if callcenter_df is None or callcenter_df.empty:
-        return base
+    if corte_archivo is None:
+        return {
+            "disponible": False,
+            "gestiones_hoy": 0,
+            "compromisos_hoy": 0,
+            "esperado_gestiones": 0,
+            "esperado_compromisos": 0,
+            "delta_gestiones": 0,
+            "delta_compromisos": 0,
+            "faltan_gestiones": meta_g_dia,
+            "faltan_compromisos": meta_c_dia,
+            "hora_corte": "--:--",
+            "fecha_corte": None,
+        }
+
+    # Convertir Timestamp de pandas a datetime normal si hace falta.
+    if hasattr(corte_archivo, "to_pydatetime"):
+        corte_archivo = corte_archivo.to_pydatetime()
+
+    fecha_corte = corte_archivo.date()
 
     df = callcenter_df.copy()
 
-    col_fecha = buscar_columna(df, ["fecha"])
-    col_usuario = buscar_columna(df, ["usuario"])
-    col_compromiso = buscar_columna(df, ["compromiso"])
+    col_fecha = buscar_columna(
+        df,
+        ["fecha"],
+    )
+    col_usuario = buscar_columna(
+        df,
+        ["usuario"],
+    )
+    col_compromiso = buscar_columna(
+        df,
+        ["compromiso"],
+    )
 
     if col_fecha is None or col_usuario is None:
-        return base
+        return {
+            "disponible": False,
+            "gestiones_hoy": 0,
+            "compromisos_hoy": 0,
+            "esperado_gestiones": 0,
+            "esperado_compromisos": 0,
+            "delta_gestiones": 0,
+            "delta_compromisos": 0,
+            "faltan_gestiones": meta_g_dia,
+            "faltan_compromisos": meta_c_dia,
+            "hora_corte": corte_archivo.strftime("%H:%M"),
+            "fecha_corte": fecha_corte,
+        }
 
     df["_fecha_hora"] = pd.to_datetime(
         df[col_fecha],
         dayfirst=True,
         errors="coerce",
     )
-    df = df.dropna(subset=["_fecha_hora"])
+
+    df = df.dropna(
+        subset=["_fecha_hora"]
+    )
 
     df["_usuario_norm"] = (
         df[col_usuario]
@@ -2568,47 +2648,87 @@ def calcular_avance_hora_operador(usuario, callcenter_df=None, ahora=None):
         .apply(normalizar_texto)
     )
 
+    usuario_norm = normalizar_texto(
+        usuario
+    )
+
+    # Solo registros de la fecha de corte y hasta el corte del archivo.
     df = df[
-        (df["_usuario_norm"] == normalizar_texto(usuario))
-        & (df["_fecha_hora"].dt.date == hoy)
+        (df["_usuario_norm"] == usuario_norm)
+        & (df["_fecha_hora"].dt.date == fecha_corte)
+        & (df["_fecha_hora"] <= corte_archivo)
     ].copy()
 
-    gestiones_hoy = int(len(df))
+    gestiones_hoy = int(
+        len(df)
+    )
 
     if col_compromiso:
-        compromiso_txt = df[col_compromiso].astype(str).str.strip()
+        compromiso_txt = (
+            df[col_compromiso]
+            .astype(str)
+            .str.strip()
+        )
+
         compromisos_hoy = int(
             (
                 df[col_compromiso].notna()
                 & (compromiso_txt != "")
-                & (compromiso_txt.str.lower() != "nan")
+                & (
+                    compromiso_txt.str.lower()
+                    != "nan"
+                )
             ).sum()
         )
     else:
         compromisos_hoy = 0
 
-    inicio = ahora.replace(
+    # Esperado a la HORA DE CORTE DEL ARCHIVO.
+    inicio = corte_archivo.replace(
         hour=JORNADA_INICIO_HORA,
         minute=0,
         second=0,
         microsecond=0,
     )
-    fin = ahora.replace(
+
+    fin = corte_archivo.replace(
         hour=JORNADA_FIN_HORA,
         minute=0,
         second=0,
         microsecond=0,
     )
 
-    total_seg = max((fin - inicio).total_seconds(), 1)
-    transcurrido = min(
-        max((ahora - inicio).total_seconds(), 0),
+    total_seg = max(
+        (fin - inicio).total_seconds(),
+        1,
+    )
+
+    transcurrido_seg = min(
+        max(
+            (corte_archivo - inicio).total_seconds(),
+            0,
+        ),
         total_seg,
     )
-    proporcion = transcurrido / total_seg
 
-    esperado_g = int(math.ceil(meta_g_dia * proporcion))
-    esperado_c = int(math.ceil(meta_c_dia * proporcion))
+    proporcion = (
+        transcurrido_seg
+        / total_seg
+    )
+
+    esperado_g = int(
+        math.ceil(
+            meta_g_dia
+            * proporcion
+        )
+    )
+
+    esperado_c = int(
+        math.ceil(
+            meta_c_dia
+            * proporcion
+        )
+    )
 
     return {
         "disponible": True,
@@ -2616,11 +2736,31 @@ def calcular_avance_hora_operador(usuario, callcenter_df=None, ahora=None):
         "compromisos_hoy": compromisos_hoy,
         "esperado_gestiones": esperado_g,
         "esperado_compromisos": esperado_c,
-        "delta_gestiones": gestiones_hoy - esperado_g,
-        "delta_compromisos": compromisos_hoy - esperado_c,
-        "faltan_gestiones": max(meta_g_dia - gestiones_hoy, 0),
-        "faltan_compromisos": max(meta_c_dia - compromisos_hoy, 0),
-        "hora_corte": ahora.strftime("%H:%M"),
+        "delta_gestiones": (
+            gestiones_hoy
+            - esperado_g
+        ),
+        "delta_compromisos": (
+            compromisos_hoy
+            - esperado_c
+        ),
+        "faltan_gestiones": max(
+            meta_g_dia
+            - gestiones_hoy,
+            0,
+        ),
+        "faltan_compromisos": max(
+            meta_c_dia
+            - compromisos_hoy,
+            0,
+        ),
+        "hora_corte": corte_archivo.strftime(
+            "%H:%M"
+        ),
+        "fecha_corte": fecha_corte,
+        "progreso_jornada_pct": (
+            proporcion * 100
+        ),
     }
 
 
@@ -4690,9 +4830,23 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         # ENCABEZADO + CONTROL DEL DÍA — V66
         # -------------------------------------------------
-        ahora_v66 = datetime.now(
-            ZoneInfo("America/La_Paz")
+        corte_callcenter_v68 = obtener_corte_callcenter(
+            st.session_state.callcenter_df
         )
+
+        ahora_v66 = (
+            corte_callcenter_v68.to_pydatetime()
+            if hasattr(
+                corte_callcenter_v68,
+                "to_pydatetime",
+            )
+            else corte_callcenter_v68
+        )
+
+        if ahora_v66 is None:
+            ahora_v66 = datetime.now(
+                ZoneInfo("America/La_Paz")
+            )
 
         saludo_v66, emoji_v66 = saludo_segun_hora()
 
@@ -4888,142 +5042,143 @@ elif menu == "✉️ Mensajes diarios":
                 - esperado_c_hoy_v66
             )
 
-            inicio_v66 = ahora_v66.replace(
-                hour=JORNADA_INICIO_HORA,
-                minute=0,
-                second=0,
-                microsecond=0,
+            corte_panel_v68 = obtener_corte_callcenter(
+                st.session_state.callcenter_df
             )
-            fin_v66 = ahora_v66.replace(
+
+            if hasattr(
+                corte_panel_v68,
+                "to_pydatetime",
+            ):
+                corte_panel_v68 = (
+                    corte_panel_v68.to_pydatetime()
+                )
+
+            jornada_pct_v66 = float(
+                avances_hoy_v66[0].get(
+                    "progreso_jornada_pct",
+                    0,
+                )
+            )
+
+            fin_v66 = corte_panel_v68.replace(
                 hour=JORNADA_FIN_HORA,
                 minute=0,
                 second=0,
                 microsecond=0,
             )
 
-            total_seg_v66 = max(
-                (fin_v66 - inicio_v66).total_seconds(),
-                1,
-            )
-            trans_v66 = min(
-                max(
-                    (ahora_v66 - inicio_v66).total_seconds(),
-                    0,
-                ),
-                total_seg_v66,
-            )
-
-            jornada_pct_v66 = (
-                trans_v66 / total_seg_v66 * 100
-            )
-
             horas_restantes_v66 = max(
-                (fin_v66 - ahora_v66).total_seconds()
+                (
+                    fin_v66
+                    - corte_panel_v68
+                ).total_seconds()
                 / 3600,
                 0,
             )
 
-            pct_g_bar_v66 = min(
-                (
-                    total_g_hoy_v66
-                    / esperado_g_hoy_v66
-                    * 100
+            with st.container(
+                border=True,
+            ):
+                st.markdown(
+                    f"#### ⏱️ Avance del día · corte del archivo {corte_panel_v68.strftime('%H:%M')}"
                 )
-                if esperado_g_hoy_v66
-                else 0,
-                100,
-            )
-            pct_c_bar_v66 = min(
-                (
-                    total_c_hoy_v66
-                    / esperado_c_hoy_v66
-                    * 100
+
+                st.caption(
+                    "Los cálculos usan la última fecha/hora registrada en "
+                    "el GEN CallCenter cargado, no la hora actual del sistema."
                 )
-                if esperado_c_hoy_v66
-                else 0,
-                100,
-            )
 
-            color_g_v66 = (
-                "#22a447"
-                if delta_g_hoy_v66 >= 0
-                else "#e5484d"
-            )
-            color_c_v66 = (
-                "#22a447"
-                if delta_c_hoy_v66 >= 0
-                else "#e5484d"
-            )
+                d1, d2, d3 = st.columns(
+                    [1, 1.35, 1.35]
+                )
 
-            st.markdown(
-                textwrap.dedent(f"""
-                <div class="day-shell-v66">
-                    <div class="day-title-v66">
-                        ⏱️ Avance del día · a las {ahora_v66.strftime('%H:%M')}
-                    </div>
-                    <div class="day-grid-v66">
+                with d1:
+                    st.metric(
+                        "Jornada transcurrida",
+                        formato_porcentaje(
+                            jornada_pct_v66
+                        ),
+                    )
+                    st.caption(
+                        f"{JORNADA_INICIO_HORA:02d}:00 → "
+                        f"{corte_panel_v68.strftime('%H:%M')} → "
+                        f"{JORNADA_FIN_HORA:02d}:00"
+                    )
+                    st.caption(
+                        f"Restan {horas_restantes_v66:.1f} h"
+                    )
 
-                        <div class="day-card-v66">
-                            <div class="day-card-label-v66">Jornada</div>
-                            <div class="day-main-v66">
-                                {formato_porcentaje(jornada_pct_v66)}
-                            </div>
-                            <div class="day-detail-v66">
-                                08:00 → {ahora_v66.strftime('%H:%M')} → 17:00
-                            </div>
-                            <div class="day-detail-v66">
-                                Restan {horas_restantes_v66:.1f} h
-                            </div>
-                        </div>
+                with d2:
+                    st.metric(
+                        "📞 Gestiones hoy",
+                        formato_entero(
+                            total_g_hoy_v66
+                        ),
+                        (
+                            f"{delta_g_hoy_v66:+d} "
+                            "vs ritmo esperado"
+                        ),
+                    )
+                    st.caption(
+                        f"Esperadas al corte: "
+                        f"{formato_entero(esperado_g_hoy_v66)}"
+                    )
 
-                        <div class="day-card-v66 day-card-blue-v66">
-                            <div class="day-card-label-v66">📞 Gestiones · hoy</div>
-                            <div class="day-main-v66">
-                                {formato_entero(total_g_hoy_v66)}
-                                <span style="font-size:13px;color:#667085;">
-                                    / esperado {formato_entero(esperado_g_hoy_v66)}
-                                </span>
-                            </div>
-                            <div class="day-detail-v66">
-                                <span class="{'day-delta-green-v66' if delta_g_hoy_v66 >= 0 else 'day-delta-red-v66'}">
-                                    {delta_g_hoy_v66:+d} vs ritmo esperado
-                                </span>
-                            </div>
-                            <div class="day-progress-bg-v66">
-                                <div class="day-progress-fill-v66"
-                                     style="width:{pct_g_bar_v66}%;background:{color_g_v66};">
-                                </div>
-                            </div>
-                        </div>
+                    progreso_g_v68 = (
+                        total_g_hoy_v66
+                        / esperado_g_hoy_v66
+                        if esperado_g_hoy_v66
+                        else 0
+                    )
 
-                        <div class="day-card-v66 day-card-green-v66">
-                            <div class="day-card-label-v66">🤝 Compromisos · hoy</div>
-                            <div class="day-main-v66">
-                                {formato_entero(total_c_hoy_v66)}
-                                <span style="font-size:13px;color:#667085;">
-                                    / esperado {formato_entero(esperado_c_hoy_v66)}
-                                </span>
-                            </div>
-                            <div class="day-detail-v66">
-                                <span class="{'day-delta-green-v66' if delta_c_hoy_v66 >= 0 else 'day-delta-red-v66'}">
-                                    {delta_c_hoy_v66:+d} vs ritmo esperado
-                                </span>
-                            </div>
-                            <div class="day-progress-bg-v66">
-                                <div class="day-progress-fill-v66"
-                                     style="width:{pct_c_bar_v66}%;background:{color_c_v66};">
-                                </div>
-                            </div>
-                        </div>
+                    st.progress(
+                        min(
+                            max(
+                                progreso_g_v68,
+                                0,
+                            ),
+                            1,
+                        )
+                    )
 
-                    </div>
-                </div>
-                """),
-                unsafe_allow_html=True,
-            )
+                with d3:
+                    st.metric(
+                        "🤝 Compromisos hoy",
+                        formato_entero(
+                            total_c_hoy_v66
+                        ),
+                        (
+                            f"{delta_c_hoy_v66:+d} "
+                            "vs ritmo esperado"
+                        ),
+                    )
+                    st.caption(
+                        f"Esperados al corte: "
+                        f"{formato_entero(esperado_c_hoy_v66)}"
+                    )
+
+                    progreso_c_v68 = (
+                        total_c_hoy_v66
+                        / esperado_c_hoy_v66
+                        if esperado_c_hoy_v66
+                        else 0
+                    )
+
+                    st.progress(
+                        min(
+                            max(
+                                progreso_c_v68,
+                                0,
+                            ),
+                            1,
+                        )
+                    )
+
         else:
             st.info(
-                "Carga el reporte GEN CallCenter para activar el avance del día a la hora."
+                "Carga el reporte GEN CallCenter para activar "
+                "el avance del día a la hora de corte del archivo."
             )
 
         # -------------------------------------------------
@@ -6067,6 +6222,10 @@ elif menu == "📥 Cargar reportes":
 
                 elif tipo == "CALLCENTER":
                     st.session_state.callcenter_df = df.copy()
+                    st.session_state.callcenter_cargado_en = datetime.now(
+                        ZoneInfo("America/La_Paz")
+                    )
+                    st.session_state.callcenter_nombre_archivo = archivo.name
                     callcenter_procesado = True
 
             except Exception as e:
