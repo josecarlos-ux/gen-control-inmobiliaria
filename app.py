@@ -28,6 +28,7 @@ APP_SUBTITLE = "Cobranzas Inmobiliarias"
 
 META_GESTIONES = 2400
 META_COMPROMISOS = 550
+META_DIARIA_GESTIONES = 98
 META_DIARIA_COMPROMISOS = 25
 
 # =========================================================
@@ -1763,6 +1764,9 @@ if "meta_compromisos_cfg" not in st.session_state:
 if "meta_recuperacion_cfg" not in st.session_state:
     st.session_state.meta_recuperacion_cfg = META_RECUPERACION
 
+if "meta_diaria_gestiones_cfg" not in st.session_state:
+    st.session_state.meta_diaria_gestiones_cfg = META_DIARIA_GESTIONES
+
 if "meta_diaria_compromisos_cfg" not in st.session_state:
     st.session_state.meta_diaria_compromisos_cfg = META_DIARIA_COMPROMISOS
 
@@ -2751,6 +2755,38 @@ st.markdown(
             margin:10px 0 8px 0;
         }
 
+
+        .messages-summary {
+            background:#ffffff;
+            border:1px solid #e6eaf0;
+            border-radius:16px;
+            padding:14px 18px;
+            margin:8px 0 14px 0;
+        }
+
+        .operator-daily-box {
+            background:#f4f8ff;
+            border:1px solid #cfe0ff;
+            border-radius:10px;
+            padding:9px 12px;
+            margin:8px 0 10px 0;
+            color:#24456f;
+            font-size:12px;
+            font-weight:700;
+        }
+
+        .operator-small-line {
+            color:#667085;
+            font-size:11px;
+            margin-top:4px;
+        }
+
+        .operator-channel {
+            color:#667085;
+            font-size:11px;
+            margin-top:3px;
+        }
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -3476,144 +3512,395 @@ elif menu == "✉️ Mensajes diarios":
 
         st.divider()
         st.markdown("### 👥 Mensajes individuales")
-        st.caption("Seguimiento individual de metas, brechas y canales de contacto.")
+        st.caption(
+            "Seguimiento individual de metas, brechas y canales de contacto."
+        )
 
-        filas = list(resultado.iterrows())
-        for bloque_inicio in range(0, len(filas), 2):
+        # -------------------------------------------------
+        # RESUMEN OPERATIVO
+        # -------------------------------------------------
+        operadores_con_correo = 0
+        operadores_con_telegram = 0
+
+        for _, fila_tmp in resultado.iterrows():
+            usuario_tmp = fila_tmp["Usuario"]
+            contacto_tmp = datos_contacto.get(usuario_tmp, {})
+
+            correo_tmp = (
+                contacto_tmp.get("correo")
+                or str(fila_tmp.get("Correo", "")).strip()
+            )
+            telegram_tmp = str(
+                contacto_tmp.get("telegram_chat_id", "")
+            ).strip()
+
+            if correo_tmp:
+                operadores_con_correo += 1
+            if telegram_tmp:
+                operadores_con_telegram += 1
+
+        s1, s2, s3, s4 = st.columns(4)
+
+        with s1:
+            st.metric(
+                "Operadores",
+                f"{len(resultado)}/{CANTIDAD_OPERADORES}",
+            )
+            st.caption("Activos en el reporte")
+
+        with s2:
+            st.metric(
+                "Correo configurado",
+                f"{operadores_con_correo}/{CANTIDAD_OPERADORES}",
+            )
+            st.caption("Canal disponible")
+
+        with s3:
+            st.metric(
+                "Telegram configurado",
+                f"{operadores_con_telegram}/{CANTIDAD_OPERADORES}",
+            )
+            st.caption("Canal disponible")
+
+        with s4:
+            st.metric(
+                "Mínimos diarios",
+                "98 / 25",
+            )
+            st.caption("Gestiones / compromisos")
+
+        st.info(
+            "Las metas se revisan acumuladas a la fecha. "
+            "Aunque una meta mensual ya esté cumplida, se mantienen "
+            "los mínimos diarios de 98 gestiones y 25 compromisos."
+        )
+
+        # -------------------------------------------------
+        # FILTROS
+        # -------------------------------------------------
+        f1, f2, f3 = st.columns([2, 1, 1])
+
+        with f1:
+            buscar_operador = st.text_input(
+                "Buscar operador",
+                placeholder="Nombre o usuario...",
+                key="buscar_operador_mensajes_v57",
+            ).strip()
+
+        with f2:
+            filtro_estado = st.selectbox(
+                "Estado",
+                [
+                    "Todos",
+                    "Reforzar",
+                    "Seguimiento",
+                    "Buen avance",
+                    "Excelente",
+                ],
+                key="filtro_estado_mensajes_v57",
+            )
+
+        with f3:
+            ordenar_mensajes = st.selectbox(
+                "Ordenar por",
+                [
+                    "Nombre A-Z",
+                    "Recuperación mayor",
+                    "Recuperación menor",
+                    "Gestiones mayor",
+                    "Compromisos mayor",
+                ],
+                key="orden_mensajes_v57",
+            )
+
+        resultado_vista = resultado.copy()
+
+        if buscar_operador:
+            termino = normalizar_texto(buscar_operador)
+            mascara_busqueda = (
+                resultado_vista["Operador"]
+                .astype(str)
+                .apply(normalizar_texto)
+                .str.contains(termino, regex=False)
+                |
+                resultado_vista["Usuario"]
+                .astype(str)
+                .apply(normalizar_texto)
+                .str.contains(termino, regex=False)
+            )
+            resultado_vista = resultado_vista[
+                mascara_busqueda
+            ].copy()
+
+        if ordenar_mensajes == "Nombre A-Z":
+            resultado_vista = resultado_vista.sort_values(
+                "Operador",
+                ascending=True,
+                kind="stable",
+            )
+        elif ordenar_mensajes == "Recuperación mayor":
+            resultado_vista = resultado_vista.sort_values(
+                "% Recuperación",
+                ascending=False,
+                kind="stable",
+            )
+        elif ordenar_mensajes == "Recuperación menor":
+            resultado_vista = resultado_vista.sort_values(
+                "% Recuperación",
+                ascending=True,
+                kind="stable",
+            )
+        elif ordenar_mensajes == "Gestiones mayor":
+            resultado_vista = resultado_vista.sort_values(
+                "Gestiones",
+                ascending=False,
+                kind="stable",
+            )
+        else:
+            resultado_vista = resultado_vista.sort_values(
+                "Compromisos",
+                ascending=False,
+                kind="stable",
+            )
+
+        # Precalcular estado para permitir filtro.
+        filas_preparadas = []
+
+        for _, fila_pre in resultado_vista.iterrows():
+            fila_pre = fila_pre.copy()
+            usuario_pre = fila_pre["Usuario"]
+            contacto_pre = datos_contacto.get(usuario_pre, {})
+
+            nombre_guardado_pre = str(
+                contacto_pre.get("nombre_mensaje", "")
+            ).strip()
+
+            nombre_original_pre = OPERADORES.get(
+                usuario_pre, {}
+            ).get(
+                "nombre_mensaje",
+                fila_pre["Operador"].split()[0],
+            )
+
+            if nombre_guardado_pre:
+                OPERADORES[usuario_pre][
+                    "nombre_mensaje"
+                ] = nombre_guardado_pre
+
+            calculo_pre = generar_mensaje_diario(
+                fila_pre,
+                jornadas_info,
+            )
+
+            OPERADORES[usuario_pre][
+                "nombre_mensaje"
+            ] = nombre_original_pre
+
+            estados_pre = [
+                calculo_pre["estado_gestiones"],
+                calculo_pre["estado_compromisos"],
+                calculo_pre["estado_recuperacion"],
+            ]
+
+            if "Reforzar" in estados_pre:
+                estado_pre = "Reforzar"
+                clase_pre = "status-red"
+            elif "En seguimiento" in estados_pre:
+                estado_pre = "Seguimiento"
+                clase_pre = "status-orange"
+            elif "Buen avance" in estados_pre:
+                estado_pre = "Buen avance"
+                clase_pre = "status-yellow"
+            else:
+                estado_pre = "Excelente"
+                clase_pre = "status-green"
+
+            if (
+                filtro_estado != "Todos"
+                and estado_pre != filtro_estado
+            ):
+                continue
+
+            filas_preparadas.append(
+                (
+                    fila_pre,
+                    calculo_pre,
+                    estado_pre,
+                    clase_pre,
+                )
+            )
+
+        if not filas_preparadas:
+            st.info(
+                "No hay operadores que coincidan con los filtros seleccionados."
+            )
+
+        # -------------------------------------------------
+        # TARJETAS
+        # -------------------------------------------------
+        for bloque_inicio in range(
+            0,
+            len(filas_preparadas),
+            2,
+        ):
             cols = st.columns(2)
-            for pos, (_, fila_original) in enumerate(filas[bloque_inicio:bloque_inicio + 2]):
-                fila = fila_original.copy()
+
+            for pos, item in enumerate(
+                filas_preparadas[
+                    bloque_inicio:bloque_inicio + 2
+                ]
+            ):
+                fila, calculo, estado_texto, clase_estado = item
                 usuario = fila["Usuario"]
                 contacto = datos_contacto.get(usuario, {})
-                correo_actual = contacto.get("correo") or str(fila.get("Correo", "")).strip()
+
+                correo_actual = (
+                    contacto.get("correo")
+                    or str(fila.get("Correo", "")).strip()
+                )
                 telegram_chat_id = str(
                     contacto.get("telegram_chat_id", "")
                 ).strip()
 
-                # Evita modificar el diccionario global OPERADORES al renderizar.
-                nombre_mensaje_guardado = contacto.get("nombre_mensaje", "").strip()
-                nombre_mensaje_original = OPERADORES.get(usuario, {}).get("nombre_mensaje", fila["Operador"].split()[0])
-                if nombre_mensaje_guardado:
-                    OPERADORES[usuario]["nombre_mensaje"] = nombre_mensaje_guardado
-                calculo = generar_mensaje_diario(fila, jornadas_info)
-                OPERADORES[usuario]["nombre_mensaje"] = nombre_mensaje_original
+                pct_g_ind = float(fila["% Gestiones"])
+                pct_c_ind = float(fila["% Compromisos"])
+                pct_r_ind = float(fila["% Recuperación"])
 
-                estados = [calculo["estado_gestiones"], calculo["estado_compromisos"], calculo["estado_recuperacion"]]
-                if "Reforzar" in estados:
-                    estado = "🔴 Reforzar"
-                elif "En seguimiento" in estados:
-                    estado = "🟠 Seguimiento"
-                elif "Buen avance" in estados:
-                    estado = "🟡 Buen avance"
-                else:
-                    estado = "🟢 Excelente"
+                faltante_g = max(
+                    int(st.session_state.meta_gestiones_cfg)
+                    - int(fila["Gestiones"]),
+                    0,
+                )
+                faltante_c = max(
+                    int(st.session_state.meta_compromisos_cfg)
+                    - int(fila["Compromisos"]),
+                    0,
+                )
+                faltante_r = max(
+                    float(st.session_state.meta_recuperacion_cfg)
+                    - float(fila["Recuperación acumulada"]),
+                    0,
+                )
 
                 with cols[pos]:
                     with st.container(border=True):
 
-                        # Estado visual compacto.
-                        if estado.startswith("🔴"):
-                            clase_estado = "status-red"
-                        elif estado.startswith("🟠"):
-                            clase_estado = "status-orange"
-                        elif estado.startswith("🟡"):
-                            clase_estado = "status-yellow"
-                        else:
-                            clase_estado = "status-green"
-
-                        estado_texto = estado.split(" ", 1)[1] if " " in estado else estado
+                        correo_linea = (
+                            correo_actual
+                            if correo_actual
+                            else "Sin correo"
+                        )
 
                         st.markdown(
                             f"""
                             <div class="operator-card-head">
                                 <div>
-                                    <div class="operator-card-name">{fila['Operador']}</div>
-                                    <div class="operator-meta-line">
-                                        {usuario} · {formato_porcentaje(fila['% Recuperación'])} de recuperación
+                                    <div class="operator-card-name">
+                                        {fila['Operador']}
+                                    </div>
+                                    <div class="operator-channel">
+                                        ✉️ {correo_linea}
                                     </div>
                                 </div>
-                                <span class="operator-status-pill {clase_estado}">
-                                    {estado_texto}
-                                </span>
+                                <div style="text-align:right;">
+                                    <span class="operator-status-pill {clase_estado}">
+                                        {estado_texto}
+                                    </span>
+                                    <div class="operator-small-line">
+                                        Recuperación {formato_porcentaje(pct_r_ind)}
+                                    </div>
+                                </div>
                             </div>
                             """,
                             unsafe_allow_html=True,
                         )
 
-                        # KPIs con referencia contra meta mensual.
                         k1, k2, k3 = st.columns(3)
-
-                        pct_g_ind = float(fila["% Gestiones"])
-                        pct_c_ind = float(fila["% Compromisos"])
-                        pct_r_ind = float(fila["% Recuperación"])
 
                         with k1:
                             st.metric(
                                 "Gestiones",
-                                formato_entero(fila["Gestiones"]),
                                 (
-                                    f"Hoy +{formato_entero(calculo['objetivo_gestiones'])}"
-                                    if calculo["objetivo_gestiones"] > 0
-                                    else "Meta cumplida"
+                                    f"{formato_entero(fila['Gestiones'])} / "
+                                    f"{formato_entero(st.session_state.meta_gestiones_cfg)}"
                                 ),
+                                formato_porcentaje(pct_g_ind),
                             )
                             st.progress(
                                 min(max(pct_g_ind / 100, 0), 1),
                             )
+                            if faltante_g > 0:
+                                st.caption(
+                                    f"Faltan {formato_entero(faltante_g)}"
+                                )
+                            else:
+                                st.caption("✅ Meta cumplida")
 
                         with k2:
                             st.metric(
                                 "Compromisos",
-                                formato_entero(fila["Compromisos"]),
                                 (
-                                    f"Hoy +{formato_entero(calculo['objetivo_compromisos'])}"
-                                    if calculo["objetivo_compromisos"] > 0
-                                    else "Meta cumplida"
+                                    f"{formato_entero(fila['Compromisos'])} / "
+                                    f"{formato_entero(st.session_state.meta_compromisos_cfg)}"
                                 ),
+                                formato_porcentaje(pct_c_ind),
                             )
                             st.progress(
                                 min(max(pct_c_ind / 100, 0), 1),
                             )
+                            if faltante_c > 0:
+                                st.caption(
+                                    f"Faltan {formato_entero(faltante_c)}"
+                                )
+                            else:
+                                st.caption("✅ Meta cumplida")
 
                         with k3:
                             st.metric(
                                 "Recuperación",
+                                formato_usd(
+                                    fila["Recuperación acumulada"]
+                                ),
                                 formato_porcentaje(pct_r_ind),
-                                formato_usd(fila["Recuperación acumulada"]),
                             )
                             st.progress(
                                 min(max(pct_r_ind / 100, 0), 1),
                             )
+                            if faltante_r > 0:
+                                st.caption(
+                                    f"Faltan {formato_usd(faltante_r)}"
+                                )
+                            else:
+                                st.caption("✅ Meta cumplida")
 
-                        # Acción principal visible sin abrir el mensaje.
                         st.markdown(
-                            '<div class="operator-divider"></div>',
+                            """
+                            <div class="operator-daily-box">
+                                🎯 Meta mínima de hoy ·
+                                98 gestiones · 25 compromisos
+                            </div>
+                            """,
                             unsafe_allow_html=True,
                         )
 
-                        asunto = quote("Seguimiento diario de metas")
-                        cuerpo = quote(calculo["mensaje"])
+                        asunto = quote(
+                            "Seguimiento diario de metas"
+                        )
+                        cuerpo = quote(
+                            calculo["mensaje"]
+                        )
 
-                        a1, a2, a3 = st.columns([1.15, 1, 1])
+                        a1, a2, a3 = st.columns(3)
 
                         with a1:
-                            with st.expander(
-                                "💬 Ver mensaje",
-                                expanded=False,
-                            ):
-                                st.text_area(
-                                    "Mensaje",
-                                    value=calculo["mensaje"],
-                                    height=190,
-                                    key=f"msg_compacto_{usuario}",
-                                    label_visibility="collapsed",
-                                )
-
-                        with a2:
                             if correo_actual:
                                 st.link_button(
                                     "✉️ Correo",
-                                    f"mailto:{correo_actual}?subject={asunto}&body={cuerpo}",
+                                    (
+                                        f"mailto:{correo_actual}"
+                                        f"?subject={asunto}"
+                                        f"&body={cuerpo}"
+                                    ),
                                     use_container_width=True,
                                 )
                             else:
@@ -3621,19 +3908,21 @@ elif menu == "✉️ Mensajes diarios":
                                     "✉️ Sin correo",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_correo_compacto_{usuario}",
+                                    key=f"sin_correo_v57_{usuario}",
                                 )
 
-                        with a3:
+                        with a2:
                             if telegram_chat_id:
                                 if st.button(
                                     "✈️ Telegram",
                                     use_container_width=True,
-                                    key=f"telegram_compacto_{usuario}",
+                                    key=f"telegram_v57_{usuario}",
                                 ):
-                                    ok_tg, detalle_tg = enviar_mensaje_telegram(
-                                        telegram_chat_id,
-                                        calculo["mensaje"],
+                                    ok_tg, detalle_tg = (
+                                        enviar_mensaje_telegram(
+                                            telegram_chat_id,
+                                            calculo["mensaje"],
+                                        )
                                     )
 
                                     if ok_tg:
@@ -3647,7 +3936,20 @@ elif menu == "✉️ Mensajes diarios":
                                     "✈️ Sin Telegram",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_compacto_{usuario}",
+                                    key=f"sin_telegram_v57_{usuario}",
+                                )
+
+                        with a3:
+                            with st.popover(
+                                "👁️ Ver mensaje",
+                                use_container_width=True,
+                            ):
+                                st.text_area(
+                                    "Mensaje",
+                                    value=calculo["mensaje"],
+                                    height=260,
+                                    key=f"msg_v57_{usuario}",
+                                    label_visibility="collapsed",
                                 )
 
         st.divider()
