@@ -1879,8 +1879,8 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    Imagen compacta para Telegram: prioriza nombres y ranking.
-    El resumen de KPIs ya viaja en el texto, por eso no se repite aquí.
+    Imagen vertical optimizada para Telegram móvil.
+    Prioriza nombres grandes y legibilidad.
     """
     import io
 
@@ -1890,16 +1890,17 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
-    W = 1200
-    header_h = 125
-    table_title_h = 60
-    col_header_h = 55
-    row_h = 88
-    footer_h = 70
+    W = 1080
+    header_h = 120
+    title_h = 62
+    col_h = 52
+    row_h = 112
+    footer_h = 68
+
     H = (
-        25 + header_h + 18 + table_title_h
-        + col_header_h + len(tabla) * row_h
-        + 18 + footer_h + 25
+        24 + header_h + 16 + title_h + col_h
+        + len(tabla) * row_h
+        + 16 + footer_h + 24
     )
 
     navy = (8, 31, 54)
@@ -1909,97 +1910,97 @@ def generar_imagen_recuperacion_telegram(
     bg = (244, 247, 250)
     light = (249, 251, 253)
     dark = (24, 35, 47)
-    gray = (102, 114, 127)
-    red = (222, 70, 70)
-    border = (215, 222, 229)
+    gray = (103, 114, 126)
+    border = (214, 221, 229)
     gold = (235, 176, 36)
-    silver = (167, 177, 188)
-    bronze = (192, 105, 48)
+    silver = (168, 178, 189)
+    bronze = (193, 106, 49)
 
     img = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(img)
 
-    f_title = _fuente_reporte(44, True)
+    f_title = _fuente_reporte(42, True)
     f_date = _fuente_reporte(22, True)
-    f_section = _fuente_reporte(24, True)
-    f_head = _fuente_reporte(20, True)
-    f_name = _fuente_reporte(26, True)
-    f_name_long = _fuente_reporte(22, True)
+    f_section = _fuente_reporte(25, True)
+    f_head = _fuente_reporte(18, True)
+    f_name = _fuente_reporte(32, True)
+    f_name_long = _fuente_reporte(28, True)
+    f_name_xlong = _fuente_reporte(25, True)
     f_value = _fuente_reporte(23, True)
-    f_small = _fuente_reporte(17, False)
-    f_footer = _fuente_reporte(20, True)
+    f_pct = _fuente_reporte(26, True)
+    f_small = _fuente_reporte(16, False)
+    f_footer = _fuente_reporte(19, True)
 
-    # Encabezado simple
-    y = 25
+    # Header
+    y = 24
     d.rounded_rectangle(
-        (25, y, W - 25, y + header_h),
+        (24, y, W - 24, y + header_h),
         radius=22,
         fill=navy,
     )
     d.text(
-        (55, y + 28),
+        (48, y + 25),
         "AVANCE DE RECUPERACIÓN",
         font=f_title,
         fill=white,
     )
-    fecha_txt = fecha_local_actual().strftime("%d/%m/%Y")
     d.text(
-        (55, y + 82),
-        fecha_txt,
+        (48, y + 78),
+        fecha_local_actual().strftime("%d/%m/%Y"),
         font=f_date,
         fill=green,
     )
 
-    # Título ranking
-    y += header_h + 18
+    # Ranking title
+    y += header_h + 16
     d.rounded_rectangle(
-        (25, y, W - 25, y + table_title_h),
+        (24, y, W - 24, y + title_h),
         radius=15,
         fill=navy,
     )
     d.text(
-        (55, y + 16),
+        (48, y + 17),
         "RANKING POR OPERADOR",
         font=f_section,
         fill=white,
     )
 
-    # Cabecera
-    y += table_title_h
+    # Column header
+    y += title_h
     d.rectangle(
-        (25, y, W - 25, y + col_header_h),
+        (24, y, W - 24, y + col_h),
         fill=navy2,
     )
 
-    x_num = 48
-    x_op = 120
-    x_rec = 665
-    x_pct = 940
+    x_num = 44
+    x_op = 112
+    x_rec = 675
+    x_pct = 905
 
     for x, txt in [
         (x_num, "#"),
         (x_op, "OPERADOR"),
         (x_rec, "RECUPERADO"),
-        (x_pct, "% AVANCE"),
+        (x_pct, "%"),
     ]:
-        d.text((x, y + 16), txt, font=f_head, fill=white)
+        d.text((x, y + 15), txt, font=f_head, fill=white)
 
-    # Filas grandes
-    y0 = y + col_header_h
+    # Rows
+    y0 = y + col_h
     for i, fila in tabla.iterrows():
         ry = y0 + i * row_h
         d.rectangle(
-            (25, ry, W - 25, ry + row_h),
+            (24, ry, W - 24, ry + row_h),
             fill=white if i % 2 == 0 else light,
         )
         d.line(
-            (25, ry + row_h, W - 25, ry + row_h),
+            (24, ry + row_h, W - 24, ry + row_h),
             fill=border,
             width=1,
         )
 
-        rec = float(fila["Recuperación acumulada"])
-        pct = float(fila["% Recuperación"])
+        recuperacion = float(fila["Recuperación acumulada"])
+        porcentaje = float(fila["% Recuperación"])
         nombre = str(fila["Operador"])
 
         puesto_color = (
@@ -2007,8 +2008,9 @@ def generar_imagen_recuperacion_telegram(
             silver if i == 1 else
             bronze if i == 2 else navy
         )
+
         d.rounded_rectangle(
-            (42, ry + 21, 91, ry + 69),
+            (38, ry + 31, 88, ry + 81),
             radius=11,
             fill=puesto_color,
         )
@@ -2016,62 +2018,74 @@ def generar_imagen_recuperacion_telegram(
         pos = str(i + 1)
         pb = d.textbbox((0, 0), pos, font=f_value)
         d.text(
-            (66.5 - (pb[2] - pb[0]) / 2, ry + 31),
+            (63 - (pb[2] - pb[0]) / 2, ry + 41),
             pos,
             font=f_value,
             fill=white,
         )
 
-        # Mucho más espacio y fuente mayor para nombres.
-        fuente_nombre = f_name if len(nombre) <= 30 else f_name_long
+        # Nombre mucho más grande.
+        if len(nombre) <= 24:
+            fuente_nombre = f_name
+        elif len(nombre) <= 31:
+            fuente_nombre = f_name_long
+        else:
+            fuente_nombre = f_name_xlong
+
         d.text(
-            (x_op, ry + 28),
+            (x_op, ry + 20),
             nombre,
             font=fuente_nombre,
             fill=dark,
         )
+        d.text(
+            (x_op, ry + 72),
+            "Recuperación acumulada",
+            font=f_small,
+            fill=gray,
+        )
 
         d.text(
-            (x_rec, ry + 29),
-            formato_usd(rec),
+            (x_rec, ry + 34),
+            formato_usd(recuperacion),
             font=f_value,
             fill=green,
         )
 
         d.text(
-            (x_pct, ry + 29),
-            formato_porcentaje(pct),
-            font=f_value,
+            (x_pct, ry + 32),
+            formato_porcentaje(porcentaje),
+            font=f_pct,
             fill=dark,
         )
 
-        # Barra corta de avance debajo del porcentaje.
-        bx1, bx2 = x_pct, 1135
-        by = ry + 62
+        bx1 = x_pct
+        bx2 = W - 48
+        by = ry + 77
         d.rounded_rectangle(
-            (bx1, by, bx2, by + 10),
-            radius=5,
-            fill=(222, 227, 232),
+            (bx1, by, bx2, by + 12),
+            radius=6,
+            fill=(222, 228, 233),
         )
         fill_x = bx1 + int(
-            (bx2 - bx1) * min(max(pct / 100, 0), 1)
+            (bx2 - bx1)
+            * min(max(porcentaje / 100, 0), 1)
         )
         if fill_x > bx1:
             d.rounded_rectangle(
-                (bx1, by, fill_x, by + 10),
-                radius=5,
+                (bx1, by, fill_x, by + 12),
+                radius=6,
                 fill=green,
             )
 
-    # Pie discreto
-    footer_y = y0 + len(tabla) * row_h + 18
+    footer_y = y0 + len(tabla) * row_h + 16
     d.rounded_rectangle(
-        (25, footer_y, W - 25, footer_y + footer_h),
+        (24, footer_y, W - 24, footer_y + footer_h),
         radius=16,
         fill=navy,
     )
     d.text(
-        (55, footer_y + 23),
+        (48, footer_y + 22),
         "Cada resultado suma. ¡Vamos por la meta! 💪",
         font=f_footer,
         fill=white,
@@ -2378,6 +2392,51 @@ st.markdown(
             border: 1px solid #e8edf3;
             border-radius: 14px;
             padding: 16px;
+        }
+
+
+        /* ===== MENSAJES DIARIOS V32 ===== */
+
+        .daily-panel {
+            background: linear-gradient(135deg, #102846 0%, #214e7d 100%);
+            color: white;
+            border-radius: 18px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 22px rgba(16,24,40,.10);
+        }
+
+        .daily-panel-title {
+            font-size: 23px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .daily-panel-sub {
+            font-size: 13px;
+            opacity: .88;
+        }
+
+        .section-chip {
+            display: inline-block;
+            background: #eef4ff;
+            color: #24456f;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        div[data-testid="stMetric"] {
+            background: #ffffff;
+            border: 1px solid #e7ebf0;
+            padding: 12px 14px;
+            border-radius: 12px;
+        }
+
+        div[data-testid="stExpander"] {
+            border-radius: 12px;
         }
 
     </style>
@@ -3018,10 +3077,11 @@ elif menu == "✉️ Mensajes diarios":
 
     st.markdown(
         f"""
-        <div class="hero-card">
-            <div class="hero-title">✉️ Mensajes diarios</div>
-            <div class="hero-subtitle">
-                Metas de cierre para hoy · {jornadas_info['disponibles']} jornadas disponibles contando hoy
+        <div class="daily-panel">
+            <div class="daily-panel-title">✉️ Mensajes diarios</div>
+            <div class="daily-panel-sub">
+                Comunicación diaria, metas de cierre y recuperación ·
+                {jornadas_info['disponibles']} jornadas disponibles contando hoy
             </div>
         </div>
         """,
@@ -3063,7 +3123,11 @@ elif menu == "✉️ Mensajes diarios":
         pct_equipo = total_recuperacion_equipo / meta_equipo * 100 if meta_equipo else 0
         falta_equipo = max(meta_equipo - total_recuperacion_equipo, 0)
 
-        st.markdown("### 📣 Avance general de recuperación")
+        st.markdown(
+            '<span class="section-chip">RECUPERACIÓN DEL EQUIPO</span>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("### Avance general")
         g1, g2, g3 = st.columns(3)
         g1.metric("Recuperación del equipo", formato_usd(total_recuperacion_equipo))
         g2.metric("Cumplimiento", formato_porcentaje(pct_equipo))
@@ -3100,12 +3164,12 @@ elif menu == "✉️ Mensajes diarios":
 
         st.divider()
         st.markdown("### 👥 Mensajes individuales")
-        st.caption("Vista compacta: 4 operadores por fila. Abre cada tarjeta para revisar o enviar el mensaje.")
+        st.caption("Vista ampliada: 2 operadores por fila para facilitar lectura, revisión y envío.")
 
         filas = list(resultado.iterrows())
-        for bloque_inicio in range(0, len(filas), 4):
-            cols = st.columns(4)
-            for pos, (_, fila_original) in enumerate(filas[bloque_inicio:bloque_inicio + 4]):
+        for bloque_inicio in range(0, len(filas), 2):
+            cols = st.columns(2)
+            for pos, (_, fila_original) in enumerate(filas[bloque_inicio:bloque_inicio + 2]):
                 fila = fila_original.copy()
                 usuario = fila["Usuario"]
                 contacto = datos_contacto.get(usuario, {})
@@ -3134,15 +3198,52 @@ elif menu == "✉️ Mensajes diarios":
 
                 with cols[pos]:
                     with st.container(border=True):
-                        st.markdown(f"**{fila['Operador']}**")
-                        st.caption(f"{estado} · {formato_porcentaje(fila['% Recuperación'])} recuperación")
                         st.markdown(
-                            f"**Gestiones:** {formato_entero(fila['Gestiones'])}  \
-"
-                            f"**Compromisos:** {formato_entero(fila['Compromisos'])}  \
-"
-                            f"**Recuperación:** {formato_usd(fila['Recuperación acumulada'])}"
+                            f"### {fila['Operador']}"
                         )
+                        st.caption(
+                            f"{estado} · Recuperación "
+                            f"{formato_porcentaje(fila['% Recuperación'])}"
+                        )
+
+                        k1, k2, k3 = st.columns(3)
+
+                        with k1:
+                            st.metric(
+                                "Gestiones",
+                                formato_entero(
+                                    fila["Gestiones"]
+                                ),
+                                (
+                                    f"Hoy {formato_entero(calculo['objetivo_gestiones'])}"
+                                    if calculo["objetivo_gestiones"] > 0
+                                    else "Meta cumplida"
+                                ),
+                            )
+
+                        with k2:
+                            st.metric(
+                                "Compromisos",
+                                formato_entero(
+                                    fila["Compromisos"]
+                                ),
+                                (
+                                    f"Hoy {formato_entero(calculo['objetivo_compromisos'])}"
+                                    if calculo["objetivo_compromisos"] > 0
+                                    else "Meta cumplida"
+                                ),
+                            )
+
+                        with k3:
+                            st.metric(
+                                "Recuperación",
+                                formato_porcentaje(
+                                    fila["% Recuperación"]
+                                ),
+                                formato_usd(
+                                    fila["Recuperación acumulada"]
+                                ),
+                            )
                         with st.expander("Ver mensaje", expanded=False):
                             st.text_area("Mensaje", value=calculo["mensaje"], height=210, key=f"msg_compacto_{usuario}", label_visibility="collapsed")
                             asunto = quote("Seguimiento diario de metas")
@@ -3191,7 +3292,12 @@ elif menu == "✉️ Mensajes diarios":
                                     )
 
         st.divider()
-        st.markdown("### ✈️ Envío por Telegram")
+        st.markdown(
+            '<span class="section-chip">TELEGRAM</span>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("### Envío y comunicación")
+
 
         telegram_group_chat_id = (
             obtener_telegram_group_chat_id()
