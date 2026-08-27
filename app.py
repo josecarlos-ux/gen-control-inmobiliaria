@@ -1853,6 +1853,207 @@ def enviar_mensaje_telegram(chat_id, texto):
         return False, str(e)
 
 
+
+def _fuente_reporte(size, bold=False):
+    candidatos = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        if bold else
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"
+        if bold else
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+    ]
+    for ruta in candidatos:
+        try:
+            return ImageFont.truetype(ruta, size=size)
+        except Exception:
+            pass
+    return ImageFont.load_default()
+
+
+def generar_imagen_recuperacion_telegram(tabla_general, meta_individual):
+    """
+    Genera en memoria una imagen PNG compacta para Telegram.
+    Usa los datos reales cargados en GEN Control.
+    """
+    import io
+
+    tabla = tabla_general.copy().sort_values(
+        "% Recuperación",
+        ascending=False,
+        kind="stable",
+    ).reset_index(drop=True)
+
+    total_rec = float(tabla["Recuperación acumulada"].sum())
+    meta_equipo = float(meta_individual) * len(tabla)
+    pct_equipo = (total_rec / meta_equipo * 100) if meta_equipo else 0
+    brecha = max(meta_equipo - total_rec, 0)
+
+    W, H = 1200, 1040
+    navy = (9, 31, 54)
+    navy2 = (16, 52, 86)
+    green = (73, 173, 74)
+    blue = (37, 116, 214)
+    red = (225, 74, 74)
+    white = (248, 250, 252)
+    light = (235, 240, 245)
+    dark = (25, 37, 52)
+    gray = (102, 115, 130)
+    gold = (230, 171, 33)
+
+    img = Image.new("RGB", (W, H), white)
+    d = ImageDraw.Draw(img)
+
+    f_title = _fuente_reporte(42, True)
+    f_sub = _fuente_reporte(22, True)
+    f_kpi = _fuente_reporte(30, True)
+    f_small = _fuente_reporte(18, False)
+    f_small_b = _fuente_reporte(18, True)
+    f_row = _fuente_reporte(20, False)
+    f_row_b = _fuente_reporte(20, True)
+
+    # Header
+    d.rounded_rectangle((20, 20, W-20, 145), radius=24, fill=navy)
+    d.text((55, 45), "GEN CONTROL", font=f_title, fill=white)
+    d.text((55, 100), "COBRANZA - INMOBILIARIA", font=f_small_b, fill=green)
+    titulo = "AVANCE DE RECUPERACIÓN"
+    bbox = d.textbbox((0, 0), titulo, font=f_title)
+    d.text(((W-(bbox[2]-bbox[0]))/2, 42), titulo, font=f_title, fill=white)
+    fecha_txt = fecha_local_actual().strftime("%d/%m/%Y")
+    bbox = d.textbbox((0, 0), fecha_txt, font=f_sub)
+    d.text(((W-(bbox[2]-bbox[0]))/2, 100), fecha_txt, font=f_sub, fill=green)
+
+    # KPI cards
+    cards = [
+        ("RECUPERADO", formato_usd(total_rec), green),
+        ("META EQUIPO", formato_usd(meta_equipo), blue),
+        ("BRECHA", formato_usd(brecha), red),
+        ("% AVANCE", formato_porcentaje(pct_equipo), green),
+    ]
+    x0, y0, gap = 35, 170, 15
+    cw = (W - 70 - gap*3) // 4
+    for i, (lab, val, color) in enumerate(cards):
+        x = x0 + i*(cw+gap)
+        d.rounded_rectangle((x, y0, x+cw, y0+150), radius=18, fill=(248,250,252), outline=(205,214,224), width=2)
+        d.text((x+20, y0+22), lab, font=f_small_b, fill=color)
+        d.text((x+20, y0+67), val, font=f_kpi, fill=dark)
+
+    # Progress
+    d.rounded_rectangle((35, 345, W-35, 455), radius=18, fill=(246,249,252), outline=(205,214,224), width=2)
+    d.text((60, 370), "PROGRESO HACIA LA META", font=f_sub, fill=navy)
+    bar_x1, bar_x2, bar_y = 60, W-60, 420
+    d.rounded_rectangle((bar_x1, bar_y, bar_x2, bar_y+20), radius=10, fill=(220,226,232))
+    fill_x = bar_x1 + int((bar_x2-bar_x1) * min(max(pct_equipo/100, 0), 1))
+    if fill_x > bar_x1:
+        d.rounded_rectangle((bar_x1, bar_y, fill_x, bar_y+20), radius=10, fill=green)
+    d.text((W-250, 370), formato_porcentaje(pct_equipo), font=f_kpi, fill=green)
+
+    # Ranking title
+    d.rounded_rectangle((35, 485, W-35, 545), radius=14, fill=navy)
+    d.text((60, 500), "RANKING DE RECUPERACIÓN POR OPERADOR", font=f_sub, fill=white)
+
+    # Table header
+    cols = [55, 115, 610, 865, 1035]
+    y = 560
+    d.rectangle((35, y, W-35, y+48), fill=navy2)
+    headers = ["#", "OPERADOR", "RECUPERADO", "% AVANCE", "FALTA"]
+    for x, h in zip(cols, headers):
+        d.text((x, y+13), h, font=f_small_b, fill=white)
+
+    row_h = 49
+    medals = ["1", "2", "3"]
+    for i, fila in tabla.iterrows():
+        ry = y + 48 + i*row_h
+        bg = white if i % 2 == 0 else light
+        d.rectangle((35, ry, W-35, ry+row_h), fill=bg)
+        d.line((35, ry+row_h, W-35, ry+row_h), fill=(215,222,230), width=1)
+
+        nombre = str(fila["Operador"])
+        rec = float(fila["Recuperación acumulada"])
+        pct = float(fila["% Recuperación"])
+        falta = max(float(meta_individual) - rec, 0)
+
+        num_fill = gold if i == 0 else ((170,180,190) if i == 1 else ((190,105,45) if i == 2 else navy))
+        d.rounded_rectangle((50, ry+8, 86, ry+41), radius=8, fill=num_fill)
+        d.text((62, ry+13), str(i+1), font=f_small_b, fill=white)
+
+        d.text((115, ry+13), nombre, font=f_row_b if i < 3 else f_row, fill=dark)
+        d.text((610, ry+13), formato_usd(rec), font=f_row_b, fill=green)
+        d.text((865, ry+13), formato_porcentaje(pct), font=f_row_b, fill=dark)
+        d.text((1035, ry+13), formato_usd(falta).replace("USD ", ""), font=f_row, fill=gray)
+
+    # Footer
+    footer_y = 560 + 48 + len(tabla)*row_h + 25
+    d.rounded_rectangle((35, footer_y, W-35, min(H-25, footer_y+105)), radius=18, fill=navy)
+    d.text((65, footer_y+22), "¡VAMOS POR EL CIERRE DEL MES!", font=f_sub, fill=white)
+    d.text((65, footer_y+60), "Mantengamos el enfoque en recuperación. Cada resultado suma al equipo.", font=f_small, fill=light)
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG", optimize=True)
+    buffer.seek(0)
+    return buffer
+
+
+def enviar_foto_telegram(chat_id, imagen_bytes, caption=""):
+    """
+    Envía una imagen PNG directamente a Telegram mediante sendPhoto.
+    """
+    token = obtener_telegram_bot_token()
+    chat_id = str(chat_id or "").strip()
+
+    if not token:
+        return False, "Falta TELEGRAM_BOT_TOKEN en Streamlit Secrets."
+    if not chat_id:
+        return False, "Falta el Chat ID de Telegram."
+
+    import uuid
+
+    boundary = "----GENControl" + uuid.uuid4().hex
+    partes = []
+
+    def campo(nombre, valor):
+        partes.append(f"--{boundary}\r\n".encode())
+        partes.append(
+            f'Content-Disposition: form-data; name="{nombre}"\r\n\r\n'.encode()
+        )
+        partes.append(str(valor).encode("utf-8"))
+        partes.append(b"\r\n")
+
+    campo("chat_id", chat_id)
+    if caption:
+        campo("caption", caption)
+
+    partes.append(f"--{boundary}\r\n".encode())
+    partes.append(
+        b'Content-Disposition: form-data; name="photo"; filename="avance_recuperacion.png"\r\n'
+    )
+    partes.append(b"Content-Type: image/png\r\n\r\n")
+    partes.append(imagen_bytes.getvalue())
+    partes.append(b"\r\n")
+    partes.append(f"--{boundary}--\r\n".encode())
+
+    body = b"".join(partes)
+    url = f"https://api.telegram.org/bot{token}/sendPhoto"
+
+    try:
+        req = request.Request(
+            url,
+            data=body,
+            method="POST",
+            headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Content-Length": str(len(body)),
+            },
+        )
+        with request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        if data.get("ok") is True:
+            return True, "Imagen enviada."
+        return False, str(data.get("description", "Telegram rechazó la imagen."))
+    except Exception as e:
+        return False, str(e)
+
 def generar_mensaje_grupo_recuperacion(
     tabla_general,
     meta_individual,
@@ -2956,7 +3157,7 @@ elif menu == "✉️ Mensajes diarios":
 
         with tg_col1:
             if st.button(
-                "👥 Enviar resumen al grupo",
+                "🖼️ Enviar imagen al grupo",
                 type="primary",
                 use_container_width=True,
                 disabled=(
@@ -2966,16 +3167,29 @@ elif menu == "✉️ Mensajes diarios":
                 ),
                 key="enviar_resumen_grupo_telegram",
             ):
+                imagen_grupo = generar_imagen_recuperacion_telegram(
+                    tabla_general,
+                    meta_individual,
+                )
+
+                caption_grupo = (
+                    f"📊 Avance de recuperación | "
+                    f"{fecha_local_actual().strftime('%d/%m/%Y')}\n"
+                    f"📈 Cumplimiento equipo: "
+                    f"{formato_porcentaje(float(tabla_general['Recuperación acumulada'].sum()) / (float(meta_individual) * len(tabla_general)) * 100 if len(tabla_general) else 0)}"
+                )
+
                 ok_grupo, detalle_grupo = (
-                    enviar_mensaje_telegram(
+                    enviar_foto_telegram(
                         telegram_group_chat_id,
-                        mensaje_grupo,
+                        imagen_grupo,
+                        caption_grupo,
                     )
                 )
 
                 if ok_grupo:
                     st.success(
-                        "Resumen enviado al grupo de Telegram."
+                        "Imagen de recuperación enviada al grupo de Telegram."
                     )
                 else:
                     st.error(
