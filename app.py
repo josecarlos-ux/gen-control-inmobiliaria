@@ -2361,6 +2361,89 @@ def generar_mensaje_grupo_recuperacion(
     )
 
 
+
+def obtener_usuarios_telegram_bot():
+    """
+    Lee getUpdates del bot y devuelve los chats privados que le escribieron.
+    No envía mensajes.
+    """
+    token = obtener_telegram_bot_token()
+
+    if not token:
+        return [], "Falta TELEGRAM_BOT_TOKEN en Secrets."
+
+    try:
+        url = f"https://api.telegram.org/bot{token}/getUpdates"
+
+        with request.urlopen(url, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        if data.get("ok") is not True:
+            return [], str(
+                data.get(
+                    "description",
+                    "Telegram no devolvió los usuarios.",
+                )
+            )
+
+        encontrados = {}
+
+        for update in data.get("result", []):
+            mensaje = (
+                update.get("message")
+                or update.get("edited_message")
+                or update.get("channel_post")
+                or {}
+            )
+
+            chat = mensaje.get("chat", {}) or {}
+            remitente = mensaje.get("from", {}) or {}
+
+            chat_id = chat.get("id")
+
+            # Solo chats privados para operadores.
+            if not chat_id or chat.get("type") != "private":
+                continue
+
+            nombre = " ".join(
+                [
+                    str(remitente.get("first_name") or "").strip(),
+                    str(remitente.get("last_name") or "").strip(),
+                ]
+            ).strip()
+
+            username = str(
+                remitente.get("username") or ""
+            ).strip()
+
+            encontrados[str(chat_id)] = {
+                "chat_id": str(chat_id),
+                "nombre": nombre or "Sin nombre",
+                "username": (
+                    f"@{username}"
+                    if username
+                    else "Sin username"
+                ),
+            }
+
+        usuarios = list(encontrados.values())
+
+        usuarios.sort(
+            key=lambda x: x["nombre"].lower()
+        )
+
+        if not usuarios:
+            return [], (
+                "Todavía no hay chats privados disponibles. "
+                "Cada operador debe abrir el bot y enviar /start."
+            )
+
+        return usuarios, ""
+
+    except Exception as e:
+        return [], str(e)
+
+
 def probar_conexion_telegram():
     token = obtener_telegram_bot_token()
 
@@ -4032,6 +4115,50 @@ elif menu == "👥 Equipo":
             "en esta tabla y en Mensajes diarios. Los datos editados "
             "ya no se sobrescriben al recargar la aplicación."
         )
+
+        st.divider()
+
+        st.markdown("### ✈️ Detectar IDs de Telegram")
+        st.caption(
+            "Cada operador debe abrir el bot y enviar /start una sola vez. "
+            "Luego pulsa el botón para ver su Chat ID. Esto no envía mensajes."
+        )
+
+        if st.button(
+            "🔎 Buscar operadores que escribieron al bot",
+            use_container_width=True,
+            key="buscar_ids_telegram",
+        ):
+            usuarios_tg, error_tg = obtener_usuarios_telegram_bot()
+
+            if error_tg:
+                st.info(error_tg)
+
+            if usuarios_tg:
+                st.success(
+                    f"Se encontraron {len(usuarios_tg)} chats privados."
+                )
+
+                tabla_ids = pd.DataFrame(
+                    [
+                        {
+                            "Nombre Telegram": u["nombre"],
+                            "Usuario Telegram": u["username"],
+                            "Chat ID": u["chat_id"],
+                        }
+                        for u in usuarios_tg
+                    ]
+                )
+
+                st.dataframe(
+                    tabla_ids,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                st.session_state[
+                    "usuarios_telegram_detectados"
+                ] = usuarios_tg
 
         st.divider()
         st.markdown("### Editar operador")
