@@ -1831,6 +1831,42 @@ def obtener_telegram_bot_token():
         return ""
 
 
+
+def normalizar_telegram_chat_id(valor):
+    """
+    Devuelve un Chat ID válido o cadena vacía.
+
+    Evita contar como configurados valores provenientes de Supabase
+    como None, nan, null o cadenas vacías.
+    Acepta IDs privados positivos y grupos negativos.
+    """
+    if valor is None:
+        return ""
+
+    try:
+        if pd.isna(valor):
+            return ""
+    except Exception:
+        pass
+
+    texto = str(valor).strip()
+
+    if texto.lower() in {
+        "",
+        "none",
+        "nan",
+        "null",
+        "<na>",
+    }:
+        return ""
+
+    # Telegram Chat ID debe ser numérico; grupos pueden llevar signo negativo.
+    if not re.fullmatch(r"-?\d+", texto):
+        return ""
+
+    return texto
+
+
 def enviar_mensaje_telegram(chat_id, texto):
     token = obtener_telegram_bot_token()
 
@@ -3907,9 +3943,9 @@ elif menu == "✉️ Mensajes diarios":
                 contacto_tmp.get("correo")
                 or str(fila_tmp.get("Correo", "")).strip()
             )
-            telegram_tmp = str(
+            telegram_tmp = normalizar_telegram_chat_id(
                 contacto_tmp.get("telegram_chat_id", "")
-            ).strip()
+            )
 
             if correo_tmp:
                 operadores_con_correo += 1
@@ -4013,11 +4049,11 @@ elif menu == "✉️ Mensajes diarios":
             telegram_configurados_top = [
                 usuario
                 for usuario in resultado["Usuario"].tolist()
-                if str(
+                if normalizar_telegram_chat_id(
                     datos_contacto.get(
                         usuario, {}
                     ).get("telegram_chat_id", "")
-                ).strip()
+                )
             ]
 
             if st.button(
@@ -4033,11 +4069,11 @@ elif menu == "✉️ Mensajes diarios":
                 for _, fila_envio in resultado.iterrows():
                     usuario_envio = fila_envio["Usuario"]
 
-                    chat_id_envio = str(
+                    chat_id_envio = normalizar_telegram_chat_id(
                         datos_contacto.get(
                             usuario_envio, {}
                         ).get("telegram_chat_id", "")
-                    ).strip()
+                    )
 
                     if not chat_id_envio:
                         continue
@@ -4245,12 +4281,12 @@ elif menu == "✉️ Mensajes diarios":
                     ).strip()
                 )
 
-                telegram_chat_id = str(
+                telegram_chat_id = normalizar_telegram_chat_id(
                     contacto.get(
                         "telegram_chat_id",
                         "",
                     )
-                ).strip()
+                )
 
                 pct_g_ind = float(
                     fila["% Gestiones"]
@@ -4674,11 +4710,11 @@ elif menu == "✉️ Mensajes diarios":
         telegram_configurados = [
             usuario
             for usuario in resultado["Usuario"].tolist()
-            if str(
+            if normalizar_telegram_chat_id(
                 datos_contacto.get(
                     usuario, {}
                 ).get("telegram_chat_id", "")
-            ).strip()
+            )
         ]
 
         col_envio, col_estado = st.columns([2, 1])
@@ -4696,11 +4732,11 @@ elif menu == "✉️ Mensajes diarios":
 
                 for _, fila_tg in resultado.iterrows():
                     usuario_tg = fila_tg["Usuario"]
-                    chat_id_tg = str(
+                    chat_id_tg = normalizar_telegram_chat_id(
                         datos_contacto.get(
                             usuario_tg, {}
                         ).get("telegram_chat_id", "")
-                    ).strip()
+                    )
 
                     if not chat_id_tg:
                         pendientes.append(
@@ -5091,6 +5127,10 @@ elif menu == "👥 Equipo":
             ]
         ].copy()
 
+        mostrar["telegram_chat_id"] = mostrar[
+            "telegram_chat_id"
+        ].apply(normalizar_telegram_chat_id)
+
         mostrar.columns = [
             "Operador",
             "Usuario CRM",
@@ -5207,8 +5247,8 @@ elif menu == "👥 Equipo":
         with c3:
             telegram_chat_id_op = st.text_input(
                 "Telegram Chat ID",
-                value=str(
-                    fila_op.get("telegram_chat_id") or ""
+                value=normalizar_telegram_chat_id(
+                    fila_op.get("telegram_chat_id")
                 ),
                 help=(
                     "El operador debe iniciar primero el bot. "
@@ -5248,7 +5288,9 @@ elif menu == "👥 Equipo":
                 "nombre_mensaje": nombre_mensaje_op.strip(),
                 "correo": correo_op.strip(),
                 "telefono": telefono_normalizado,
-                "telegram_chat_id": telegram_chat_id_op.strip(),
+                "telegram_chat_id": normalizar_telegram_chat_id(
+                    telegram_chat_id_op
+                ),
                 "activo": bool(activo_op),
                 "updated_at": datetime.now(
                     ZoneInfo("America/La_Paz")
