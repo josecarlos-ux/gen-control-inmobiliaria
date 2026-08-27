@@ -3139,6 +3139,86 @@ st.markdown(
             margin-top:4px;
         }
 
+
+        /* ===== TARJETAS COMPACTAS V61 ===== */
+        .operator-head-v59 {
+            margin-bottom:4px !important;
+        }
+
+        .operator-avatar-v59 {
+            min-width:36px !important;
+            width:36px !important;
+            height:36px !important;
+            font-size:12px !important;
+        }
+
+        .operator-name-v59 {
+            font-size:16px !important;
+        }
+
+        .operator-mail-v59,
+        .operator-status-note-v59 {
+            margin-top:2px !important;
+        }
+
+        .daily-target-v59 {
+            padding:6px 10px !important;
+            margin:4px 0 6px 0 !important;
+            font-size:11px !important;
+            min-height:0 !important;
+        }
+
+        /* Reduce padding de contenedores con borde dentro del área principal */
+        [data-testid="stMainBlockContainer"] div[data-testid="stVerticalBlockBorderWrapper"] > div {
+            padding-top:8px;
+            padding-bottom:8px;
+        }
+
+        /* Métricas más compactas manteniendo números legibles */
+        [data-testid="stMetric"] {
+            padding:4px 8px !important;
+        }
+
+        [data-testid="stMetricLabel"] {
+            margin-bottom:0 !important;
+        }
+
+        [data-testid="stMetricLabel"] p {
+            font-size:10px !important;
+        }
+
+        [data-testid="stMetricValue"] {
+            font-size:22px !important;
+            line-height:1.05 !important;
+        }
+
+        [data-testid="stMetricDelta"] {
+            font-size:10px !important;
+        }
+
+        /* Barras y captions más juntos */
+        [data-testid="stProgress"] {
+            margin-top:-5px !important;
+            margin-bottom:-7px !important;
+        }
+
+        [data-testid="stCaptionContainer"] {
+            margin-top:-2px !important;
+            margin-bottom:-4px !important;
+        }
+
+        [data-testid="stCaptionContainer"] p {
+            font-size:10px !important;
+        }
+
+        /* Botones inferiores menos altos */
+        [data-testid="stBaseButton-secondary"],
+        [data-testid="stLinkButton"] a {
+            min-height:32px !important;
+            padding-top:4px !important;
+            padding-bottom:4px !important;
+        }
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -4382,13 +4462,8 @@ elif menu == "✉️ Mensajes diarios":
                         with k1:
                             st.metric(
                                 "GESTIONES",
-                                (
-                                    f"{formato_entero(fila['Gestiones'])} / "
-                                    f"{formato_entero(st.session_state.meta_gestiones_cfg)}"
-                                ),
-                                formato_porcentaje(
-                                    pct_g_ind
-                                ),
+                                formato_entero(fila["Gestiones"]),
+                                formato_porcentaje(pct_g_ind),
                             )
 
                             st.progress(
@@ -4403,7 +4478,7 @@ elif menu == "✉️ Mensajes diarios":
 
                             if faltante_g > 0:
                                 st.caption(
-                                    f"🎯 Faltan {formato_entero(faltante_g)}"
+                                    f"Meta {formato_entero(st.session_state.meta_gestiones_cfg)} · Faltan {formato_entero(faltante_g)}"
                                 )
                             else:
                                 st.caption(
@@ -4413,13 +4488,8 @@ elif menu == "✉️ Mensajes diarios":
                         with k2:
                             st.metric(
                                 "COMPROMISOS",
-                                (
-                                    f"{formato_entero(fila['Compromisos'])} / "
-                                    f"{formato_entero(st.session_state.meta_compromisos_cfg)}"
-                                ),
-                                formato_porcentaje(
-                                    pct_c_ind
-                                ),
+                                formato_entero(fila["Compromisos"]),
+                                formato_porcentaje(pct_c_ind),
                             )
 
                             st.progress(
@@ -4434,7 +4504,7 @@ elif menu == "✉️ Mensajes diarios":
 
                             if faltante_c > 0:
                                 st.caption(
-                                    f"🎯 Faltan {formato_entero(faltante_c)}"
+                                    f"Meta {formato_entero(st.session_state.meta_compromisos_cfg)} · Faltan {formato_entero(faltante_c)}"
                                 )
                             else:
                                 st.caption(
@@ -4464,7 +4534,7 @@ elif menu == "✉️ Mensajes diarios":
 
                             if faltante_r > 0:
                                 st.caption(
-                                    f"🎯 Faltan {formato_usd(faltante_r)}"
+                                    f"Meta {formato_usd(st.session_state.meta_recuperacion_cfg)} · Faltan {formato_usd(faltante_r)}"
                                 )
                             else:
                                 st.caption(
