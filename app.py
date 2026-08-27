@@ -3457,11 +3457,74 @@ elif menu == "✉️ Mensajes diarios":
         )
 
 
+        # -------------------------------------------------
+        # VISTA PREVIA TELEGRAM — NO ENVÍA NADA
+        # -------------------------------------------------
+        st.markdown("#### 👁️ Vista previa antes de enviar")
+
+        if st.button(
+            "👁️ Ver cómo llegará al grupo",
+            use_container_width=True,
+            key="preview_telegram_grupo",
+        ):
+            st.session_state["mostrar_preview_telegram"] = True
+
+        if st.session_state.get(
+            "mostrar_preview_telegram",
+            False,
+        ):
+            with st.container(border=True):
+                st.caption(
+                    "Vista previa local. No se ha enviado nada a Telegram."
+                )
+
+                st.markdown("**Mensaje de texto**")
+                st.text_area(
+                    "Vista previa del mensaje",
+                    value=mensaje_grupo,
+                    height=235,
+                    disabled=True,
+                    label_visibility="collapsed",
+                    key="preview_texto_telegram",
+                )
+
+                st.markdown("**Imagen del ranking**")
+
+                try:
+                    imagen_preview = (
+                        generar_imagen_recuperacion_telegram(
+                            tabla_general,
+                            meta_individual,
+                        )
+                    )
+
+                    st.image(
+                        imagen_preview,
+                        use_container_width=True,
+                    )
+
+                except Exception as e:
+                    st.error(
+                        f"No se pudo generar la vista previa: {e}"
+                    )
+
+                if st.button(
+                    "✖️ Cerrar vista previa",
+                    use_container_width=True,
+                    key="cerrar_preview_telegram",
+                ):
+                    st.session_state[
+                        "mostrar_preview_telegram"
+                    ] = False
+                    st.rerun()
+
+        st.divider()
+
         tg_col1, tg_col2 = st.columns(2)
 
         with tg_col1:
             if st.button(
-                "📤 Enviar texto + ranking al grupo",
+                "📤 Enviar ahora al grupo",
                 type="primary",
                 use_container_width=True,
                 disabled=(
