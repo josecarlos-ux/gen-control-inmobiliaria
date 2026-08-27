@@ -665,6 +665,54 @@ def clasificar_avance(porcentaje, esperado):
     return "Reforzar"
 
 
+
+def obtener_fila_operador_actual(usuario):
+    """
+    Devuelve SIEMPRE la fila más reciente del operador desde
+    st.session_state.resultado_operadores.
+
+    Así Ranking, tarjetas, vista previa y Telegram usan exactamente
+    la misma fuente y no pueden enviar cifras de una versión anterior.
+    """
+    resultado_actual = st.session_state.get(
+        "resultado_operadores"
+    )
+
+    if (
+        resultado_actual is None
+        or resultado_actual.empty
+    ):
+        return None
+
+    coincidencia = resultado_actual[
+        resultado_actual["Usuario"]
+        .astype(str)
+        == str(usuario)
+    ]
+
+    if coincidencia.empty:
+        return None
+
+    return coincidencia.iloc[0].copy()
+
+
+def generar_mensaje_operador_actual(
+    usuario,
+    jornadas_info,
+):
+    fila_actual = obtener_fila_operador_actual(
+        usuario
+    )
+
+    if fila_actual is None:
+        return None
+
+    return generar_mensaje_diario(
+        fila_actual,
+        jornadas_info,
+    )
+
+
 def generar_mensaje_diario(fila, jornadas_info):
     usuario = fila["Usuario"]
     datos = OPERADORES.get(usuario, {})
@@ -4762,6 +4810,136 @@ st.markdown(
             min-height:30px !important;
             font-size:10px !important;
         }
+
+        /* ===== V74 · TARJETAS 3 COLUMNAS / MÁS LEGIBLES ===== */
+
+        .op-head-v74{
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            align-items:flex-start;
+            margin-bottom:6px;
+        }
+
+        .op-name-v74{
+            font-size:16px;
+            line-height:1.15;
+            font-weight:850;
+            color:#101828;
+        }
+
+        .op-contact-v74{
+            margin-top:3px;
+            font-size:10px;
+            color:#667085;
+        }
+
+        .status-v74{
+            display:inline-flex;
+            align-items:center;
+            padding:4px 8px;
+            border-radius:999px;
+            font-size:10px;
+            font-weight:850;
+            white-space:nowrap;
+        }
+
+        .v74-red{background:#fff1f3;color:#c01048;}
+        .v74-orange{background:#fff6ed;color:#b54708;}
+        .v74-green{background:#ecfdf3;color:#067647;}
+        .v74-gray{background:#f2f4f7;color:#475467;}
+
+        .schedule-v74{
+            background:#f8fafc;
+            border:1px solid #e7ebf0;
+            border-radius:9px;
+            padding:6px 8px;
+            font-size:10px;
+            color:#667085;
+            margin-bottom:7px;
+        }
+
+        .kicker-v74{
+            color:#98a2b3;
+            font-size:9px;
+            font-weight:850;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            margin:2px 0 5px 0;
+        }
+
+        .mini-progress-v74{
+            height:6px;
+            border-radius:999px;
+            background:#edf0f4;
+            overflow:hidden;
+            margin-top:5px;
+        }
+
+        .mini-fill-v74{
+            height:100%;
+            border-radius:999px;
+        }
+
+        .mini-red-v74{background:#e5484d;}
+        .mini-orange-v74{background:#f59e0b;}
+        .mini-green-v74{background:#22a447;}
+
+        .action-v74{
+            border-radius:9px;
+            padding:7px 9px;
+            margin:7px 0 6px 0;
+            font-size:10px;
+            font-weight:800;
+        }
+
+        .action-red-v74{background:#fff1f3;color:#c01048;}
+        .action-orange-v74{background:#fff6ed;color:#b54708;}
+        .action-green-v74{background:#ecfdf3;color:#067647;}
+        .action-gray-v74{background:#f2f4f7;color:#475467;}
+
+        .monthly-v74{
+            border-top:1px solid #eef1f4;
+            margin-top:7px;
+            padding-top:6px;
+            display:flex;
+            justify-content:space-between;
+            gap:8px;
+            font-size:10px;
+            color:#667085;
+        }
+
+        .monthly-v74 strong{
+            color:#344054;
+        }
+
+        /* Métricas más cómodas que V73 */
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetric"]{
+            padding:5px 6px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricValue"]{
+            font-size:21px !important;
+            line-height:1.05 !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricLabel"] p{
+            font-size:10px !important;
+            font-weight:700 !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricDelta"]{
+            font-size:10px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCaptionContainer"] p{
+            font-size:9px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] button{
+            min-height:32px !important;
+            font-size:10px !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -5052,21 +5230,11 @@ if menu == "🏠 Resumen":
         # -------------------------------------------------
 
         st.markdown("### Ranking de operadores")
+        st.caption(
+            "El orden y el estado corresponden al indicador seleccionado."
+        )
 
         ranking = resultado.copy()
-
-        ranking["Puntaje"] = (
-            ranking["% Gestiones"]
-            + ranking["% Compromisos"]
-            + ranking["% Recuperación"]
-        ) / 3
-
-        ranking["Estado"] = ranking["Puntaje"].apply(
-            lambda x: clasificar_avance(
-                float(x),
-                esperado,
-            )
-        )
 
         c1, c2 = st.columns([3, 1])
 
@@ -5077,26 +5245,31 @@ if menu == "🏠 Resumen":
                     "Recuperación",
                     "Gestiones",
                     "Compromisos",
-                    "Cumplimiento general",
                 ],
-                key="ranking_simple_v15",
+                key="ranking_simple_v76",
             )
 
         with c2:
             menor_primero = st.checkbox(
                 "Menor primero",
                 value=False,
-                key="ranking_menor_v15",
+                key="ranking_menor_v76",
             )
 
         mapa_criterio = {
             "Recuperación": "% Recuperación",
             "Gestiones": "% Gestiones",
             "Compromisos": "% Compromisos",
-            "Cumplimiento general": "Puntaje",
         }
 
         columna_orden = mapa_criterio[criterio]
+
+        ranking["Estado"] = ranking[columna_orden].apply(
+            lambda x: clasificar_avance(
+                float(x),
+                esperado,
+            )
+        )
 
         ranking = ranking.sort_values(
             columna_orden,
@@ -5131,9 +5304,6 @@ if menu == "🏠 Resumen":
                     ),
                     axis=1,
                 ),
-                "Cumplimiento": ranking[
-                    "Puntaje"
-                ].apply(formato_porcentaje),
                 "Estado": ranking["Estado"],
             }
         )
@@ -5143,6 +5313,26 @@ if menu == "🏠 Resumen":
             use_container_width=True,
             hide_index=True,
         )
+
+        if not ranking.empty:
+            lider = ranking.iloc[0]
+            seguimiento = ranking.iloc[-1]
+
+            r1, r2 = st.columns(2)
+
+            with r1:
+                st.success(
+                    f"🏆 Líder en {criterio.lower()}: "
+                    f"{lider['Operador']} · "
+                    f"{formato_porcentaje(lider[columna_orden])}"
+                )
+
+            with r2:
+                st.warning(
+                    f"🎯 Mayor seguimiento en {criterio.lower()}: "
+                    f"{seguimiento['Operador']} · "
+                    f"{formato_porcentaje(seguimiento[columna_orden])}"
+                )
 
         st.write("")
 
@@ -5948,6 +6138,11 @@ elif menu == "✉️ Mensajes diarios":
                 "el avance del día a la hora de corte del archivo."
             )
 
+        st.caption(
+            "📌 Ranking, tarjetas, vista previa y Telegram usan la misma "
+            "base procesada actualmente en GEN Control."
+        )
+
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
@@ -6035,10 +6230,16 @@ elif menu == "✉️ Mensajes diarios":
                     if not chat_id_envio:
                         continue
 
-                    calculo_envio = generar_mensaje_diario(
-                        fila_envio,
+                    calculo_envio = generar_mensaje_operador_actual(
+                        usuario_envio,
                         jornadas_info,
                     )
+
+                    if calculo_envio is None:
+                        errores_top.append(
+                            f"{fila_envio['Operador']}: sin datos actuales."
+                        )
+                        continue
 
                     ok_envio, detalle_envio = enviar_mensaje_telegram(
                         chat_id_envio,
@@ -6229,6 +6430,13 @@ elif menu == "✉️ Mensajes diarios":
             ):
                 continue
 
+            fila_actual_pre = obtener_fila_operador_actual(
+                usuario_pre
+            )
+
+            if fila_actual_pre is not None:
+                fila_pre = fila_actual_pre
+
             calculo_pre = generar_mensaje_diario(
                 fila_pre,
                 jornadas_info,
@@ -6289,19 +6497,19 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         # -------------------------------------------------
-        # TARJETAS DE OPERADORES — V73
-        # 4 por fila, con mejor jerarquía visual
+        # TARJETAS DE OPERADORES — V74
+        # 3 por fila para recuperar legibilidad
         # -------------------------------------------------
         for bloque_inicio in range(
             0,
             len(filas_preparadas),
-            4,
+            3,
         ):
-            cols = st.columns(4)
+            cols = st.columns(3)
 
             for pos, item in enumerate(
                 filas_preparadas[
-                    bloque_inicio:bloque_inicio + 4
+                    bloque_inicio:bloque_inicio + 3
                 ]
             ):
                 fila, calculo, _, _ = item
@@ -6355,6 +6563,7 @@ elif menu == "✉️ Mensajes diarios":
                 dc_val = avance.get(
                     "delta_compromisos"
                 )
+
                 dc = (
                     int(dc_val)
                     if dc_val is not None
@@ -6368,40 +6577,40 @@ elif menu == "✉️ Mensajes diarios":
 
                 if not avance.get("disponible"):
                     estado_txt = "Sin datos"
-                    estado_cls = "status-gray-v73"
-                    focus_cls = "focus-orange-v73"
-                    focus_txt = "Carga CallCenter para ver avance"
+                    status_cls = "v74-gray"
+                    action_cls = "action-gray-v74"
+                    action_txt = "Carga CallCenter para ver avance"
                 elif estado_jornada == "Jornada aún no iniciada":
                     estado_txt = "Aún no inicia"
-                    estado_cls = "status-gray-v73"
-                    focus_cls = "focus-orange-v73"
-                    focus_txt = "Jornada todavía no iniciada"
+                    status_cls = "v74-gray"
+                    action_cls = "action-gray-v74"
+                    action_txt = "Jornada todavía no iniciada"
                 elif min(dg, dc) <= -10:
                     estado_txt = "Crítico"
-                    estado_cls = "status-red-v73"
-                    focus_cls = "focus-red-v73"
+                    status_cls = "v74-red"
+                    action_cls = "action-red-v74"
                     if dg <= dc:
-                        focus_txt = f"Prioridad: recuperar {abs(dg)} gestiones"
+                        action_txt = f"Prioridad: recuperar {abs(dg)} gestiones"
                     else:
-                        focus_txt = f"Prioridad: recuperar {abs(dc)} compromisos"
+                        action_txt = f"Prioridad: recuperar {abs(dc)} compromisos"
                 elif min(dg, dc) < 0:
                     estado_txt = "Atención"
-                    estado_cls = "status-orange-v73"
-                    focus_cls = "focus-orange-v73"
+                    status_cls = "v74-orange"
+                    action_cls = "action-orange-v74"
                     if dg < 0:
-                        focus_txt = f"Atención: {abs(dg)} gestiones bajo ritmo"
+                        action_txt = f"Atención: {abs(dg)} gestiones bajo ritmo"
                     else:
-                        focus_txt = f"Atención: {abs(dc)} compromisos bajo ritmo"
+                        action_txt = f"Atención: {abs(dc)} compromisos bajo ritmo"
                 elif dg >= 5 and dc >= 2:
                     estado_txt = "Adelantado"
-                    estado_cls = "status-green-v73"
-                    focus_cls = "focus-green-v73"
-                    focus_txt = "Buen ritmo, mantener"
+                    status_cls = "v74-green"
+                    action_cls = "action-green-v74"
+                    action_txt = "Buen ritmo, mantener"
                 else:
                     estado_txt = "En ritmo"
-                    estado_cls = "status-green-v73"
-                    focus_cls = "focus-green-v73"
-                    focus_txt = "Dentro del ritmo esperado"
+                    status_cls = "v74-green"
+                    action_cls = "action-green-v74"
+                    action_txt = "Dentro del ritmo esperado"
 
                 horario = avance.get(
                     "horario"
@@ -6423,6 +6632,7 @@ elif menu == "✉️ Mensajes diarios":
                         ),
                         1,
                     )
+
                     esperado_c = max(
                         int(
                             avance.get(
@@ -6459,23 +6669,23 @@ elif menu == "✉️ Mensajes diarios":
                         100,
                     )
 
-                    clase_g_barra = (
-                        "fill-green-v73"
+                    barra_g = (
+                        "mini-green-v74"
                         if dg >= 0
                         else (
-                            "fill-orange-v73"
+                            "mini-orange-v74"
                             if dg > -10
-                            else "fill-red-v73"
+                            else "mini-red-v74"
                         )
                     )
 
-                    clase_c_barra = (
-                        "fill-green-v73"
+                    barra_c = (
+                        "mini-green-v74"
                         if dc >= 0
                         else (
-                            "fill-orange-v73"
+                            "mini-orange-v74"
                             if dc > -10
-                            else "fill-red-v73"
+                            else "mini-red-v74"
                         )
                     )
 
@@ -6485,17 +6695,17 @@ elif menu == "✉️ Mensajes diarios":
                     ):
                         st.markdown(
                             f"""
-                            <div class="op-head-wrap-v73">
+                            <div class="op-head-v74">
                                 <div>
-                                    <div class="op-title-v73">
+                                    <div class="op-name-v74">
                                         {fila['Operador']}
                                     </div>
-                                    <div class="op-sub-v73">
+                                    <div class="op-contact-v74">
                                         ✉ {correo_actual or 'Sin correo'} ·
                                         ✈ {tg_txt}
                                     </div>
                                 </div>
-                                <span class="status-pill-v73 {estado_cls}">
+                                <span class="status-v74 {status_cls}">
                                     {estado_txt}
                                 </span>
                             </div>
@@ -6508,16 +6718,17 @@ elif menu == "✉️ Mensajes diarios":
                         ):
                             st.markdown(
                                 f"""
-                                <div class="schedule-row-v73">
+                                <div class="schedule-v74">
                                     🕒 {horario['entrada']}–{horario['salida']}
                                     · ☕ {horario['break_inicio']}–{horario['break_fin']}
+                                    · 📍 {estado_jornada}
                                 </div>
                                 """,
                                 unsafe_allow_html=True,
                             )
 
                         st.markdown(
-                            f'<div class="today-kicker-v73">HOY · corte {avance.get("hora_corte","--:--")}</div>',
+                            f'<div class="kicker-v74">HOY · corte {avance.get("hora_corte","--:--")}</div>',
                             unsafe_allow_html=True,
                         )
 
@@ -6535,8 +6746,8 @@ elif menu == "✉️ Mensajes diarios":
 
                                 st.markdown(
                                     f"""
-                                    <div class="progress-mini-v73">
-                                        <div class="progress-mini-fill-v73 {clase_g_barra}"
+                                    <div class="mini-progress-v74">
+                                        <div class="mini-fill-v74 {barra_g}"
                                              style="width:{pct_g_hoy}%;">
                                         </div>
                                     </div>
@@ -6561,8 +6772,8 @@ elif menu == "✉️ Mensajes diarios":
 
                                 st.markdown(
                                     f"""
-                                    <div class="progress-mini-v73">
-                                        <div class="progress-mini-fill-v73 {clase_c_barra}"
+                                    <div class="mini-progress-v74">
+                                        <div class="mini-fill-v74 {barra_c}"
                                              style="width:{pct_c_hoy}%;">
                                         </div>
                                     </div>
@@ -6581,13 +6792,13 @@ elif menu == "✉️ Mensajes diarios":
                                 )
 
                         st.markdown(
-                            f'<div class="focus-note-v73 {focus_cls}">{focus_txt}</div>',
+                            f'<div class="action-v74 {action_cls}">{action_txt}</div>',
                             unsafe_allow_html=True,
                         )
 
                         st.markdown(
                             f"""
-                            <div class="month-summary-v73">
+                            <div class="monthly-v74">
                                 <span>Mes</span>
                                 <span>
                                     G <strong>{formato_porcentaje(pct_g_mes)}</strong>
@@ -6606,32 +6817,42 @@ elif menu == "✉️ Mensajes diarios":
                                 if st.button(
                                     "✈️ Enviar",
                                     use_container_width=True,
-                                    key=f"telegram_v73_{usuario}",
+                                    key=f"telegram_v74_{usuario}",
                                 ):
-                                    ok_tg, detalle_tg = enviar_mensaje_telegram(
-                                        telegram_chat_id,
-                                        calculo["mensaje"],
+                                    calculo_actual = generar_mensaje_operador_actual(
+                                        usuario,
+                                        jornadas_info,
                                     )
 
-                                    if ok_tg:
-                                        st.success(
-                                            "Enviado."
-                                        )
-                                        enviar_copia_coordinador(
-                                            fila["Operador"],
-                                            calculo["mensaje"],
-                                            detalle_tg,
+                                    if calculo_actual is None:
+                                        st.error(
+                                            "No se encontraron datos actuales del operador."
                                         )
                                     else:
-                                        st.error(
-                                            f"No se pudo enviar: {detalle_tg}"
+                                        ok_tg, detalle_tg = enviar_mensaje_telegram(
+                                            telegram_chat_id,
+                                            calculo_actual["mensaje"],
                                         )
+
+                                        if ok_tg:
+                                            st.success(
+                                                "Enviado con datos actuales."
+                                            )
+                                            enviar_copia_coordinador(
+                                                fila["Operador"],
+                                                calculo_actual["mensaje"],
+                                                detalle_tg,
+                                            )
+                                        else:
+                                            st.error(
+                                                f"No se pudo enviar: {detalle_tg}"
+                                            )
                             else:
                                 st.button(
                                     "✈️ Pendiente",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_v73_{usuario}",
+                                    key=f"sin_telegram_v74_{usuario}",
                                 )
 
                         with a2:
@@ -6639,11 +6860,22 @@ elif menu == "✉️ Mensajes diarios":
                                 "👁️ Ver mensaje",
                                 use_container_width=True,
                             ):
+                                calculo_preview = generar_mensaje_operador_actual(
+                                    usuario,
+                                    jornadas_info,
+                                )
+
+                                mensaje_preview = (
+                                    calculo_preview["mensaje"]
+                                    if calculo_preview is not None
+                                    else calculo["mensaje"]
+                                )
+
                                 st.text_area(
                                     "Mensaje",
-                                    value=calculo["mensaje"],
-                                    height=270,
-                                    key=f"msg_v73_{usuario}",
+                                    value=mensaje_preview,
+                                    height=280,
+                                    key=f"msg_v75_{usuario}",
                                     label_visibility="collapsed",
                                 )
 
