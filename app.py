@@ -1918,8 +1918,12 @@ def generar_imagen_recuperacion_telegram(
     meta_individual,
 ):
     """
-    Imagen horizontal optimizada para Telegram.
-    Prioriza nombres grandes y lectura rápida.
+    Genera 2 imágenes verticales para Telegram, con 4 operadores por imagen.
+
+    Motivo:
+    Telegram reduce mucho las imágenes horizontales al mostrarlas en un celular.
+    Dividir el ranking en 2 imágenes permite que nombres, montos y porcentajes
+    se vean realmente grandes sin tener que abrir la foto.
     """
     import io
 
@@ -1929,270 +1933,303 @@ def generar_imagen_recuperacion_telegram(
         kind="stable",
     ).reset_index(drop=True)
 
-    total_rec = float(
-        tabla["Recuperación acumulada"].sum()
-    )
-    meta_equipo = float(meta_individual) * len(tabla)
-    pct_equipo = (
-        total_rec / meta_equipo * 100
-        if meta_equipo
-        else 0
-    )
-    brecha = max(
-        meta_equipo - total_rec,
-        0,
-    )
-
-    # Formato horizontal 16:9 aproximado.
-    W = 1000
-    H = 650
-    margin = 18
-
-    navy = (7, 29, 52)
-    navy2 = (18, 55, 89)
-    green = (67, 166, 68)
-    green_dark = (37, 126, 48)
-    blue = (54, 121, 220)
-    red = (224, 69, 69)
-    white = (255, 255, 255)
-    bg = (243, 247, 250)
-    dark = (18, 29, 42)
-    gray = (103, 114, 127)
-    border = (214, 222, 229)
-    bar_bg = (220, 226, 232)
-    gold = (238, 181, 38)
-    silver = (171, 180, 190)
-    bronze = (192, 106, 49)
-
-    img = Image.new("RGB", (W, H), bg)
-    d = ImageDraw.Draw(img)
-
-    f_title = _fuente_reporte(46, True)
-    f_sub = _fuente_reporte(22, True)
-    f_kpi_lab = _fuente_reporte(18, True)
-    f_kpi_val = _fuente_reporte(28, True)
-    f_section = _fuente_reporte(24, True)
-    f_name = _fuente_reporte(42, True)
-    f_name_long = _fuente_reporte(34, True)
-    f_amount = _fuente_reporte(27, True)
-    f_pct = _fuente_reporte(30, True)
-    f_pos = _fuente_reporte(23, True)
-    f_footer = _fuente_reporte(18, True)
-
-    # -----------------------------------------------------
-    # HEADER
-    # -----------------------------------------------------
-    d.rounded_rectangle(
-        (margin, margin, W - margin, 112),
-        radius=24,
-        fill=navy,
-    )
-
-    d.text(
-        (34, 32),
-        "AVANCE DE RECUPERACIÓN",
-        font=f_title,
-        fill=white,
-    )
-
-    d.text(
-        (34, 82),
-        fecha_local_actual().strftime("%d/%m/%Y"),
-        font=f_sub,
-        fill=green,
-    )
-
-    # -----------------------------------------------------
-    # KPI
-    # -----------------------------------------------------
-    kpi_y1 = 128
-    kpi_y2 = 222
-    gap = 10
-    card_w = (W - 2 * margin - 3 * gap) // 4
-
-    cards = [
-        ("RECUPERADO", formato_usd(total_rec), green),
-        ("META EQUIPO", formato_usd(meta_equipo), blue),
-        ("BRECHA", formato_usd(brecha), red),
-        ("CUMPLIMIENTO", formato_porcentaje(pct_equipo), green),
+    grupos = [
+        tabla.iloc[:4].copy(),
+        tabla.iloc[4:8].copy(),
     ]
 
-    for i, (lab, val, color) in enumerate(cards):
-        x1 = margin + i * (card_w + gap)
-        x2 = x1 + card_w
+    imagenes = []
 
+    for pagina, grupo in enumerate(grupos, start=1):
+        if grupo.empty:
+            continue
+
+        # 4:5 vertical: ideal para visualizar dentro de un chat móvil.
+        W = 1080
+        H = 1350
+        margin = 42
+
+        navy = (7, 29, 52)
+        navy2 = (18, 55, 89)
+        green = (67, 166, 68)
+        green_dark = (37, 126, 48)
+        white = (255, 255, 255)
+        bg = (243, 247, 250)
+        dark = (18, 29, 42)
+        gray = (103, 114, 127)
+        border = (214, 222, 229)
+        bar_bg = (220, 226, 232)
+        gold = (238, 181, 38)
+        silver = (171, 180, 190)
+        bronze = (192, 106, 49)
+
+        img = Image.new("RGB", (W, H), bg)
+        d = ImageDraw.Draw(img)
+
+        f_title = _fuente_reporte(58, True)
+        f_date = _fuente_reporte(29, True)
+        f_page = _fuente_reporte(24, True)
+        f_name = _fuente_reporte(52, True)
+        f_name_long = _fuente_reporte(44, True)
+        f_amount = _fuente_reporte(36, True)
+        f_pct = _fuente_reporte(44, True)
+        f_pos = _fuente_reporte(32, True)
+        f_label = _fuente_reporte(22, False)
+        f_footer = _fuente_reporte(26, True)
+
+        def dividir_nombre(nombre, fuente, ancho_max):
+            palabras = str(nombre).split()
+            if not palabras:
+                return [""]
+
+            linea1 = ""
+            linea2 = ""
+
+            for palabra in palabras:
+                prueba = palabra if not linea1 else f"{linea1} {palabra}"
+                ancho = d.textbbox((0, 0), prueba, font=fuente)[2]
+
+                if ancho <= ancho_max and not linea2:
+                    linea1 = prueba
+                else:
+                    linea2 = palabra if not linea2 else f"{linea2} {palabra}"
+
+            return [linea1] if not linea2 else [linea1, linea2]
+
+        # Header
         d.rounded_rectangle(
-            (x1, kpi_y1, x2, kpi_y2),
-            radius=18,
-            fill=white,
-            outline=border,
-            width=2,
+            (margin, margin, W - margin, 190),
+            radius=28,
+            fill=navy,
         )
 
         d.text(
-            (x1 + 12, kpi_y1 + 12),
-            lab,
-            font=f_kpi_lab,
-            fill=color,
+            (margin + 34, 72),
+            "RANKING DE RECUPERACIÓN",
+            font=f_title,
+            fill=white,
         )
 
         d.text(
-            (x1 + 12, kpi_y1 + 45),
-            val,
-            font=f_kpi_val,
-            fill=dark,
+            (margin + 34, 142),
+            fecha_local_actual().strftime("%d/%m/%Y"),
+            font=f_date,
+            fill=green,
         )
 
-    # -----------------------------------------------------
-    # RANKING
-    # 2 columnas x 4 operadores
-    # -----------------------------------------------------
-    section_y = 240
-
-    d.rounded_rectangle(
-        (margin, section_y, W - margin, section_y + 48),
-        radius=15,
-        fill=navy2,
-    )
-
-    d.text(
-        (34, section_y + 11),
-        "RANKING DE RECUPERACIÓN POR OPERADOR",
-        font=f_section,
-        fill=white,
-    )
-
-    cards_y = section_y + 60
-    col_gap = 10
-    col_w = (W - 2 * margin - col_gap) // 2
-    row_gap = 8
-    row_h = 78
-
-    for i, fila in tabla.iterrows():
-        col = i % 2
-        row = i // 2
-
-        x1 = margin + col * (col_w + col_gap)
-        y1 = cards_y + row * (row_h + row_gap)
-        x2 = x1 + col_w
-        y2 = y1 + row_h
-
-        d.rounded_rectangle(
-            (x1, y1, x2, y2),
-            radius=18,
-            fill=white,
-            outline=border,
-            width=2,
-        )
-
-        pos_color = (
-            gold if i == 0 else
-            silver if i == 1 else
-            bronze if i == 2 else navy
-        )
-
-        d.rounded_rectangle(
-            (x1 + 9, y1 + 12, x1 + 51, y1 + 54),
-            radius=12,
-            fill=pos_color,
-        )
-
-        pos = str(i + 1)
-        pb = d.textbbox((0, 0), pos, font=f_pos)
+        pagina_txt = f"Parte {pagina} de 2"
+        pb = d.textbbox((0, 0), pagina_txt, font=f_page)
         d.text(
             (
-                x1 + 30 - (pb[2] - pb[0]) / 2,
-                y1 + 20,
+                W - margin - 34 - (pb[2] - pb[0]),
+                148,
             ),
-            pos,
-            font=f_pos,
+            pagina_txt,
+            font=f_page,
             fill=white,
         )
 
-        nombre = str(fila["Operador"])
-        fuente_nombre = (
-            f_name if len(nombre) <= 28 else f_name_long
-        )
+        # Cards
+        y = 225
+        card_h = 235
+        gap = 22
 
-        d.text(
-            (x1 + 60, y1 + 5),
-            nombre,
-            font=fuente_nombre,
-            fill=dark,
-        )
+        for idx_local, (_, fila) in enumerate(grupo.iterrows()):
+            idx_global = int(fila.name)
+            card_y1 = y + idx_local * (card_h + gap)
+            card_y2 = card_y1 + card_h
 
-        recuperacion = float(
-            fila["Recuperación acumulada"]
-        )
-        porcentaje = float(
-            fila["% Recuperación"]
-        )
-
-        d.text(
-            (x1 + 60, y1 + 43),
-            formato_usd(recuperacion),
-            font=f_amount,
-            fill=green_dark,
-        )
-
-        pct_txt = formato_porcentaje(porcentaje)
-        pct_box = d.textbbox((0, 0), pct_txt, font=f_pct)
-
-        d.text(
-            (
-                x2 - 22 - (pct_box[2] - pct_box[0]),
-                y1 + 39,
-            ),
-            pct_txt,
-            font=f_pct,
-            fill=dark,
-        )
-
-        bar_x1 = x1 + 60
-        bar_x2 = x2 - 12
-        bar_y = y1 + 67
-
-        d.rounded_rectangle(
-            (bar_x1, bar_y, bar_x2, bar_y + 8),
-            radius=4,
-            fill=bar_bg,
-        )
-
-        fill_x = bar_x1 + int(
-            (bar_x2 - bar_x1)
-            * min(max(porcentaje / 100, 0), 1)
-        )
-
-        if fill_x > bar_x1:
             d.rounded_rectangle(
-                (bar_x1, bar_y, fill_x, bar_y + 8),
-                radius=4,
-                fill=green,
+                (
+                    margin,
+                    card_y1,
+                    W - margin,
+                    card_y2,
+                ),
+                radius=26,
+                fill=white,
+                outline=border,
+                width=3,
             )
 
-    # -----------------------------------------------------
-    # FOOTER
-    # -----------------------------------------------------
-    footer_y = H - 54
+            pos_color = (
+                gold if idx_global == 0
+                else silver if idx_global == 1
+                else bronze if idx_global == 2
+                else navy
+            )
 
-    d.rounded_rectangle(
-        (margin, footer_y, W - margin, H - margin),
-        radius=18,
-        fill=navy,
-    )
+            badge_x1 = margin + 24
+            badge_y1 = card_y1 + 35
+            badge_x2 = badge_x1 + 78
+            badge_y2 = badge_y1 + 78
 
-    d.text(
-        (34, footer_y + 10),
-        "¡Cada resultado suma! Vamos por la meta. 💪",
-        font=f_footer,
-        fill=white,
-    )
+            d.rounded_rectangle(
+                (
+                    badge_x1,
+                    badge_y1,
+                    badge_x2,
+                    badge_y2,
+                ),
+                radius=18,
+                fill=pos_color,
+            )
 
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG", optimize=True)
-    buffer.seek(0)
+            pos_txt = str(idx_global + 1)
+            pos_box = d.textbbox((0, 0), pos_txt, font=f_pos)
+            d.text(
+                (
+                    (badge_x1 + badge_x2) / 2
+                    - (pos_box[2] - pos_box[0]) / 2,
+                    badge_y1 + 20,
+                ),
+                pos_txt,
+                font=f_pos,
+                fill=white,
+            )
 
-    return buffer
+            nombre = str(fila["Operador"]).strip()
+            rec = float(fila["Recuperación acumulada"])
+            pct = float(fila["% Recuperación"])
+
+            name_x = badge_x2 + 28
+            name_max_w = W - margin - name_x - 30
+
+            fuente_nombre = f_name
+            lineas = dividir_nombre(
+                nombre,
+                fuente_nombre,
+                name_max_w,
+            )
+
+            if any(
+                d.textbbox((0, 0), ln, font=fuente_nombre)[2] > name_max_w
+                for ln in lineas
+            ):
+                fuente_nombre = f_name_long
+                lineas = dividir_nombre(
+                    nombre,
+                    fuente_nombre,
+                    name_max_w,
+                )
+
+            if len(lineas) == 1:
+                d.text(
+                    (name_x, card_y1 + 28),
+                    lineas[0],
+                    font=fuente_nombre,
+                    fill=dark,
+                )
+                info_y = card_y1 + 112
+            else:
+                d.text(
+                    (name_x, card_y1 + 18),
+                    lineas[0],
+                    font=fuente_nombre,
+                    fill=dark,
+                )
+                d.text(
+                    (name_x, card_y1 + 72),
+                    lineas[1],
+                    font=fuente_nombre,
+                    fill=dark,
+                )
+                info_y = card_y1 + 134
+
+            d.text(
+                (name_x, info_y),
+                "Recuperado",
+                font=f_label,
+                fill=gray,
+            )
+
+            d.text(
+                (name_x, info_y + 28),
+                formato_usd(rec),
+                font=f_amount,
+                fill=green_dark,
+            )
+
+            pct_txt = formato_porcentaje(pct)
+            pct_box = d.textbbox((0, 0), pct_txt, font=f_pct)
+
+            d.text(
+                (
+                    W - margin - 30 - (pct_box[2] - pct_box[0]),
+                    info_y + 20,
+                ),
+                pct_txt,
+                font=f_pct,
+                fill=dark,
+            )
+
+            # Barra gruesa y visible.
+            bar_x1 = name_x
+            bar_x2 = W - margin - 30
+            bar_y = card_y2 - 30
+
+            d.rounded_rectangle(
+                (
+                    bar_x1,
+                    bar_y,
+                    bar_x2,
+                    bar_y + 18,
+                ),
+                radius=9,
+                fill=bar_bg,
+            )
+
+            fill_x = bar_x1 + int(
+                (bar_x2 - bar_x1)
+                * min(max(pct / 100, 0), 1)
+            )
+
+            if fill_x > bar_x1:
+                d.rounded_rectangle(
+                    (
+                        bar_x1,
+                        bar_y,
+                        fill_x,
+                        bar_y + 18,
+                    ),
+                    radius=9,
+                    fill=green,
+                )
+
+        # Footer
+        footer_y = H - 105
+
+        d.rounded_rectangle(
+            (
+                margin,
+                footer_y,
+                W - margin,
+                H - margin,
+            ),
+            radius=22,
+            fill=navy,
+        )
+
+        d.text(
+            (
+                margin + 30,
+                footer_y + 28,
+            ),
+            "¡Cada resultado suma! Vamos por la meta. 💪",
+            font=f_footer,
+            fill=white,
+        )
+
+        buffer = io.BytesIO()
+        img.save(
+            buffer,
+            format="PNG",
+            optimize=True,
+        )
+        buffer.seek(0)
+        imagenes.append(buffer)
+
+    return imagenes
 
 
 def enviar_foto_telegram(chat_id, imagen_bytes, caption=""):
@@ -3413,7 +3450,7 @@ elif menu == "✉️ Mensajes diarios":
 
         with tg_col1:
             if st.button(
-                "📤 Enviar texto + tabla al grupo",
+                "📤 Enviar texto + ranking al grupo",
                 type="primary",
                 use_container_width=True,
                 disabled=(
@@ -3436,29 +3473,52 @@ elif menu == "✉️ Mensajes diarios":
                         f"No se pudo enviar el texto al grupo: {detalle_texto}"
                     )
                 else:
-                    # 2. Generar y enviar SOLO la tabla como imagen.
-                    imagen_grupo = (
+                    # 2. Generar ranking en DOS imágenes legibles para móvil.
+                    imagenes_grupo = (
                         generar_imagen_recuperacion_telegram(
                             tabla_general,
                             meta_individual,
                         )
                     )
 
-                    ok_grupo, detalle_grupo = (
-                        enviar_foto_telegram(
-                            telegram_group_chat_id,
-                            imagen_grupo,
-                            "🏆 Ranking actualizado de recuperación",
-                        )
-                    )
+                    errores_imagen = []
+                    enviados_imagen = 0
 
-                    if ok_grupo:
+                    for numero_img, imagen_grupo in enumerate(
+                        imagenes_grupo,
+                        start=1,
+                    ):
+                        ok_grupo, detalle_grupo = (
+                            enviar_foto_telegram(
+                                telegram_group_chat_id,
+                                imagen_grupo,
+                                (
+                                    f"🏆 Ranking de recuperación "
+                                    f"({numero_img}/{len(imagenes_grupo)})"
+                                ),
+                            )
+                        )
+
+                        if ok_grupo:
+                            enviados_imagen += 1
+                        else:
+                            errores_imagen.append(
+                                f"Imagen {numero_img}: {detalle_grupo}"
+                            )
+
+                    if enviados_imagen == len(imagenes_grupo):
                         st.success(
-                            "Texto + tabla en imagen enviados al grupo."
+                            "Texto + ranking en 2 imágenes enviados al grupo."
+                        )
+                    elif enviados_imagen > 0:
+                        st.warning(
+                            "El texto se envió y solo una parte del ranking llegó. "
+                            + " | ".join(errores_imagen)
                         )
                     else:
                         st.error(
-                            f"El texto se envió, pero la imagen falló: {detalle_grupo}"
+                            "El texto se envió, pero las imágenes fallaron: "
+                            + " | ".join(errores_imagen)
                         )
 
         with tg_col2:
