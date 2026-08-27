@@ -4536,6 +4536,64 @@ st.markdown(
         [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricDelta"] {
             font-size:10px !important;
         }
+
+        /* ===== V72 · GRID 4 COLUMNAS ===== */
+        .op-title-v72{
+            font-size:15px;
+            font-weight:850;
+            color:#101828;
+            line-height:1.15;
+        }
+        .op-meta-v72{
+            font-size:9px;
+            color:#667085;
+            margin-top:3px;
+        }
+        .op-status-v72{
+            display:inline-flex;
+            padding:3px 7px;
+            border-radius:999px;
+            font-size:9px;
+            font-weight:850;
+        }
+        .op-red-v72{background:#fff1f3;color:#c01048;}
+        .op-orange-v72{background:#fff6ed;color:#b54708;}
+        .op-green-v72{background:#ecfdf3;color:#067647;}
+        .op-gray-v72{background:#f2f4f7;color:#475467;}
+        .schedule-v72{
+            font-size:9px;
+            color:#667085;
+            margin:4px 0 6px 0;
+        }
+        .month-line-v72{
+            font-size:9px;
+            color:#667085;
+            margin-top:5px;
+            padding-top:5px;
+            border-top:1px solid #eef1f4;
+        }
+        .month-strong-v72{
+            color:#344054;
+            font-weight:800;
+        }
+
+        /* compactar métricas dentro de tarjetas */
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetric"]{
+            padding:3px 5px !important;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricValue"]{
+            font-size:18px !important;
+            line-height:1.05 !important;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricLabel"] p{
+            font-size:9px !important;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricDelta"]{
+            font-size:9px !important;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCaptionContainer"] p{
+            font-size:9px !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -6063,18 +6121,19 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         # -------------------------------------------------
-        # TARJETAS DE OPERADORES — V71
+        # TARJETAS DE OPERADORES — V72
+        # 4 por fila para aprovechar mejor el espacio
         # -------------------------------------------------
         for bloque_inicio in range(
             0,
             len(filas_preparadas),
-            2,
+            4,
         ):
-            cols = st.columns(2)
+            cols = st.columns(4)
 
             for pos, item in enumerate(
                 filas_preparadas[
-                    bloque_inicio:bloque_inicio + 2
+                    bloque_inicio:bloque_inicio + 4
                 ]
             ):
                 fila, calculo, _, _ = item
@@ -6092,12 +6151,10 @@ elif menu == "✉️ Mensajes diarios":
                     ).strip()
                 )
 
-                telegram_chat_id = (
-                    normalizar_telegram_chat_id(
-                        contacto.get(
-                            "telegram_chat_id",
-                            "",
-                        )
+                telegram_chat_id = normalizar_telegram_chat_id(
+                    contacto.get(
+                        "telegram_chat_id",
+                        "",
                     )
                 )
 
@@ -6106,12 +6163,6 @@ elif menu == "✉️ Mensajes diarios":
                     {},
                 )
 
-                pct_g = float(
-                    fila["% Gestiones"]
-                )
-                pct_c = float(
-                    fila["% Compromisos"]
-                )
                 pct_r = float(
                     fila["% Recuperación"]
                 )
@@ -6130,7 +6181,6 @@ elif menu == "✉️ Mensajes diarios":
                 dc_val = avance.get(
                     "delta_compromisos"
                 )
-
                 dc = (
                     int(dc_val)
                     if dc_val is not None
@@ -6144,32 +6194,26 @@ elif menu == "✉️ Mensajes diarios":
 
                 if not avance.get("disponible"):
                     estado_txt = "Sin datos"
-                    estado_cls = "op-gray-v71"
-
+                    estado_cls = "op-gray-v72"
                 elif estado_jornada == "Jornada aún no iniciada":
                     estado_txt = "Aún no inicia"
-                    estado_cls = "op-gray-v71"
-
+                    estado_cls = "op-gray-v72"
                 elif min(dg, dc) <= -10:
                     estado_txt = "Crítico"
-                    estado_cls = "op-red-v71"
-
+                    estado_cls = "op-red-v72"
                 elif min(dg, dc) < 0:
                     estado_txt = "Atención"
-                    estado_cls = "op-orange-v71"
-
+                    estado_cls = "op-orange-v72"
                 elif dg >= 5 and dc >= 2:
                     estado_txt = "Adelantado"
-                    estado_cls = "op-green-v71"
-
+                    estado_cls = "op-green-v72"
                 else:
                     estado_txt = "En ritmo"
-                    estado_cls = "op-green-v71"
+                    estado_cls = "op-green-v72"
 
-                horario = (
-                    avance.get("horario")
-                    or {}
-                )
+                horario = avance.get(
+                    "horario"
+                ) or {}
 
                 tg_txt = (
                     "Telegram ✓"
@@ -6178,25 +6222,21 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
                 with cols[pos]:
-                    with st.container(border=True):
+                    with st.container(
+                        border=True,
+                    ):
+                        st.markdown(
+                            f'<div class="op-title-v72">{fila["Operador"]}</div>',
+                            unsafe_allow_html=True,
+                        )
 
                         st.markdown(
-                            f"""
-                            <div class="op-head-v71">
-                                <div>
-                                    <div class="op-name-v71">
-                                        {fila['Operador']}
-                                    </div>
-                                    <div class="op-contact-v71">
-                                        ✉ {correo_actual or 'Sin correo'} ·
-                                        ✈ {tg_txt}
-                                    </div>
-                                </div>
-                                <span class="op-state-v71 {estado_cls}">
-                                    {estado_txt}
-                                </span>
-                            </div>
-                            """,
+                            f'<span class="op-status-v72 {estado_cls}">{estado_txt}</span>',
+                            unsafe_allow_html=True,
+                        )
+
+                        st.markdown(
+                            f'<div class="op-meta-v72">✉ {correo_actual or "Sin correo"} · ✈ {tg_txt}</div>',
                             unsafe_allow_html=True,
                         )
 
@@ -6204,26 +6244,15 @@ elif menu == "✉️ Mensajes diarios":
                             "horario_configurado"
                         ):
                             st.markdown(
-                                f"""
-                                <div class="schedule-v71">
-                                    🕒 {horario['entrada']}–{horario['salida']}
-                                    · ☕ {horario['break_inicio']}–{horario['break_fin']}
-                                    · 📍 {estado_jornada}
-                                </div>
-                                """,
+                                f'<div class="schedule-v72">🕒 {horario["entrada"]}–{horario["salida"]} · ☕ {horario["break_inicio"]}–{horario["break_fin"]}</div>',
                                 unsafe_allow_html=True,
                             )
 
                         if avance.get(
                             "disponible"
                         ):
-                            st.markdown(
-                                f"""
-                                <div class="today-label-v71">
-                                    HOY · corte {avance['hora_corte']}
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
+                            st.caption(
+                                f'HOY · corte {avance["hora_corte"]}'
                             )
 
                             h1, h2 = st.columns(2)
@@ -6231,16 +6260,11 @@ elif menu == "✉️ Mensajes diarios":
                             with h1:
                                 st.metric(
                                     "📞 Gestiones",
-                                    (
-                                        f"{formato_entero(avance['gestiones_hoy'])}"
-                                        " / 98"
-                                    ),
+                                    f'{formato_entero(avance["gestiones_hoy"])} / 98',
                                     f"{dg:+d} vs esperado",
                                 )
-
                                 st.caption(
-                                    f"Esperado: {formato_entero(avance['esperado_gestiones'])}"
-                                    f" · Faltan: {formato_entero(avance['faltan_gestiones'])}"
+                                    f'Esperado {formato_entero(avance["esperado_gestiones"])} · Faltan {formato_entero(avance["faltan_gestiones"])}'
                                 )
 
                             with h2:
@@ -6249,104 +6273,41 @@ elif menu == "✉️ Mensajes diarios":
                                 ):
                                     st.metric(
                                         "🤝 Compromisos",
-                                        (
-                                            f"{formato_entero(avance['compromisos_hoy'])}"
-                                            " / 25"
-                                        ),
+                                        f'{formato_entero(avance["compromisos_hoy"])} / 25',
                                         f"{dc:+d} vs esperado",
                                     )
-
                                     st.caption(
-                                        f"Esperado: {formato_entero(avance['esperado_compromisos'])}"
-                                        f" · Faltan: {formato_entero(avance['faltan_compromisos'])}"
+                                        f'Esperado {formato_entero(avance["esperado_compromisos"])} · Faltan {formato_entero(avance["faltan_compromisos"])}'
                                     )
-
                                 else:
                                     st.metric(
                                         "🤝 Compromisos",
-                                        "Sin dato horario",
-                                    )
-                                    st.caption(
-                                        "No disponible en el CallCenter."
+                                        "Sin dato",
                                     )
 
                         st.markdown(
-                            '<div class="month-bar-v71"></div>',
+                            f'<div class="month-line-v72">Mes · Recuperación: <span class="month-strong-v72">{formato_porcentaje(pct_r)}</span></div>',
                             unsafe_allow_html=True,
                         )
 
-                        st.caption("MES · ACUMULADO")
-
-                        m1, m2, m3 = st.columns(3)
-
-                        with m1:
-                            st.markdown(
-                                f"**{formato_entero(fila['Gestiones'])} / 2.400**"
-                            )
-                            st.caption(
-                                f"Gestiones · {formato_porcentaje(pct_g)}"
-                            )
-
-                        with m2:
-                            st.markdown(
-                                f"**{formato_entero(fila['Compromisos'])} / 550**"
-                            )
-                            st.caption(
-                                f"Compromisos · {formato_porcentaje(pct_c)}"
-                            )
-
-                        with m3:
-                            st.markdown(
-                                f"**{formato_usd(fila['Recuperación acumulada']).replace(',00','')}**"
-                            )
-                            st.caption(
-                                f"Recuperación · {formato_porcentaje(pct_r)}"
-                            )
-
-                        asunto = quote(
-                            "Seguimiento diario de metas"
-                        )
-                        cuerpo = quote(
-                            calculo["mensaje"]
-                        )
-
-                        a1, a2, a3 = st.columns(3)
+                        a1, a2 = st.columns(2)
 
                         with a1:
-                            if correo_actual:
-                                st.link_button(
-                                    "✉️ Correo",
-                                    (
-                                        f"mailto:{correo_actual}"
-                                        f"?subject={asunto}"
-                                        f"&body={cuerpo}"
-                                    ),
-                                    use_container_width=True,
-                                )
-                            else:
-                                st.button(
-                                    "✉️ Sin correo",
-                                    disabled=True,
-                                    use_container_width=True,
-                                    key=f"sin_correo_v71_{usuario}",
-                                )
-
-                        with a2:
                             if telegram_chat_id:
                                 if st.button(
-                                    "✈️ Telegram",
+                                    "✈️ Enviar",
                                     use_container_width=True,
-                                    key=f"telegram_v71_{usuario}",
+                                    key=f"telegram_v72_{usuario}",
                                 ):
-                                    ok_tg, detalle_tg = (
-                                        enviar_mensaje_telegram(
-                                            telegram_chat_id,
-                                            calculo["mensaje"],
-                                        )
+                                    ok_tg, detalle_tg = enviar_mensaje_telegram(
+                                        telegram_chat_id,
+                                        calculo["mensaje"],
                                     )
 
                                     if ok_tg:
-                                        st.success("Enviado.")
+                                        st.success(
+                                            "Enviado."
+                                        )
                                         enviar_copia_coordinador(
                                             fila["Operador"],
                                             calculo["mensaje"],
@@ -6361,19 +6322,19 @@ elif menu == "✉️ Mensajes diarios":
                                     "✈️ Pendiente",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_v71_{usuario}",
+                                    key=f"sin_telegram_v72_{usuario}",
                                 )
 
-                        with a3:
+                        with a2:
                             with st.popover(
-                                "👁️ Ver mensaje",
+                                "👁️ Ver",
                                 use_container_width=True,
                             ):
                                 st.text_area(
                                     "Mensaje",
                                     value=calculo["mensaje"],
-                                    height=280,
-                                    key=f"msg_v71_{usuario}",
+                                    height=270,
+                                    key=f"msg_v72_{usuario}",
                                     label_visibility="collapsed",
                                 )
 
