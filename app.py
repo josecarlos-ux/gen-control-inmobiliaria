@@ -5009,6 +5009,146 @@ st.markdown(
             color:#b54708;
             border:1px solid #fed7aa;
         }
+
+        /* ===== V79 · RESUMEN EJECUTIVO ===== */
+
+        .team-state-v79{
+            border-radius:14px;
+            padding:12px 14px;
+            margin:8px 0 12px 0;
+            border:1px solid;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:14px;
+        }
+
+        .team-state-red-v79{
+            background:#fff1f3;
+            border-color:#fecdd3;
+            color:#9f1239;
+        }
+
+        .team-state-orange-v79{
+            background:#fff7ed;
+            border-color:#fed7aa;
+            color:#9a3412;
+        }
+
+        .team-state-green-v79{
+            background:#ecfdf3;
+            border-color:#bbf7d0;
+            color:#166534;
+        }
+
+        .team-state-title-v79{
+            font-size:15px;
+            font-weight:850;
+        }
+
+        .team-state-sub-v79{
+            font-size:10px;
+            margin-top:3px;
+            opacity:.82;
+        }
+
+        .team-focus-v79{
+            font-size:11px;
+            font-weight:800;
+            white-space:nowrap;
+        }
+
+        .kpi-card-v79{
+            border:1px solid #e7ebf0;
+            border-radius:14px;
+            padding:12px 13px;
+            min-height:112px;
+            background:#fff;
+            box-shadow:0 2px 8px rgba(16,24,40,.04);
+        }
+
+        .kpi-card-blue-v79{
+            background:linear-gradient(135deg,#eef7ff,#ffffff);
+            border-color:#cfe6ff;
+        }
+
+        .kpi-card-orange-v79{
+            background:linear-gradient(135deg,#fff7ed,#ffffff);
+            border-color:#fed7aa;
+        }
+
+        .kpi-card-green-v79{
+            background:linear-gradient(135deg,#ecfdf3,#ffffff);
+            border-color:#bbf7d0;
+        }
+
+        .kpi-card-purple-v79{
+            background:linear-gradient(135deg,#f6f3ff,#ffffff);
+            border-color:#ded5ff;
+        }
+
+        .kpi-label-v79{
+            font-size:9px;
+            font-weight:850;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:#667085;
+        }
+
+        .kpi-value-v79{
+            font-size:24px;
+            font-weight:850;
+            color:#101828;
+            margin-top:5px;
+        }
+
+        .kpi-foot-v79{
+            font-size:10px;
+            color:#667085;
+            margin-top:4px;
+        }
+
+        .compare-card-v79{
+            border:1px solid #e7ebf0;
+            border-radius:13px;
+            padding:11px 12px;
+            background:#fff;
+            min-height:118px;
+        }
+
+        .compare-title-v79{
+            font-size:11px;
+            font-weight:850;
+            color:#344054;
+        }
+
+        .compare-value-v79{
+            font-size:21px;
+            font-weight:850;
+            color:#101828;
+            margin-top:4px;
+        }
+
+        .compare-sub-v79{
+            font-size:10px;
+            color:#667085;
+            margin-top:3px;
+        }
+
+        .compare-gap-red-v79{
+            color:#c01048;
+            font-weight:850;
+        }
+
+        .compare-gap-orange-v79{
+            color:#b54708;
+            font-weight:850;
+        }
+
+        .compare-gap-green-v79{
+            color:#067647;
+            font-weight:850;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -5187,109 +5327,173 @@ if menu == "🏠 Resumen":
             * CANTIDAD_OPERADORES
         )
 
-        promedio_general = (
-            promedio_gestiones
-            + promedio_compromisos
-            + promedio_recuperacion
-        ) / 3
+        # Estado del equipo según la MAYOR brecha real.
+        # No se promedian indicadores distintos para evitar ocultar rezagos.
+        brechas_equipo = {
+            "Gestiones": promedio_gestiones - esperado,
+            "Compromisos": promedio_compromisos - esperado,
+            "Recuperación": promedio_recuperacion - esperado,
+        }
 
-        if promedio_general >= esperado + 5:
-            estado_general = "🟢 Equipo adelantado"
-        elif promedio_general >= esperado - 3:
-            estado_general = "🟡 Dentro de lo esperado"
-        elif promedio_general >= esperado - 10:
-            estado_general = "🟠 En seguimiento"
+        indicador_prioritario = min(
+            brechas_equipo,
+            key=brechas_equipo.get,
+        )
+
+        mayor_brecha_equipo = float(
+            brechas_equipo[
+                indicador_prioritario
+            ]
+        )
+
+        if mayor_brecha_equipo >= -3:
+            estado_general = "🟢 Equipo en ritmo"
+            estado_clase_v79 = "team-state-green-v79"
+        elif mayor_brecha_equipo >= -10:
+            estado_general = "🟠 Equipo en seguimiento"
+            estado_clase_v79 = "team-state-orange-v79"
         else:
             estado_general = "🔴 Reforzar ritmo"
+            estado_clase_v79 = "team-state-red-v79"
 
-        st.markdown(f"### {estado_general}")
+        st.markdown(
+            f"""
+            <div class="team-state-v79 {estado_clase_v79}">
+                <div>
+                    <div class="team-state-title-v79">
+                        {estado_general}
+                    </div>
+                    <div class="team-state-sub-v79">
+                        Comparación contra el esperado a la fecha:
+                        {formato_porcentaje(esperado)}
+                    </div>
+                </div>
+                <div class="team-focus-v79">
+                    Prioridad: {indicador_prioritario} ·
+                    {formato_porcentaje(abs(mayor_brecha_equipo))} de brecha
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         # -------------------------------------------------
-        # KPI PRINCIPALES
+        # KPI PRINCIPALES — V79
         # -------------------------------------------------
 
         c1, c2, c3, c4 = st.columns(4)
 
         with c1:
-            st.metric(
-                "Gestiones",
-                formato_entero(total_gestiones),
-                formato_porcentaje(promedio_gestiones),
-            )
-            st.caption(
-                f"Meta equipo: {formato_entero(meta_equipo_gestiones)}"
+            st.markdown(
+                f"""
+                <div class="kpi-card-v79 kpi-card-blue-v79">
+                    <div class="kpi-label-v79">📞 Gestiones</div>
+                    <div class="kpi-value-v79">{formato_entero(total_gestiones)}</div>
+                    <div class="kpi-foot-v79">
+                        {formato_porcentaje(promedio_gestiones)} ·
+                        Meta equipo {formato_entero(meta_equipo_gestiones)}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         with c2:
-            st.metric(
-                "Compromisos",
-                formato_entero(total_compromisos),
-                formato_porcentaje(promedio_compromisos),
-            )
-            st.caption(
-                f"Meta equipo: {formato_entero(meta_equipo_compromisos)}"
+            st.markdown(
+                f"""
+                <div class="kpi-card-v79 kpi-card-orange-v79">
+                    <div class="kpi-label-v79">🤝 Compromisos</div>
+                    <div class="kpi-value-v79">{formato_entero(total_compromisos)}</div>
+                    <div class="kpi-foot-v79">
+                        {formato_porcentaje(promedio_compromisos)} ·
+                        Meta equipo {formato_entero(meta_equipo_compromisos)}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         with c3:
-            st.metric(
-                "Recuperación",
-                formato_bs(total_recuperacion),
-                formato_porcentaje(promedio_recuperacion),
-            )
-            st.caption(
-                f"Meta equipo: {formato_usd(meta_equipo_recuperacion)}"
+            st.markdown(
+                f"""
+                <div class="kpi-card-v79 kpi-card-green-v79">
+                    <div class="kpi-label-v79">💰 Recuperación</div>
+                    <div class="kpi-value-v79">{formato_usd(total_recuperacion)}</div>
+                    <div class="kpi-foot-v79">
+                        {formato_porcentaje(promedio_recuperacion)} ·
+                        Meta equipo {formato_usd(meta_equipo_recuperacion)}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         with c4:
-            st.metric(
-                "Esperado a la fecha",
-                formato_porcentaje(esperado),
-            )
-            st.caption(
-                f"{jornadas_info['disponibles']} jornadas disponibles contando hoy"
+            st.markdown(
+                f"""
+                <div class="kpi-card-v79 kpi-card-purple-v79">
+                    <div class="kpi-label-v79">📈 Esperado a la fecha</div>
+                    <div class="kpi-value-v79">{formato_porcentaje(esperado)}</div>
+                    <div class="kpi-foot-v79">
+                        {jornadas_info['disponibles']} jornadas disponibles contando hoy
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         st.write("")
 
         # -------------------------------------------------
-        # AVANCE VS ESPERADO SIN REPETIR TABLA + GRÁFICO
+        # AVANCE VS ESPERADO — V79
         # -------------------------------------------------
 
         st.markdown("### Avance vs esperado")
 
-        indicadores = [
+        comparativos_v79 = [
             ("Gestiones", promedio_gestiones),
             ("Compromisos", promedio_compromisos),
             ("Recuperación", promedio_recuperacion),
         ]
 
-        for nombre_indicador, valor in indicadores:
-            brecha = valor - esperado
+        cc1, cc2, cc3 = st.columns(3)
 
-            c1, c2, c3 = st.columns([2, 1, 1])
+        for columna_cmp, (nombre_cmp, valor_cmp) in zip(
+            [cc1, cc2, cc3],
+            comparativos_v79,
+        ):
+            brecha_cmp = float(
+                valor_cmp - esperado
+            )
 
-            with c1:
-                st.progress(
-                    min(max(valor / 100, 0), 1),
-                    text=(
-                        f"{nombre_indicador}: "
-                        f"{formato_porcentaje(valor)}"
-                    ),
-                )
+            if brecha_cmp >= -3:
+                clase_gap = "compare-gap-green-v79"
+                estado_gap = "En ritmo"
+            elif brecha_cmp >= -10:
+                clase_gap = "compare-gap-orange-v79"
+                estado_gap = "Seguimiento"
+            else:
+                clase_gap = "compare-gap-red-v79"
+                estado_gap = "Prioridad"
 
-            with c2:
-                st.caption(
-                    f"Esperado: {formato_porcentaje(esperado)}"
-                )
-
-            with c3:
-                texto_brecha = (
-                    f"+{formato_porcentaje(brecha)}"
-                    if brecha >= 0
-                    else formato_porcentaje(brecha)
-                )
-                st.caption(
-                    f"Brecha: {texto_brecha}"
+            with columna_cmp:
+                st.markdown(
+                    f"""
+                    <div class="compare-card-v79">
+                        <div class="compare-title-v79">{nombre_cmp}</div>
+                        <div class="compare-value-v79">
+                            {formato_porcentaje(valor_cmp)}
+                        </div>
+                        <div class="compare-sub-v79">
+                            Esperado: {formato_porcentaje(esperado)}
+                        </div>
+                        <div class="compare-sub-v79 {clase_gap}">
+                            {estado_gap} ·
+                            Brecha {formato_porcentaje(brecha_cmp)}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
 
         st.write("")
