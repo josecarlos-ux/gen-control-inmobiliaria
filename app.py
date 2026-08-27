@@ -4594,6 +4594,174 @@ st.markdown(
         [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCaptionContainer"] p{
             font-size:9px !important;
         }
+
+        /* ===== V73 · VISUAL OPERATIVA MEJORADA ===== */
+
+        .op-card-v73 {
+            border-radius:14px;
+            padding:0;
+        }
+
+        .op-head-wrap-v73 {
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:8px;
+            margin-bottom:5px;
+        }
+
+        .op-title-v73 {
+            font-size:15px;
+            font-weight:850;
+            color:#101828;
+            line-height:1.15;
+        }
+
+        .op-sub-v73 {
+            font-size:9px;
+            color:#667085;
+            margin-top:3px;
+            line-height:1.25;
+        }
+
+        .status-pill-v73 {
+            display:inline-flex;
+            align-items:center;
+            gap:4px;
+            padding:3px 7px;
+            border-radius:999px;
+            font-size:9px;
+            font-weight:850;
+            white-space:nowrap;
+        }
+
+        .status-red-v73 {
+            background:#fff1f3;
+            color:#c01048;
+        }
+
+        .status-orange-v73 {
+            background:#fff6ed;
+            color:#b54708;
+        }
+
+        .status-green-v73 {
+            background:#ecfdf3;
+            color:#067647;
+        }
+
+        .status-gray-v73 {
+            background:#f2f4f7;
+            color:#475467;
+        }
+
+        .schedule-row-v73 {
+            background:#f8fafc;
+            border:1px solid #eef1f4;
+            border-radius:8px;
+            padding:5px 7px;
+            font-size:9px;
+            color:#667085;
+            margin:4px 0 6px 0;
+        }
+
+        .today-kicker-v73 {
+            font-size:8px;
+            color:#98a2b3;
+            text-transform:uppercase;
+            letter-spacing:.06em;
+            font-weight:850;
+            margin:2px 0 4px 0;
+        }
+
+        .progress-mini-v73 {
+            height:5px;
+            background:#eef1f4;
+            border-radius:999px;
+            overflow:hidden;
+            margin-top:5px;
+        }
+
+        .progress-mini-fill-v73 {
+            height:100%;
+            border-radius:999px;
+        }
+
+        .fill-red-v73 {background:#e5484d;}
+        .fill-orange-v73 {background:#f59e0b;}
+        .fill-green-v73 {background:#22a447;}
+
+        .month-summary-v73 {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:6px;
+            margin-top:6px;
+            padding-top:6px;
+            border-top:1px solid #eef1f4;
+            font-size:9px;
+            color:#667085;
+        }
+
+        .month-summary-v73 strong {
+            color:#344054;
+        }
+
+        .focus-note-v73 {
+            border-radius:8px;
+            padding:5px 7px;
+            margin-top:5px;
+            font-size:9px;
+            font-weight:800;
+        }
+
+        .focus-red-v73 {
+            background:#fff1f3;
+            color:#c01048;
+        }
+
+        .focus-orange-v73 {
+            background:#fff6ed;
+            color:#b54708;
+        }
+
+        .focus-green-v73 {
+            background:#ecfdf3;
+            color:#067647;
+        }
+
+        /* tarjetas algo más altas pero mejor balanceadas */
+        [data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius:14px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetric"]{
+            padding:3px 4px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricValue"]{
+            font-size:19px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricLabel"] p{
+            font-size:9px !important;
+            font-weight:700 !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricDelta"]{
+            font-size:9px !important;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCaptionContainer"] p{
+            font-size:8px !important;
+        }
+
+        /* Botones más discretos */
+        [data-testid="stVerticalBlockBorderWrapper"] button,
+        [data-testid="stVerticalBlockBorderWrapper"] a[data-testid="stBaseButton-secondary"]{
+            min-height:30px !important;
+            font-size:10px !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -6121,8 +6289,8 @@ elif menu == "✉️ Mensajes diarios":
             )
 
         # -------------------------------------------------
-        # TARJETAS DE OPERADORES — V72
-        # 4 por fila para aprovechar mejor el espacio
+        # TARJETAS DE OPERADORES — V73
+        # 4 por fila, con mejor jerarquía visual
         # -------------------------------------------------
         for bloque_inicio in range(
             0,
@@ -6163,7 +6331,13 @@ elif menu == "✉️ Mensajes diarios":
                     {},
                 )
 
-                pct_r = float(
+                pct_g_mes = float(
+                    fila["% Gestiones"]
+                )
+                pct_c_mes = float(
+                    fila["% Compromisos"]
+                )
+                pct_r_mes = float(
                     fila["% Recuperación"]
                 )
 
@@ -6194,22 +6368,40 @@ elif menu == "✉️ Mensajes diarios":
 
                 if not avance.get("disponible"):
                     estado_txt = "Sin datos"
-                    estado_cls = "op-gray-v72"
+                    estado_cls = "status-gray-v73"
+                    focus_cls = "focus-orange-v73"
+                    focus_txt = "Carga CallCenter para ver avance"
                 elif estado_jornada == "Jornada aún no iniciada":
                     estado_txt = "Aún no inicia"
-                    estado_cls = "op-gray-v72"
+                    estado_cls = "status-gray-v73"
+                    focus_cls = "focus-orange-v73"
+                    focus_txt = "Jornada todavía no iniciada"
                 elif min(dg, dc) <= -10:
                     estado_txt = "Crítico"
-                    estado_cls = "op-red-v72"
+                    estado_cls = "status-red-v73"
+                    focus_cls = "focus-red-v73"
+                    if dg <= dc:
+                        focus_txt = f"Prioridad: recuperar {abs(dg)} gestiones"
+                    else:
+                        focus_txt = f"Prioridad: recuperar {abs(dc)} compromisos"
                 elif min(dg, dc) < 0:
                     estado_txt = "Atención"
-                    estado_cls = "op-orange-v72"
+                    estado_cls = "status-orange-v73"
+                    focus_cls = "focus-orange-v73"
+                    if dg < 0:
+                        focus_txt = f"Atención: {abs(dg)} gestiones bajo ritmo"
+                    else:
+                        focus_txt = f"Atención: {abs(dc)} compromisos bajo ritmo"
                 elif dg >= 5 and dc >= 2:
                     estado_txt = "Adelantado"
-                    estado_cls = "op-green-v72"
+                    estado_cls = "status-green-v73"
+                    focus_cls = "focus-green-v73"
+                    focus_txt = "Buen ritmo, mantener"
                 else:
                     estado_txt = "En ritmo"
-                    estado_cls = "op-green-v72"
+                    estado_cls = "status-green-v73"
+                    focus_cls = "focus-green-v73"
+                    focus_txt = "Dentro del ritmo esperado"
 
                 horario = avance.get(
                     "horario"
@@ -6221,22 +6413,93 @@ elif menu == "✉️ Mensajes diarios":
                     else "Telegram pendiente"
                 )
 
+                if avance.get("disponible"):
+                    esperado_g = max(
+                        int(
+                            avance.get(
+                                "esperado_gestiones",
+                                0,
+                            )
+                        ),
+                        1,
+                    )
+                    esperado_c = max(
+                        int(
+                            avance.get(
+                                "esperado_compromisos",
+                                0,
+                            )
+                        ),
+                        1,
+                    )
+
+                    pct_g_hoy = min(
+                        max(
+                            avance["gestiones_hoy"]
+                            / esperado_g
+                            * 100,
+                            0,
+                        ),
+                        100,
+                    )
+
+                    pct_c_hoy = min(
+                        max(
+                            (
+                                avance["compromisos_hoy"]
+                                / esperado_c
+                                * 100
+                            )
+                            if avance.get(
+                                "compromisos_disponibles"
+                            )
+                            else 0,
+                            0,
+                        ),
+                        100,
+                    )
+
+                    clase_g_barra = (
+                        "fill-green-v73"
+                        if dg >= 0
+                        else (
+                            "fill-orange-v73"
+                            if dg > -10
+                            else "fill-red-v73"
+                        )
+                    )
+
+                    clase_c_barra = (
+                        "fill-green-v73"
+                        if dc >= 0
+                        else (
+                            "fill-orange-v73"
+                            if dc > -10
+                            else "fill-red-v73"
+                        )
+                    )
+
                 with cols[pos]:
                     with st.container(
                         border=True,
                     ):
                         st.markdown(
-                            f'<div class="op-title-v72">{fila["Operador"]}</div>',
-                            unsafe_allow_html=True,
-                        )
-
-                        st.markdown(
-                            f'<span class="op-status-v72 {estado_cls}">{estado_txt}</span>',
-                            unsafe_allow_html=True,
-                        )
-
-                        st.markdown(
-                            f'<div class="op-meta-v72">✉ {correo_actual or "Sin correo"} · ✈ {tg_txt}</div>',
+                            f"""
+                            <div class="op-head-wrap-v73">
+                                <div>
+                                    <div class="op-title-v73">
+                                        {fila['Operador']}
+                                    </div>
+                                    <div class="op-sub-v73">
+                                        ✉ {correo_actual or 'Sin correo'} ·
+                                        ✈ {tg_txt}
+                                    </div>
+                                </div>
+                                <span class="status-pill-v73 {estado_cls}">
+                                    {estado_txt}
+                                </span>
+                            </div>
+                            """,
                             unsafe_allow_html=True,
                         )
 
@@ -6244,49 +6507,95 @@ elif menu == "✉️ Mensajes diarios":
                             "horario_configurado"
                         ):
                             st.markdown(
-                                f'<div class="schedule-v72">🕒 {horario["entrada"]}–{horario["salida"]} · ☕ {horario["break_inicio"]}–{horario["break_fin"]}</div>',
+                                f"""
+                                <div class="schedule-row-v73">
+                                    🕒 {horario['entrada']}–{horario['salida']}
+                                    · ☕ {horario['break_inicio']}–{horario['break_fin']}
+                                </div>
+                                """,
                                 unsafe_allow_html=True,
                             )
 
-                        if avance.get(
-                            "disponible"
-                        ):
-                            st.caption(
-                                f'HOY · corte {avance["hora_corte"]}'
-                            )
+                        st.markdown(
+                            f'<div class="today-kicker-v73">HOY · corte {avance.get("hora_corte","--:--")}</div>',
+                            unsafe_allow_html=True,
+                        )
 
-                            h1, h2 = st.columns(2)
+                        h1, h2 = st.columns(2)
 
-                            with h1:
+                        with h1:
+                            if avance.get(
+                                "disponible"
+                            ):
                                 st.metric(
                                     "📞 Gestiones",
                                     f'{formato_entero(avance["gestiones_hoy"])} / 98',
                                     f"{dg:+d} vs esperado",
                                 )
-                                st.caption(
-                                    f'Esperado {formato_entero(avance["esperado_gestiones"])} · Faltan {formato_entero(avance["faltan_gestiones"])}'
+
+                                st.markdown(
+                                    f"""
+                                    <div class="progress-mini-v73">
+                                        <div class="progress-mini-fill-v73 {clase_g_barra}"
+                                             style="width:{pct_g_hoy}%;">
+                                        </div>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True,
                                 )
 
-                            with h2:
-                                if avance.get(
-                                    "compromisos_disponibles"
-                                ):
-                                    st.metric(
-                                        "🤝 Compromisos",
-                                        f'{formato_entero(avance["compromisos_hoy"])} / 25',
-                                        f"{dc:+d} vs esperado",
-                                    )
-                                    st.caption(
-                                        f'Esperado {formato_entero(avance["esperado_compromisos"])} · Faltan {formato_entero(avance["faltan_compromisos"])}'
-                                    )
-                                else:
-                                    st.metric(
-                                        "🤝 Compromisos",
-                                        "Sin dato",
-                                    )
+                                st.caption(
+                                    f'Esperado {formato_entero(avance["esperado_gestiones"])} · '
+                                    f'Faltan {formato_entero(avance["faltan_gestiones"])}'
+                                )
+
+                        with h2:
+                            if avance.get(
+                                "compromisos_disponibles"
+                            ):
+                                st.metric(
+                                    "🤝 Compromisos",
+                                    f'{formato_entero(avance["compromisos_hoy"])} / 25',
+                                    f"{dc:+d} vs esperado",
+                                )
+
+                                st.markdown(
+                                    f"""
+                                    <div class="progress-mini-v73">
+                                        <div class="progress-mini-fill-v73 {clase_c_barra}"
+                                             style="width:{pct_c_hoy}%;">
+                                        </div>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True,
+                                )
+
+                                st.caption(
+                                    f'Esperado {formato_entero(avance["esperado_compromisos"])} · '
+                                    f'Faltan {formato_entero(avance["faltan_compromisos"])}'
+                                )
+                            else:
+                                st.metric(
+                                    "🤝 Compromisos",
+                                    "Sin dato",
+                                )
 
                         st.markdown(
-                            f'<div class="month-line-v72">Mes · Recuperación: <span class="month-strong-v72">{formato_porcentaje(pct_r)}</span></div>',
+                            f'<div class="focus-note-v73 {focus_cls}">{focus_txt}</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        st.markdown(
+                            f"""
+                            <div class="month-summary-v73">
+                                <span>Mes</span>
+                                <span>
+                                    G <strong>{formato_porcentaje(pct_g_mes)}</strong>
+                                    · C <strong>{formato_porcentaje(pct_c_mes)}</strong>
+                                    · R <strong>{formato_porcentaje(pct_r_mes)}</strong>
+                                </span>
+                            </div>
+                            """,
                             unsafe_allow_html=True,
                         )
 
@@ -6297,7 +6606,7 @@ elif menu == "✉️ Mensajes diarios":
                                 if st.button(
                                     "✈️ Enviar",
                                     use_container_width=True,
-                                    key=f"telegram_v72_{usuario}",
+                                    key=f"telegram_v73_{usuario}",
                                 ):
                                     ok_tg, detalle_tg = enviar_mensaje_telegram(
                                         telegram_chat_id,
@@ -6322,19 +6631,19 @@ elif menu == "✉️ Mensajes diarios":
                                     "✈️ Pendiente",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_v72_{usuario}",
+                                    key=f"sin_telegram_v73_{usuario}",
                                 )
 
                         with a2:
                             with st.popover(
-                                "👁️ Ver",
+                                "👁️ Ver mensaje",
                                 use_container_width=True,
                             ):
                                 st.text_area(
                                     "Mensaje",
                                     value=calculo["mensaje"],
                                     height=270,
-                                    key=f"msg_v72_{usuario}",
+                                    key=f"msg_v73_{usuario}",
                                     label_visibility="collapsed",
                                 )
 
