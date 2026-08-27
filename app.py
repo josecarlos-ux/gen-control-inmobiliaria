@@ -87,6 +87,258 @@ OPERADORES = {
 }
 
 
+# =========================================================
+# HORARIOS OPERATIVOS POR OPERADOR
+# Basados en el rol compartido por coordinación.
+# La meta diaria se distribuye SOLO sobre tiempo efectivo de trabajo.
+# El break de 30 min congela el esperado.
+# =========================================================
+
+HORARIOS_OPERADORES = {
+    "arodriguez": {
+        "entrada": "09:00",
+        "break_inicio": "13:00",
+        "break_fin": "13:30",
+        "salida": "16:00",
+        "jornada_horas": 7,
+    },
+    "malvarez": {
+        "entrada": "08:30",
+        "break_inicio": "12:30",
+        "break_fin": "13:00",
+        "salida": "15:30",
+        "jornada_horas": 7,
+    },
+    "avargas": {
+        "entrada": "12:30",
+        "break_inicio": "15:30",
+        "break_fin": "16:00",
+        "salida": "19:30",
+        "jornada_horas": 7,
+    },
+    "yarinez": {
+        "entrada": "08:00",
+        "break_inicio": "12:00",
+        "break_fin": "12:30",
+        "salida": "15:00",
+        "jornada_horas": 7,
+    },
+    "jborja": {
+        "entrada": "12:00",
+        "break_inicio": "13:00",
+        "break_fin": "13:30",
+        "salida": "20:00",
+        "jornada_horas": 8,
+    },
+    "cvaca": {
+        "entrada": "13:00",
+        "break_inicio": "16:00",
+        "break_fin": "16:30",
+        "salida": "20:00",
+        "jornada_horas": 7,
+    },
+    "projas": {
+        "entrada": "10:00",
+        "break_inicio": "12:30",
+        "break_fin": "13:00",
+        "salida": "18:00",
+        "jornada_horas": 8,
+    },
+    "yrivas": {
+        "entrada": "08:00",
+        "break_inicio": "12:00",
+        "break_fin": "12:30",
+        "salida": "15:00",
+        "jornada_horas": 7,
+    },
+}
+
+
+def _hora_en_fecha(fecha_base, hhmm):
+    hora, minuto = [
+        int(x)
+        for x in str(hhmm).split(":")
+    ]
+
+    return datetime(
+        fecha_base.year,
+        fecha_base.month,
+        fecha_base.day,
+        hora,
+        minuto,
+        tzinfo=ZoneInfo("America/La_Paz"),
+    )
+
+
+def obtener_horario_operador(usuario, fecha=None):
+    """
+    Devuelve el horario operativo vigente del operador.
+
+    En esta fase se usa el horario base compartido por coordinación.
+    La estructura queda preparada para incorporar excepciones por día
+    sin cambiar la lógica de cálculo.
+    """
+    return HORARIOS_OPERADORES.get(
+        usuario
+    )
+
+
+def calcular_progreso_jornada_operador(
+    usuario,
+    corte,
+):
+    """
+    Calcula el porcentaje REAL de jornada efectiva transcurrida.
+
+    Reglas:
+    - antes de entrada: 0%;
+    - durante break: esperado congelado;
+    - después de salida: 100%;
+    - break no cuenta como tiempo productivo;
+    - mujeres: jornada nominal de 7 h;
+    - hombres: jornada nominal de 8 h;
+    - break: 30 min.
+    """
+    horario = obtener_horario_operador(
+        usuario,
+        corte.date(),
+    )
+
+    if not horario:
+        return {
+            "horario_configurado": False,
+            "estado_jornada": "Horario pendiente",
+            "proporcion": 0.0,
+            "minutos_efectivos_transcurridos": 0,
+            "minutos_efectivos_totales": 0,
+            "entrada": None,
+            "break_inicio": None,
+            "break_fin": None,
+            "salida": None,
+        }
+
+    entrada = _hora_en_fecha(
+        corte,
+        horario["entrada"],
+    )
+    break_inicio = _hora_en_fecha(
+        corte,
+        horario["break_inicio"],
+    )
+    break_fin = _hora_en_fecha(
+        corte,
+        horario["break_fin"],
+    )
+    salida = _hora_en_fecha(
+        corte,
+        horario["salida"],
+    )
+
+    # Si corte viene sin tzinfo (por pandas), asignar Bolivia.
+    if corte.tzinfo is None:
+        corte = corte.replace(
+            tzinfo=ZoneInfo(
+                "America/La_Paz"
+            )
+        )
+
+    tramo_1 = max(
+        (
+            break_inicio
+            - entrada
+        ).total_seconds()
+        / 60,
+        0,
+    )
+
+    tramo_2 = max(
+        (
+            salida
+            - break_fin
+        ).total_seconds()
+        / 60,
+        0,
+    )
+
+    minutos_totales = (
+        tramo_1
+        + tramo_2
+    )
+
+    if corte < entrada:
+        minutos_transcurridos = 0
+        estado = "Jornada aún no iniciada"
+
+    elif corte < break_inicio:
+        minutos_transcurridos = min(
+            (
+                corte
+                - entrada
+            ).total_seconds()
+            / 60,
+            tramo_1,
+        )
+        estado = "En jornada"
+
+    elif corte < break_fin:
+        minutos_transcurridos = tramo_1
+        estado = "En break"
+
+    elif corte < salida:
+        minutos_transcurridos = (
+            tramo_1
+            + min(
+                (
+                    corte
+                    - break_fin
+                ).total_seconds()
+                / 60,
+                tramo_2,
+            )
+        )
+        estado = "En jornada"
+
+    else:
+        minutos_transcurridos = minutos_totales
+        estado = "Jornada finalizada"
+
+    proporcion = (
+        minutos_transcurridos
+        / minutos_totales
+        if minutos_totales
+        else 0
+    )
+
+    return {
+        "horario_configurado": True,
+        "estado_jornada": estado,
+        "proporcion": min(
+            max(
+                proporcion,
+                0,
+            ),
+            1,
+        ),
+        "minutos_efectivos_transcurridos": int(
+            round(
+                minutos_transcurridos
+            )
+        ),
+        "minutos_efectivos_totales": int(
+            round(
+                minutos_totales
+            )
+        ),
+        "entrada": horario["entrada"],
+        "break_inicio": horario["break_inicio"],
+        "break_fin": horario["break_fin"],
+        "salida": horario["salida"],
+        "jornada_horas": horario[
+            "jornada_horas"
+        ],
+    }
+
+
 st.set_page_config(
     page_title=APP_NAME,
     page_icon="📊",
@@ -488,8 +740,25 @@ def generar_mensaje_diario(fila, jornadas_info):
     bloque_hoy = ""
 
     if avance_hora["disponible"]:
+        horario_msg = avance_hora.get(
+            "horario"
+        ) or {}
+
+        linea_horario_msg = ""
+
+        if horario_msg.get(
+            "horario_configurado"
+        ):
+            linea_horario_msg = (
+                f"🕒 Jornada: "
+                f"{horario_msg['entrada']}–{horario_msg['salida']} "
+                f"· Break {horario_msg['break_inicio']}–{horario_msg['break_fin']}\n"
+                f"📍 Estado: {avance_hora.get('estado_jornada', '')}\n"
+            )
+
         bloque_hoy = (
             f"\n\n⏱️ Avance de hoy · corte {avance_hora['hora_corte']}\n"
+            f"{linea_horario_msg}"
             f"📞 Gestiones: {formato_entero(avance_hora['gestiones_hoy'])} / "
             f"{formato_entero(minimo_g)}\n"
             f"{texto_estado_ritmo(avance_hora['delta_gestiones'], 'gestiones')}\n"
@@ -2606,6 +2875,8 @@ def calcular_avance_hora_operador(
         "hora_corte": "--:--",
         "fecha_corte": None,
         "progreso_jornada_pct": 0.0,
+        "estado_jornada": "Sin corte",
+        "horario": None,
     }
 
     if (
@@ -2621,6 +2892,16 @@ def calcular_avance_hora_operador(
     ):
         corte_operativo = (
             corte_operativo.to_pydatetime()
+        )
+
+    # Asegurar tz Bolivia.
+    if corte_operativo.tzinfo is None:
+        corte_operativo = (
+            corte_operativo.replace(
+                tzinfo=ZoneInfo(
+                    "America/La_Paz"
+                )
+            )
         )
 
     df = callcenter_df.copy()
@@ -2651,7 +2932,6 @@ def calcular_avance_hora_operador(
         subset=["_fecha_hora"]
     )
 
-    # La FECHA la tomamos del propio archivo.
     fechas_validas = (
         df["_fecha_hora"]
         .dt.date
@@ -2665,7 +2945,6 @@ def calcular_avance_hora_operador(
         fechas_validas
     )
 
-    # Construir aliases válidos del operador.
     datos_op = OPERADORES.get(
         usuario,
         {},
@@ -2677,7 +2956,10 @@ def calcular_avance_hora_operador(
             datos_op.get("nombre", "")
         ),
         normalizar_texto(
-            datos_op.get("nombre_mensaje", "")
+            datos_op.get(
+                "nombre_mensaje",
+                "",
+            )
         ),
         normalizar_texto(
             datos_op.get("correo", "")
@@ -2713,8 +2995,6 @@ def calcular_avance_hora_operador(
         )
     )
 
-    # Si el reporte trae "Nombre Apellido (usuario)" o formatos similares,
-    # aceptar coincidencia contenida por alias de al menos 4 caracteres.
     if not mascara_usuario.any():
         aliases_largos = [
             x
@@ -2722,13 +3002,14 @@ def calcular_avance_hora_operador(
             if len(x) >= 4
         ]
 
-        mascara_usuario = df[
-            "_usuario_norm"
-        ].apply(
-            lambda valor: any(
-                alias in valor
-                or valor in alias
-                for alias in aliases_largos
+        mascara_usuario = (
+            df["_usuario_norm"]
+            .apply(
+                lambda valor: any(
+                    alias in valor
+                    or valor in alias
+                    for alias in aliases_largos
+                )
             )
         )
 
@@ -2740,8 +3021,6 @@ def calcular_avance_hora_operador(
         )
     ].copy()
 
-    # La hora de carga define hasta qué momento comparar el esperado,
-    # pero no recorta registros del archivo por una hora distinta.
     gestiones_hoy = int(
         len(df_hoy)
     )
@@ -2761,55 +3040,42 @@ def calcular_avance_hora_operador(
 
         compromisos_hoy = int(
             (
-                df_hoy[col_compromiso].notna()
-                & (compromiso_txt != "")
+                df_hoy[
+                    col_compromiso
+                ].notna()
                 & (
-                    compromiso_txt.str.lower()
+                    compromiso_txt
+                    != ""
+                )
+                & (
+                    compromiso_txt
+                    .str.lower()
                     != "nan"
                 )
             ).sum()
         )
 
-    # El esperado usa la hora en que se cargó/descargó el reporte.
-    corte_para_ritmo = corte_operativo.replace(
-        year=fecha_corte.year,
-        month=fecha_corte.month,
-        day=fecha_corte.day,
+    # La fecha viene del archivo y la hora del momento de carga/corte.
+    corte_para_ritmo = (
+        corte_operativo.replace(
+            year=fecha_corte.year,
+            month=fecha_corte.month,
+            day=fecha_corte.day,
+        )
     )
 
-    inicio = corte_para_ritmo.replace(
-        hour=JORNADA_INICIO_HORA,
-        minute=0,
-        second=0,
-        microsecond=0,
+    jornada = (
+        calcular_progreso_jornada_operador(
+            usuario,
+            corte_para_ritmo,
+        )
     )
 
-    fin = corte_para_ritmo.replace(
-        hour=JORNADA_FIN_HORA,
-        minute=0,
-        second=0,
-        microsecond=0,
-    )
-
-    total_seg = max(
-        (fin - inicio).total_seconds(),
-        1,
-    )
-
-    transcurrido_seg = min(
-        max(
-            (
-                corte_para_ritmo
-                - inicio
-            ).total_seconds(),
+    proporcion = float(
+        jornada.get(
+            "proporcion",
             0,
-        ),
-        total_seg,
-    )
-
-    proporcion = (
-        transcurrido_seg
-        / total_seg
+        )
     )
 
     esperado_g = int(
@@ -2861,13 +3127,19 @@ def calcular_avance_hora_operador(
             0,
         ),
         "faltan_compromisos": faltan_c,
-        "hora_corte": corte_para_ritmo.strftime(
-            "%H:%M"
+        "hora_corte": (
+            corte_para_ritmo
+            .strftime("%H:%M")
         ),
         "fecha_corte": fecha_corte,
         "progreso_jornada_pct": (
             proporcion * 100
         ),
+        "estado_jornada": jornada.get(
+            "estado_jornada",
+            "",
+        ),
+        "horario": jornada,
     }
 
 
@@ -5226,19 +5498,42 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
                 with d1:
+                    progresos_ind_v70 = [
+                        float(
+                            x.get(
+                                "progreso_jornada_pct",
+                                0,
+                            )
+                        )
+                        for x in avances_hoy_v66
+                    ]
+
+                    prom_jornada_v70 = (
+                        sum(
+                            progresos_ind_v70
+                        )
+                        / len(
+                            progresos_ind_v70
+                        )
+                        if progresos_ind_v70
+                        else 0
+                    )
+
                     st.metric(
-                        "Jornada transcurrida",
+                        "Jornada promedio",
                         formato_porcentaje(
-                            jornada_pct_v66
+                            prom_jornada_v70
                         ),
                     )
+
                     st.caption(
-                        f"{JORNADA_INICIO_HORA:02d}:00 → "
-                        f"{corte_panel_v68.strftime('%H:%M')} → "
-                        f"{JORNADA_FIN_HORA:02d}:00"
+                        f"Corte del archivo: "
+                        f"{corte_panel_v68.strftime('%H:%M')}"
                     )
+
                     st.caption(
-                        f"Restan {horas_restantes_v66:.1f} h"
+                        "Cada operador se compara contra "
+                        "su propio horario."
                     )
 
                 with d2:
@@ -5831,9 +6126,45 @@ elif menu == "✉️ Mensajes diarios":
                         if avance_hora_card.get(
                             "disponible"
                         ):
+                            horario_card = (
+                                avance_hora_card.get(
+                                    "horario"
+                                )
+                                or {}
+                            )
+
+                            horario_txt_card = ""
+
+                            if horario_card.get(
+                                "horario_configurado"
+                            ):
+                                horario_txt_card = (
+                                    f" · Jornada "
+                                    f"{horario_card['entrada']}–{horario_card['salida']} "
+                                    f"· Break "
+                                    f"{horario_card['break_inicio']}–{horario_card['break_fin']}"
+                                )
+
                             st.caption(
                                 f"⏱️ HOY · corte {avance_hora_card['hora_corte']}"
+                                f"{horario_txt_card}"
                             )
+
+                            estado_jornada_card = (
+                                avance_hora_card.get(
+                                    "estado_jornada",
+                                    "",
+                                )
+                            )
+
+                            if estado_jornada_card in {
+                                "Jornada aún no iniciada",
+                                "En break",
+                                "Jornada finalizada",
+                            }:
+                                st.info(
+                                    estado_jornada_card
+                                )
 
                             hoy_g_col, hoy_c_col = st.columns(
                                 2
@@ -6639,6 +6970,47 @@ elif menu == "👥 Equipo":
             mostrar,
             use_container_width=True,
             hide_index=True,
+        )
+
+        st.markdown("### 🕒 Horarios operativos")
+
+        horarios_v70 = []
+
+        for usuario_h, datos_h in HORARIOS_OPERADORES.items():
+            operador_h = OPERADORES.get(
+                usuario_h,
+                {},
+            )
+
+            horarios_v70.append(
+                {
+                    "Operador": operador_h.get(
+                        "nombre",
+                        usuario_h,
+                    ),
+                    "Entrada": datos_h["entrada"],
+                    "Break": (
+                        f"{datos_h['break_inicio']}–"
+                        f"{datos_h['break_fin']}"
+                    ),
+                    "Salida": datos_h["salida"],
+                    "Jornada": (
+                        f"{datos_h['jornada_horas']} h"
+                    ),
+                }
+            )
+
+        st.dataframe(
+            pd.DataFrame(
+                horarios_v70
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "El esperado a la hora se calcula con el horario individual. "
+            "Durante el break el esperado se congela."
         )
 
         st.caption(
