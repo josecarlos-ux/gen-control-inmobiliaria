@@ -4940,6 +4940,75 @@ st.markdown(
             min-height:32px !important;
             font-size:10px !important;
         }
+
+        /* ===== V77 · ALERTAS COMPACTAS ===== */
+
+        .alert-summary-v77 {
+            border:1px solid #f4d7a2;
+            background:linear-gradient(135deg,#fffaf0,#fffef8);
+            border-radius:14px;
+            padding:12px 14px;
+            margin-top:8px;
+        }
+
+        .alert-summary-title-v77 {
+            font-size:13px;
+            font-weight:850;
+            color:#7a4b00;
+        }
+
+        .alert-summary-sub-v77 {
+            font-size:10px;
+            color:#8a6b2d;
+            margin-top:3px;
+        }
+
+        .alert-row-v77 {
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            align-items:center;
+            padding:6px 0;
+            border-bottom:1px solid rgba(122,75,0,.08);
+            font-size:10px;
+        }
+
+        .alert-row-v77:last-child {
+            border-bottom:none;
+        }
+
+        .alert-name-v77 {
+            color:#344054;
+            font-weight:750;
+        }
+
+        .alert-value-v77 {
+            color:#b54708;
+            font-weight:850;
+            white-space:nowrap;
+        }
+
+        .leader-strip-v77 {
+            border-radius:11px;
+            padding:8px 10px;
+            font-size:10px;
+            font-weight:750;
+            min-height:42px;
+            display:flex;
+            align-items:center;
+        }
+
+        .leader-green-v77 {
+            background:#ecfdf3;
+            color:#067647;
+            border:1px solid #ccefd8;
+        }
+
+        .leader-orange-v77 {
+            background:#fff7ed;
+            color:#b54708;
+            border:1px solid #fed7aa;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -5321,55 +5390,96 @@ if menu == "🏠 Resumen":
             r1, r2 = st.columns(2)
 
             with r1:
-                st.success(
-                    f"🏆 Líder en {criterio.lower()}: "
-                    f"{lider['Operador']} · "
-                    f"{formato_porcentaje(lider[columna_orden])}"
+                st.markdown(
+                    f"""
+                    <div class="leader-strip-v77 leader-green-v77">
+                        🏆 <strong>Líder en {criterio.lower()}:</strong>&nbsp;
+                        {lider['Operador']} ·
+                        {formato_porcentaje(lider[columna_orden])}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
 
             with r2:
-                st.warning(
-                    f"🎯 Mayor seguimiento en {criterio.lower()}: "
-                    f"{seguimiento['Operador']} · "
-                    f"{formato_porcentaje(seguimiento[columna_orden])}"
+                st.markdown(
+                    f"""
+                    <div class="leader-strip-v77 leader-orange-v77">
+                        🎯 <strong>Mayor seguimiento en {criterio.lower()}:</strong>&nbsp;
+                        {seguimiento['Operador']} ·
+                        {formato_porcentaje(seguimiento[columna_orden])}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
 
         st.write("")
 
         # -------------------------------------------------
-        # ALERTAS: SOLO MOSTRAR SI REALMENTE HAY BRECHAS
+        # ALERTAS COMPACTAS — V77
+        # Responden al indicador seleccionado en el ranking
         # -------------------------------------------------
 
         st.markdown("### Alertas")
 
-        alertas = []
+        alertas_df = ranking[
+            ranking[columna_orden].astype(float)
+            < esperado - 10
+        ].copy()
 
-        for _, fila in ranking.iterrows():
-            problemas = []
-
-            if float(fila["% Gestiones"]) < esperado - 10:
-                problemas.append("gestiones")
-
-            if float(fila["% Compromisos"]) < esperado - 10:
-                problemas.append("compromisos")
-
-            if float(fila["% Recuperación"]) < esperado - 10:
-                problemas.append("recuperación")
-
-            if problemas:
-                alertas.append(
-                    f"**{fila['Operador']}** · reforzar "
-                    + ", ".join(problemas)
-                )
-
-        if alertas:
-            for alerta in alertas:
-                st.warning(alerta)
-        else:
+        if alertas_df.empty:
             st.success(
-                "No hay brechas críticas en el equipo."
+                f"✅ No hay brechas críticas en {criterio.lower()}."
             )
 
+        else:
+            # Ordenar del más rezagado al menos rezagado.
+            alertas_df = alertas_df.sort_values(
+                columna_orden,
+                ascending=True,
+                kind="stable",
+            )
+
+            filas_html = []
+
+            for _, fila_alerta in alertas_df.iterrows():
+                valor_alerta = float(
+                    fila_alerta[columna_orden]
+                )
+
+                brecha_alerta = max(
+                    esperado - valor_alerta,
+                    0,
+                )
+
+                filas_html.append(
+                    f"""
+                    <div class="alert-row-v77">
+                        <span class="alert-name-v77">
+                            {fila_alerta['Operador']}
+                        </span>
+                        <span class="alert-value-v77">
+                            {formato_porcentaje(valor_alerta)}
+                            · brecha {formato_porcentaje(brecha_alerta)}
+                        </span>
+                    </div>
+                    """
+                )
+
+            st.markdown(
+                f"""
+                <div class="alert-summary-v77">
+                    <div class="alert-summary-title-v77">
+                        ⚠️ {len(alertas_df)} operador(es) requieren reforzar {criterio.lower()}
+                    </div>
+                    <div class="alert-summary-sub-v77">
+                        Ordenados desde la mayor brecha hasta la menor.
+                    </div>
+                    {''.join(filas_html)}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 # =========================================================
 # COMPORTAMIENTO DIARIO
