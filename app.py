@@ -5466,18 +5466,19 @@ if menu == "🏠 Resumen":
                     """
                 )
 
+            html_alertas = (
+                '<div class="alert-summary-v77">'
+                f'<div class="alert-summary-title-v77">⚠️ {len(alertas_df)} operador(es) requieren reforzar {criterio.lower()}</div>'
+                '<div class="alert-summary-sub-v77">Ordenados desde la mayor brecha hasta la menor.</div>'
+                + "".join(
+                    parte.strip().replace("\n", " ")
+                    for parte in filas_html
+                )
+                + '</div>'
+            )
+
             st.markdown(
-                f"""
-                <div class="alert-summary-v77">
-                    <div class="alert-summary-title-v77">
-                        ⚠️ {len(alertas_df)} operador(es) requieren reforzar {criterio.lower()}
-                    </div>
-                    <div class="alert-summary-sub-v77">
-                        Ordenados desde la mayor brecha hasta la menor.
-                    </div>
-                    {''.join(filas_html)}
-                </div>
-                """,
+                html_alertas,
                 unsafe_allow_html=True,
             )
 
