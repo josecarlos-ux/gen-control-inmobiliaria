@@ -1154,6 +1154,14 @@ def generar_mensaje_operador_actual(
     if fila_actual is None:
         return None
 
+    # Enlace humano de contacto directo con coordinación.
+    # Se agrega solo al seguimiento privado del operador.
+    mensaje = (
+        mensaje.rstrip()
+        + "\n\n💬 ¿Necesitas comentarme algo? "
+        + "[Escríbeme directamente](https://t.me/josecarlos_27)"
+    )
+
     return generar_mensaje_diario(
         fila_actual,
         jornadas_info,
@@ -7362,60 +7370,6 @@ elif menu == "📈 Comportamiento diario":
 # =========================================================
 
 elif menu == "✉️ Mensajes diarios":
-    # -------------------------------------------------
-    # PRUEBA PRIVADA · enlace directo al coordinador
-    # -------------------------------------------------
-    with st.expander("🧪 Prueba privada · enlace directo a mi Telegram", expanded=False):
-        st.caption(
-            "Esta prueba se envía únicamente al chat del coordinador. "
-            "No modifica los mensajes de los operadores."
-        )
-
-        mensaje_prueba_enlace = (
-            "📊 *Prueba de seguimiento · GEN Control*\n\n"
-            "Buenas tardes, José Carlos. Te comparto una prueba del seguimiento de GEN Control.\n\n"
-            "🔹 *Gestiones:* 1.944 acumuladas · realizar 115 hoy\n"
-            "🔹 *Compromisos:* 535 acumulados · generar 25 hoy\n"
-            "🔹 *Recuperación:* avance frente a meta de USD 170.400\n\n"
-            "Mantengamos el ritmo para seguir avanzando con las metas. 💪\n\n"
-            "💬 ¿Necesitas comentarme algo?\n"
-            "👉 [Escríbeme directamente](https://t.me/josecarlos_27)"
-        )
-
-        st.code(mensaje_prueba_enlace, language=None)
-
-        if st.button(
-            "✈️ Enviarme prueba a Telegram",
-            use_container_width=True,
-            type="primary",
-            key="prueba_enlace_coordinador_final",
-        ):
-            chat_coordinador_prueba = str(
-                st.secrets.get(
-                    "TELEGRAM_COORDINADOR_CHAT_ID",
-                    "",
-                )
-            ).strip()
-
-            if not chat_coordinador_prueba:
-                st.error(
-                    "No está configurado TELEGRAM_COORDINADOR_CHAT_ID."
-                )
-            else:
-                ok_prueba, detalle_prueba = enviar_mensaje_telegram(
-                    chat_coordinador_prueba,
-                    mensaje_prueba_enlace,
-                )
-
-                if ok_prueba:
-                    st.success(
-                        "✅ Prueba enviada únicamente a tu Telegram."
-                    )
-                else:
-                    st.error(
-                        f"No se pudo enviar la prueba: {detalle_prueba}"
-                    )
-
 
     resultado = st.session_state.resultado_operadores
     jornadas_info = jornadas_configuradas()
