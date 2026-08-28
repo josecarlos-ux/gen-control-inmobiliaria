@@ -9,7 +9,7 @@ import calendar
 import base64
 import json
 from io import BytesIO
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
 from urllib import request, parse
@@ -504,6 +504,49 @@ def fecha_local_actual():
     return datetime.now(ZoneInfo("America/La_Paz")).date()
 
 
+def ahora_bolivia():
+    """
+    Hora Bolivia calculada desde UTC real.
+    Evita depender de la zona horaria del servidor de Streamlit.
+    """
+    return datetime.now(
+        timezone.utc
+    ).astimezone(
+        ZoneInfo("America/La_Paz")
+    )
+
+
+def datetime_bolivia(valor):
+    """
+    Convierte cualquier timestamp guardado a hora Bolivia.
+
+    Regla V96:
+    - si viene con zona/offset: se convierte a America/La_Paz;
+    - si viene sin zona (registros antiguos): se interpreta como UTC,
+      que es como Supabase/Postgres suele entregar timestamptz serializado.
+    """
+    if valor is None or valor == "":
+        return None
+
+    try:
+        if isinstance(valor, datetime):
+            dt = valor
+        else:
+            dt = pd.to_datetime(
+                valor
+            ).to_pydatetime()
+
+        if dt.tzinfo is None:
+            dt = dt.replace(
+                tzinfo=timezone.utc
+            )
+
+        return dt.astimezone(
+            ZoneInfo("America/La_Paz")
+        )
+    except Exception:
+        return None
+
 def es_jornada_laboral(fecha):
     # Regla actual: lunes a sábado. Domingo no cuenta.
     return fecha.weekday() != 6
@@ -853,9 +896,7 @@ def generar_mensaje_diario(fila, jornadas_info):
     # V87 · La recuperación no se repite en cada seguimiento.
     # Se muestra en el primer seguimiento individual del día y vuelve
     # a aparecer desde las 17:00 como referencia de cierre.
-    ahora_mensaje_v87 = datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    ahora_mensaje_v87 = ahora_bolivia()
     ya_recibio_seguimiento_v87 = envio_ya_realizado_hoy(
         usuario,
         "seguimiento",
@@ -1819,9 +1860,7 @@ def guardar_configuracion_supabase():
         "meta_diaria_compromisos": int(
             st.session_state.meta_diaria_compromisos_cfg
         ),
-        "updated_at": datetime.now(
-            ZoneInfo("America/La_Paz")
-        ).isoformat(),
+        "updated_at": ahora_bolivia().isoformat(),
     }
 
     try:
@@ -2118,9 +2157,7 @@ def guardar_estado_operativo_supabase(clave, nombre_archivo="", datos=None):
 
     payload = {
         "clave": str(clave),
-        "actualizado_en": datetime.now(
-            ZoneInfo("America/La_Paz")
-        ).isoformat(),
+        "actualizado_en": ahora_bolivia().isoformat(),
         "nombre_archivo": str(nombre_archivo or ""),
         "datos": datos or {},
     }
@@ -2260,7 +2297,7 @@ def restaurar_estado_operativo_v93():
                 if ts:
                     try:
                         st.session_state.promesas_cargado_en = (
-                            pd.to_datetime(ts).to_pydatetime()
+                            datetime_bolivia(ts)
                         )
                     except Exception:
                         pass
@@ -2288,7 +2325,7 @@ def restaurar_estado_operativo_v93():
                 if ts:
                     try:
                         st.session_state.callcenter_cargado_en = (
-                            pd.to_datetime(ts).to_pydatetime()
+                            datetime_bolivia(ts)
                         )
                     except Exception:
                         pass
@@ -2958,9 +2995,7 @@ def enviar_foto_telegram(chat_id, imagen_bytes, caption=""):
         return False, str(e)
 
 def saludo_segun_hora():
-    hora = datetime.now(
-        ZoneInfo("America/La_Paz")
-    ).hour
+    hora = ahora_bolivia().hour
 
     if 5 <= hora < 12:
         return "Buenos días", "☀️"
@@ -3142,7 +3177,10 @@ def obtener_corte_callcenter(callcenter_df):
     )
 
     if cargado_en is not None:
-        return cargado_en
+        return (
+            datetime_bolivia(cargado_en)
+            or cargado_en
+        )
 
     if callcenter_df is None or callcenter_df.empty:
         return None
@@ -3496,11 +3534,8 @@ def _clave_envio_local(usuario, fecha=None, tipo="seguimiento"):
 
 def obtener_envio_diario(usuario, fecha=None, tipo="seguimiento"):
     """
-    Busca si el operador ya recibió el mensaje del día.
-
-    Prioridad:
-    1) Supabase, tabla `envios_mensajes`, si existe.
-    2) Session State como respaldo para no romper la app.
+    V96: Supabase es la fuente principal del último envío.
+    Session State queda únicamente como respaldo si Supabase no responde.
     """
     fecha = fecha or fecha_local_actual()
     clave = _clave_envio_local(
@@ -3508,15 +3543,6 @@ def obtener_envio_diario(usuario, fecha=None, tipo="seguimiento"):
         fecha,
         tipo,
     )
-
-    # Primero memoria local de la sesión.
-    cache = st.session_state.get(
-        "envios_diarios_cache",
-        {},
-    )
-
-    if clave in cache:
-        return cache[clave]
 
     sb = get_supabase()
 
@@ -3539,18 +3565,18 @@ def obtener_envio_diario(usuario, fecha=None, tipo="seguimiento"):
 
             if resp.data:
                 registro = resp.data[0]
-
                 st.session_state.envios_diarios_cache[
                     clave
                 ] = registro
-
                 return registro
-
         except Exception:
-            # La tabla puede no existir todavía.
             pass
 
-    return None
+    cache = st.session_state.get(
+        "envios_diarios_cache",
+        {},
+    )
+    return cache.get(clave)
 
 
 def registrar_envio_diario(
@@ -3564,13 +3590,14 @@ def registrar_envio_diario(
     Registra un envío exitoso. El cambio de fecha reinicia
     automáticamente el control porque la clave incluye la fecha.
     """
-    ahora = datetime.now(
-        ZoneInfo("America/La_Paz")
+    ahora_local = ahora_bolivia()
+    ahora_utc = datetime.now(
+        timezone.utc
     )
 
     registro = {
-        "fecha": ahora.date().isoformat(),
-        "fecha_hora": ahora.isoformat(),
+        "fecha": ahora_local.date().isoformat(),
+        "fecha_hora": ahora_utc.isoformat(),
         "usuario": str(usuario),
         "operador": str(operador),
         "canal": str(canal),
@@ -3581,7 +3608,7 @@ def registrar_envio_diario(
 
     clave = _clave_envio_local(
         usuario,
-        ahora.date(),
+        ahora_local.date(),
         tipo,
     )
 
@@ -3637,10 +3664,14 @@ def hora_envio_hoy(
     )
 
     try:
-        dt = datetime.fromisoformat(
+        dt = datetime_bolivia(
             fecha_hora
         )
-        return dt.strftime("%H:%M")
+        return (
+            dt.strftime("%H:%M")
+            if dt is not None
+            else ""
+        )
     except Exception:
         return ""
 
@@ -3675,19 +3706,9 @@ def ultimo_envio_datetime(
         return None
 
     try:
-        dt = datetime.fromisoformat(
+        return datetime_bolivia(
             valor
         )
-
-        if dt.tzinfo is None:
-            dt = dt.replace(
-                tzinfo=ZoneInfo("America/La_Paz")
-            )
-
-        return dt.astimezone(
-            ZoneInfo("America/La_Paz")
-        )
-
     except Exception:
         return None
 
@@ -3697,9 +3718,7 @@ def minutos_desde_ultimo_envio(
     momento=None,
     tipo="seguimiento",
 ):
-    momento = momento or datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    momento = momento or ahora_bolivia()
 
     ultimo = ultimo_envio_datetime(
         usuario,
@@ -3743,9 +3762,7 @@ def informacion_corte_recomendado(
     Devuelve el corte recomendado más útil para la hora actual.
     Los cortes son orientativos; nunca bloquean un envío manual.
     """
-    momento = momento or datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    momento = momento or ahora_bolivia()
 
     cortes_dt = []
 
@@ -3789,9 +3806,7 @@ def resumen_frecuencia_seguimiento(
     usuarios,
     momento=None,
 ):
-    momento = momento or datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    momento = momento or ahora_bolivia()
 
     recientes = []
     disponibles = []
@@ -3832,9 +3847,7 @@ def operador_en_turno(
     El break sigue siendo parte del turno, aunque el cálculo productivo
     permanezca congelado durante esos 30 minutos.
     """
-    momento = momento or datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    momento = momento or ahora_bolivia()
 
     horario = obtener_horario_operador(
         usuario,
@@ -3860,9 +3873,7 @@ def texto_estado_turno(
     usuario,
     momento=None,
 ):
-    momento = momento or datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    momento = momento or ahora_bolivia()
 
     horario = obtener_horario_operador(
         usuario,
@@ -3898,9 +3909,7 @@ def operador_fuera_de_horario(
     Devuelve True si el momento actual ya es posterior
     a la hora de salida configurada del operador.
     """
-    momento = momento or datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    momento = momento or ahora_bolivia()
 
     horario = obtener_horario_operador(
         usuario,
@@ -3961,11 +3970,12 @@ def contar_avisos_grupales_hoy():
 
 
 def registrar_aviso_grupal_enviado(detalle=""):
-    ahora = datetime.now(
-        ZoneInfo("America/La_Paz")
+    ahora_local = ahora_bolivia()
+    ahora_utc = datetime.now(
+        timezone.utc
     )
     clave = _clave_aviso_grupal(
-        ahora.date()
+        ahora_local.date()
     )
 
     cache = st.session_state.setdefault(
@@ -3977,8 +3987,8 @@ def registrar_aviso_grupal_enviado(detalle=""):
     ) + 1
 
     registro = {
-        "fecha": ahora.date().isoformat(),
-        "fecha_hora": ahora.isoformat(),
+        "fecha": ahora_local.date().isoformat(),
+        "fecha_hora": ahora_utc.isoformat(),
         "usuario": "grupo",
         "operador": "Grupo Inmobiliaria",
         "canal": "telegram",
@@ -4019,9 +4029,7 @@ def generar_aviso_grupo_envios(
     if not operadores_enviados:
         return ""
 
-    ahora = datetime.now(
-        ZoneInfo("America/La_Paz")
-    )
+    ahora = ahora_bolivia()
 
     if numero_seguimiento is None:
         numero_seguimiento = (
@@ -6099,9 +6107,12 @@ with st.sidebar:
         or st.session_state.get(
             "promesas_cargado_en"
         )
-        or datetime.now(
-            ZoneInfo("America/La_Paz")
-        )
+        or ahora_bolivia()
+    )
+
+    ahora_sidebar = (
+        datetime_bolivia(ahora_sidebar)
+        or ahora_sidebar
     )
 
     st.markdown(
@@ -7156,9 +7167,7 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         # PANEL COMPACTO DE CONTROL — V92
         # -------------------------------------------------
-        ahora_seguimiento = datetime.now(
-            ZoneInfo("America/La_Paz")
-        )
+        ahora_seguimiento = ahora_bolivia()
         info_corte = informacion_corte_recomendado(
             ahora_seguimiento
         )
@@ -7244,9 +7253,7 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
 
-        ahora_v93 = datetime.now(
-            ZoneInfo("America/La_Paz")
-        )
+        ahora_v93 = ahora_bolivia()
         corte_v93 = obtener_corte_callcenter(
             st.session_state.get("callcenter_df")
         )
@@ -8512,7 +8519,7 @@ elif menu == "✉️ Mensajes diarios":
                                 < MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS
                             ):
                                 texto_envio_estado = (
-                                    "⚠️ Seguimiento reciente"
+                                    "⚠️ Seguimiento reciente (hora Bolivia)"
                                     + (
                                         f" · {hora_envio_actual}"
                                         if hora_envio_actual
