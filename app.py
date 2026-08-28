@@ -22,12 +22,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 # =========================================================
-# GEN CONTROL · MASTER STREAMLIT
-# Versión consolidada para operación estable.
-# Mantener esta versión como base antes de una futura migración web.
-# =========================================================
-
-# =========================================================
 # CONFIGURACIÓN GENERAL
 # =========================================================
 
@@ -7439,6 +7433,14 @@ elif menu == "📈 Comportamiento diario":
                     diario["Compromisos"].astype(int)
                 )
 
+                # V5 · Lectura correcta de cumplimiento:
+                # no comparar domingos ni el corte parcial de hoy como jornadas completas.
+                hoy_bolivia_comp = fecha_local_actual()
+                diario["_fecha_ts"] = pd.to_datetime(diario["Fecha_dia"])
+                diario["_weekday"] = diario["_fecha_ts"].dt.weekday
+                diario["_es_domingo"] = diario["_weekday"].eq(6)
+                diario["_es_hoy"] = diario["Fecha_dia"].eq(hoy_bolivia_comp)
+
                 total_gestiones = int(
                     diario["Gestiones"].sum()
                 ) if not diario.empty else 0
@@ -7468,8 +7470,10 @@ elif menu == "📈 Comportamiento diario":
                     else 0
                 )
 
-                # La meta del equipo se calcula según operadores activos
-                # observados ese día. Para un operador individual se usa 98 / 25.
+                # Meta diaria correcta:
+                # lunes-sábado tienen meta; domingo no se evalúa.
+                # En vista general se usa la cantidad de operadores con registros,
+                # pero nunca se asigna meta a domingo.
                 if operador_sel == "Todos":
                     diario["Meta_gestiones"] = (
                         diario["Operadores_activos"]
@@ -7483,17 +7487,28 @@ elif menu == "📈 Comportamiento diario":
                     diario["Meta_gestiones"] = META_DIARIA_GESTIONES
                     diario["Meta_compromisos"] = META_DIARIA_COMPROMISOS
 
+                diario.loc[
+                    diario["_es_domingo"],
+                    ["Meta_gestiones", "Meta_compromisos"],
+                ] = 0
+
+                # Para porcentajes y rankings se consideran únicamente jornadas
+                # completas. El día actual se muestra, pero no distorsiona el análisis.
+                diario["_jornada_completa"] = (
+                    ~diario["_es_domingo"]
+                    & ~diario["_es_hoy"]
+                )
+
                 diario["Cumplimiento_gestiones"] = (
                     diario["Gestiones"]
                     / diario["Meta_gestiones"].replace(0, pd.NA)
                     * 100
-                ).fillna(0)
-
+                )
                 diario["Cumplimiento_compromisos"] = (
                     diario["Compromisos"]
                     / diario["Meta_compromisos"].replace(0, pd.NA)
                     * 100
-                ).fillna(0)
+                )
 
                 diario["Conversion"] = (
                     diario["Compromisos"]
@@ -7608,41 +7623,45 @@ elif menu == "📈 Comportamiento diario":
 
                 else:
                     # Cálculos generales usados por gráficos y resumen.
+                    diario_eval = diario[
+                        diario["_jornada_completa"]
+                    ].copy()
+
                     cumplimiento_g_prom = (
-                        diario["Gestiones"].sum()
-                        / diario["Meta_gestiones"].sum()
+                        diario_eval["Gestiones"].sum()
+                        / diario_eval["Meta_gestiones"].sum()
                         * 100
-                        if diario["Meta_gestiones"].sum()
+                        if diario_eval["Meta_gestiones"].sum()
                         else 0
                     )
 
                     cumplimiento_c_prom = (
-                        diario["Compromisos"].sum()
-                        / diario["Meta_compromisos"].sum()
+                        diario_eval["Compromisos"].sum()
+                        / diario_eval["Meta_compromisos"].sum()
                         * 100
-                        if diario["Meta_compromisos"].sum()
+                        if diario_eval["Meta_compromisos"].sum()
                         else 0
                     )
 
                     dias_meta_g = int(
                         (
-                            diario["Gestiones"]
-                            >= diario["Meta_gestiones"]
+                            diario_eval["Gestiones"]
+                            >= diario_eval["Meta_gestiones"]
                         ).sum()
                     )
                     dias_meta_c = int(
                         (
-                            diario["Compromisos"]
-                            >= diario["Meta_compromisos"]
+                            diario_eval["Compromisos"]
+                            >= diario_eval["Meta_compromisos"]
                         ).sum()
                     )
 
-                    mejores = diario.sort_values(
+                    mejores = diario_eval.sort_values(
                         ["Cumplimiento_gestiones", "Gestiones"],
                         ascending=[False, False],
                     ).head(3)
 
-                    peores = diario.sort_values(
+                    peores = diario_eval.sort_values(
                         ["Cumplimiento_gestiones", "Gestiones"],
                         ascending=[True, True],
                     ).head(3)
@@ -7654,6 +7673,11 @@ elif menu == "📈 Comportamiento diario":
                         '<div class="beh-section">Evolución diaria</div>',
                         unsafe_allow_html=True,
                     )
+                    if bool(diario["_es_hoy"].any()):
+                        st.info(
+                            "El día de hoy se muestra como avance parcial, pero no se incluye "
+                            "en el cumplimiento, brechas, rankings ni tendencias hasta cerrar la jornada."
+                        )
                     st.markdown(
                         '<div class="beh-section-sub">Cada indicador utiliza su propia escala para evitar distorsiones.</div>',
                         unsafe_allow_html=True,
@@ -7665,14 +7689,15 @@ elif menu == "📈 Comportamiento diario":
                     graf1, graf2 = st.columns(2)
 
                     # Métricas útiles para lectura del gráfico
+                    dias_evaluados = int(len(diario_eval))
                     dias_sobre_meta_g = int(
-                        (diario["Gestiones"] >= diario["Meta_gestiones"]).sum()
+                        (diario_eval["Gestiones"] >= diario_eval["Meta_gestiones"]).sum()
                     )
-                    dias_bajo_meta_g = dias - dias_sobre_meta_g
+                    dias_bajo_meta_g = dias_evaluados - dias_sobre_meta_g
                     dias_sobre_meta_c = int(
-                        (diario["Compromisos"] >= diario["Meta_compromisos"]).sum()
+                        (diario_eval["Compromisos"] >= diario_eval["Meta_compromisos"]).sum()
                     )
-                    dias_bajo_meta_c = dias - dias_sobre_meta_c
+                    dias_bajo_meta_c = dias_evaluados - dias_sobre_meta_c
 
                     # Mayor racha consecutiva sobre/bajo meta
                     def mayor_racha(serie_bool, valor_objetivo=True):
@@ -7687,25 +7712,33 @@ elif menu == "📈 Comportamiento diario":
                         return mejor
 
                     racha_sobre_g = mayor_racha(
-                        diario["Gestiones"] >= diario["Meta_gestiones"],
+                        diario_eval["Gestiones"] >= diario_eval["Meta_gestiones"],
                         True,
                     )
                     racha_bajo_g = mayor_racha(
-                        diario["Gestiones"] < diario["Meta_gestiones"],
+                        diario_eval["Gestiones"] < diario_eval["Meta_gestiones"],
                         True,
                     )
                     racha_sobre_c = mayor_racha(
-                        diario["Compromisos"] >= diario["Meta_compromisos"],
+                        diario_eval["Compromisos"] >= diario_eval["Meta_compromisos"],
                         True,
                     )
                     racha_bajo_c = mayor_racha(
-                        diario["Compromisos"] < diario["Meta_compromisos"],
+                        diario_eval["Compromisos"] < diario_eval["Meta_compromisos"],
                         True,
                     )
 
                     chart_base = diario.copy()
                     chart_base["Fecha_plot"] = pd.to_datetime(
                         chart_base["Fecha_dia"]
+                    )
+                    chart_base["Meta_gestiones_plot"] = (
+                        chart_base["Meta_gestiones"]
+                        .where(chart_base["_jornada_completa"])
+                    )
+                    chart_base["Meta_compromisos_plot"] = (
+                        chart_base["Meta_compromisos"]
+                        .where(chart_base["_jornada_completa"])
                     )
 
                     def grafico_diario_altair(
@@ -7840,11 +7873,11 @@ elif menu == "📈 Comportamiento diario":
                                 <div class="chart-mini-grid">
                                     <div class="chart-mini">
                                         <div class="chart-mini-label">Días sobre meta</div>
-                                        <div class="chart-mini-value">{dias_sobre_meta_g} / {dias}</div>
+                                        <div class="chart-mini-value">{dias_sobre_meta_g} / {dias_evaluados}</div>
                                     </div>
                                     <div class="chart-mini">
                                         <div class="chart-mini-label">Días bajo meta</div>
-                                        <div class="chart-mini-value">{dias_bajo_meta_g} / {dias}</div>
+                                        <div class="chart-mini-value">{dias_bajo_meta_g} / {dias_evaluados}</div>
                                     </div>
                                     <div class="chart-mini">
                                         <div class="chart-mini-label">Mejor racha</div>
@@ -7862,7 +7895,7 @@ elif menu == "📈 Comportamiento diario":
                             chart_g_final = grafico_diario_altair(
                                 chart_base,
                                 "Gestiones",
-                                "Meta_gestiones",
+                                "Meta_gestiones_plot",
                                 "Gestiones",
                                 prom_g,
                             )
@@ -7890,11 +7923,11 @@ elif menu == "📈 Comportamiento diario":
                                 <div class="chart-mini-grid">
                                     <div class="chart-mini">
                                         <div class="chart-mini-label">Días sobre meta</div>
-                                        <div class="chart-mini-value">{dias_sobre_meta_c} / {dias}</div>
+                                        <div class="chart-mini-value">{dias_sobre_meta_c} / {dias_evaluados}</div>
                                     </div>
                                     <div class="chart-mini">
                                         <div class="chart-mini-label">Días bajo meta</div>
-                                        <div class="chart-mini-value">{dias_bajo_meta_c} / {dias}</div>
+                                        <div class="chart-mini-value">{dias_bajo_meta_c} / {dias_evaluados}</div>
                                     </div>
                                     <div class="chart-mini">
                                         <div class="chart-mini-label">Mejor racha</div>
@@ -7912,7 +7945,7 @@ elif menu == "📈 Comportamiento diario":
                             chart_c_final = grafico_diario_altair(
                                 chart_base,
                                 "Compromisos",
-                                "Meta_compromisos",
+                                "Meta_compromisos_plot",
                                 "Compromisos",
                                 prom_c,
                             )
@@ -7930,27 +7963,30 @@ elif menu == "📈 Comportamiento diario":
                     # RESUMEN EJECUTIVO DEL PERIODO
                     # ------------------------------
                     meta_g_total = int(
-                        diario["Meta_gestiones"].sum()
+                        diario_eval["Meta_gestiones"].sum()
                     )
                     meta_c_total = int(
-                        diario["Meta_compromisos"].sum()
+                        diario_eval["Meta_compromisos"].sum()
                     )
 
+                    gestiones_eval = int(diario_eval["Gestiones"].sum())
+                    compromisos_eval = int(diario_eval["Compromisos"].sum())
+
                     brecha_g_total = (
-                        total_gestiones - meta_g_total
+                        gestiones_eval - meta_g_total
                     )
                     brecha_c_total = (
-                        total_compromisos - meta_c_total
+                        compromisos_eval - meta_c_total
                     )
 
                     tendencia_g = 0.0
                     tendencia_c = 0.0
-                    if len(diario) >= 4:
-                        mitad = max(len(diario) // 2, 1)
-                        prom_g_1 = diario.iloc[:mitad]["Gestiones"].mean()
-                        prom_g_2 = diario.iloc[mitad:]["Gestiones"].mean()
-                        prom_c_1 = diario.iloc[:mitad]["Compromisos"].mean()
-                        prom_c_2 = diario.iloc[mitad:]["Compromisos"].mean()
+                    if len(diario_eval) >= 4:
+                        mitad = max(len(diario_eval) // 2, 1)
+                        prom_g_1 = diario_eval.iloc[:mitad]["Gestiones"].mean()
+                        prom_g_2 = diario_eval.iloc[mitad:]["Gestiones"].mean()
+                        prom_c_1 = diario_eval.iloc[:mitad]["Compromisos"].mean()
+                        prom_c_2 = diario_eval.iloc[mitad:]["Compromisos"].mean()
 
                         if prom_g_1:
                             tendencia_g = (
@@ -7966,12 +8002,12 @@ elif menu == "📈 Comportamiento diario":
                             )
 
                     promedio_meta_g = (
-                        diario["Meta_gestiones"].mean()
+                        diario_eval["Meta_gestiones"].mean()
                         if dias
                         else 0
                     )
                     promedio_meta_c = (
-                        diario["Meta_compromisos"].mean()
+                        diario_eval["Meta_compromisos"].mean()
                         if dias
                         else 0
                     )
@@ -8162,6 +8198,18 @@ elif menu == "📈 Comportamiento diario":
                         .dt.weekday
                         .map(nombres_dia)
                     )
+                    detalle["Estado día"] = detalle.apply(
+                        lambda r: (
+                            "En curso"
+                            if bool(r["_es_hoy"])
+                            else (
+                                "No laborable"
+                                if bool(r["_es_domingo"])
+                                else "Cerrado"
+                            )
+                        ),
+                        axis=1,
+                    )
                     detalle["Fecha"] = (
                         detalle["Fecha"]
                         .dt.strftime("%d/%m/%Y")
@@ -8192,6 +8240,7 @@ elif menu == "📈 Comportamiento diario":
                         [
                             "Fecha",
                             "Día",
+                            "Estado día",
                             "Gestiones",
                             "Meta_gestiones",
                             "% Gestiones",
