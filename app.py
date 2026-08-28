@@ -6754,13 +6754,124 @@ elif menu == "✉️ Mensajes diarios":
     """, unsafe_allow_html=True)
 
 
+
+    st.markdown("""
+    <style>
+    /* V92 · Rediseño de Mensajes diarios */
+    .daily-panel{
+        padding:14px 18px!important;
+        border-radius:14px!important;
+        margin:0 0 12px 0!important;
+        background:#f7faff!important;
+        border:1px solid #dce7f3!important;
+        box-shadow:none!important;
+    }
+    .daily-panel-title{font-size:22px!important}
+    .daily-panel-sub{font-size:11px!important}
+
+    .data-ready-v86{
+        padding:10px 12px!important;
+        margin:0 0 10px 0!important;
+        border-radius:12px!important;
+        background:#ffffff!important;
+    }
+    .data-ready-head-v86{
+        font-size:12px!important;
+        margin-bottom:7px!important;
+    }
+    .data-item-v86{
+        padding:7px 9px!important;
+        min-height:48px!important;
+    }
+    .data-label-v86{font-size:8px!important}
+    .data-value-v86{font-size:11px!important}
+
+    .control-v92{
+        margin:8px 0 12px;
+        border:1px solid #dfe7ef;
+        border-radius:13px;
+        padding:11px 13px;
+        background:#fff;
+    }
+    .control-head-v92{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        margin-bottom:9px;
+    }
+    .control-head-v92 b{
+        display:block;
+        font-size:14px;
+        color:#16324f;
+    }
+    .control-head-v92 span{
+        display:block;
+        margin-top:1px;
+        font-size:9px;
+        color:#829ab1;
+    }
+    .control-time-v92{
+        font-size:18px;
+        line-height:1;
+        font-weight:800;
+        color:#16324f;
+    }
+    .control-grid-v92{
+        display:grid;
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        gap:7px;
+    }
+    .control-grid-v92>div{
+        background:#f8fafc;
+        border:1px solid #edf1f5;
+        border-radius:9px;
+        padding:7px 9px;
+    }
+    .control-grid-v92 span{
+        display:block;
+        font-size:8px;
+        color:#829ab1;
+        text-transform:uppercase;
+        letter-spacing:.25px;
+    }
+    .control-grid-v92 b{
+        display:block;
+        font-size:13px;
+        margin-top:2px;
+        color:#243b53;
+    }
+
+    /* Expander usados como herramientas secundarias */
+    div[data-testid="stExpander"]{
+        border:1px solid #e4eaf1!important;
+        border-radius:11px!important;
+        background:#fff!important;
+    }
+    div[data-testid="stExpander"] summary{
+        font-weight:700!important;
+        font-size:12px!important;
+    }
+
+    /* Quitar sensación de formulario gigante */
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stSelectbox"]>div>div{
+        min-height:38px!important;
+    }
+
+    @media(max-width:1000px){
+        .control-grid-v92{grid-template-columns:repeat(3,minmax(0,1fr))}
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.markdown(
         f"""
         <div class="daily-panel">
             <div class="daily-panel-title">✉️ Mensajes diarios</div>
             <div class="daily-panel-sub">
-                Comunicación diaria, metas de cierre y recuperación ·
-                {jornadas_info['disponibles']} jornadas disponibles contando hoy
+                Seguimiento operativo y comunicación por Telegram ·
+                {jornadas_info['disponibles']} jornadas disponibles
             </div>
         </div>
         """,
@@ -6816,15 +6927,8 @@ elif menu == "✉️ Mensajes diarios":
         elif validacion_v86["advertencias"]:
             st.warning("Revisión recomendada: " + " · ".join(validacion_v86["advertencias"]))
 
-        # Resumen superior compacto
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Jornadas del mes", jornadas_info["total"])
-        c2.metric("Completadas", len([d for d in jornadas_info["dias"] if d < fecha_local_actual()]))
-        c3.metric("Disponibles", jornadas_info["disponibles"])
-        c4.metric("Esperado a la fecha", formato_porcentaje(jornadas_info["esperado_pct"]))
-
         # -------------------------------------------------
-        # CORTES RECOMENDADOS Y FRECUENCIA DE SEGUIMIENTO
+        # PANEL COMPACTO DE CONTROL — V92
         # -------------------------------------------------
         ahora_seguimiento = datetime.now(
             ZoneInfo("America/La_Paz")
@@ -6855,56 +6959,43 @@ elif menu == "✉️ Mensajes diarios":
             )
         )
 
+        proximo_corte_v92 = (
+            info_corte["hora"]
+            if info_corte["estado"] != "finalizado"
+            else "Finalizado"
+        )
+
+        completadas_v92 = len(
+            [
+                d
+                for d in jornadas_info["dias"]
+                if d < fecha_local_actual()
+            ]
+        )
+
+        html_control_v92 = (
+            '<div class="control-v92">'
+            '<div class="control-head-v92">'
+            '<div><b>📊 Control del seguimiento</b>'
+            '<span>Estado operativo del momento</span></div>'
+            f'<div class="control-time-v92">{ahora_seguimiento.strftime("%H:%M")}</div>'
+            '</div>'
+            '<div class="control-grid-v92">'
+            f'<div><span>Próximo corte</span><b>{proximo_corte_v92}</b></div>'
+            f'<div><span>En turno</span><b>{len(usuarios_turno_actual)}/{len(resultado)}</b></div>'
+            f'<div><span>Seguimiento &lt;60 min</span><b>{len(recientes_ctrl)}</b></div>'
+            f'<div><span>Esperado mes</span><b>{formato_porcentaje(jornadas_info["esperado_pct"])}</b></div>'
+            f'<div><span>Jornadas</span><b>{completadas_v92}/{jornadas_info["total"]}</b></div>'
+            '</div>'
+            '</div>'
+        )
         st.markdown(
-            '<span class="section-chip">SEGUIMIENTO DEL DÍA</span>',
+            html_control_v92,
             unsafe_allow_html=True,
         )
 
-        sc1, sc2, sc3, sc4 = st.columns(4)
-
-        sc1.metric(
-            "Hora actual",
-            ahora_seguimiento.strftime("%H:%M"),
-        )
-
-        sc2.metric(
-            "Próximo corte",
-            (
-                info_corte["hora"]
-                if info_corte["estado"] != "finalizado"
-                else "Finalizado"
-            ),
-        )
-
-        sc3.metric(
-            "En turno",
-            len(usuarios_turno_actual),
-        )
-
-        sc4.metric(
-            "Seguimiento reciente",
-            len(recientes_ctrl),
-        )
-
-        if info_corte["estado"] == "proximo":
-            if info_corte["minutos"] == 0:
-                st.info(
-                    f"⏰ {info_corte['texto']}. Este es un buen momento "
-                    "para actualizar CallCenter y revisar el avance."
-                )
-            else:
-                st.info(
-                    f"⏰ {info_corte['texto']} · faltan aprox. "
-                    f"{info_corte['minutos']} min."
-                )
-        else:
-            st.caption(
-                "Los cortes sugeridos son 10:30 · 13:30 · 15:30 · 17:30. "
-                "Puedes realizar seguimientos adicionales cuando sea necesario."
-            )
-
         if recientes_ctrl:
-            nombres_recientes = []
+            nombres_recientes_v92 = []
             for usuario_rec, minutos_rec in recientes_ctrl:
                 nombre_rec = OPERADORES.get(
                     usuario_rec,
@@ -6913,242 +7004,245 @@ elif menu == "✉️ Mensajes diarios":
                     "nombre_mensaje",
                     usuario_rec,
                 )
-                nombres_recientes.append(
+                nombres_recientes_v92.append(
                     f"{nombre_rec} ({minutos_rec} min)"
                 )
 
-            st.warning(
-                "⚠️ Seguimiento reciente (<60 min): "
-                + " · ".join(nombres_recientes)
-                + ". Puedes volver a enviar si lo necesitas, pero la app "
-                "te avisa para evitar mensajes demasiado seguidos."
+            with st.expander(
+                f"⚠️ {len(recientes_ctrl)} seguimiento(s) reciente(s)",
+                expanded=False,
+            ):
+                st.caption(
+                    " · ".join(nombres_recientes_v92)
+                    + ". Puedes reenviar si es necesario; GEN Control solo avisa para evitar mensajes demasiado seguidos."
+                )
+
+        with st.expander("💰 Recuperación y mensaje general", expanded=False):
+            # -------------------------------------------------
+            # AVANCE GENERAL DE RECUPERACIÓN
+            # -------------------------------------------------
+            meta_individual = float(st.session_state.meta_recuperacion_cfg)
+            tabla_general = resultado[["Operador", "Recuperación acumulada", "% Recuperación"]].copy()
+            tabla_general["Meta"] = meta_individual
+            tabla_general["Falta"] = (meta_individual - tabla_general["Recuperación acumulada"]).clip(lower=0)
+            tabla_general = tabla_general.sort_values("% Recuperación", ascending=False, kind="stable").reset_index(drop=True)
+
+            total_recuperacion_equipo = float(tabla_general["Recuperación acumulada"].sum())
+            meta_equipo = meta_individual * CANTIDAD_OPERADORES
+            pct_equipo = total_recuperacion_equipo / meta_equipo * 100 if meta_equipo else 0
+            falta_equipo = max(meta_equipo - total_recuperacion_equipo, 0)
+
+            st.markdown(
+                '<span class="section-chip">RECUPERACIÓN DEL EQUIPO</span>',
+                unsafe_allow_html=True,
+            )
+            st.markdown("### Avance general")
+            g1, g2, g3 = st.columns(3)
+            g1.metric("Recuperación del equipo", formato_usd(total_recuperacion_equipo))
+            g2.metric("Cumplimiento", formato_porcentaje(pct_equipo))
+            g3.metric("Brecha total", formato_usd(falta_equipo))
+
+            mensaje_general = (
+                f"📊 AVANCE DE RECUPERACIÓN – {fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
+                f"Buenos días, equipo. Comparto el avance acumulado de recuperación a la fecha, "
+                f"considerando una meta mensual de {formato_usd(meta_individual)} por operador.\n\n"
+                "Revisemos nuestro porcentaje de cumplimiento y la brecha pendiente. "
+                "Mantengamos el enfoque en recuperación para continuar avanzando hacia la meta mensual. 💪"
             )
 
-        # -------------------------------------------------
-        # AVANCE GENERAL DE RECUPERACIÓN
-        # -------------------------------------------------
-        meta_individual = float(st.session_state.meta_recuperacion_cfg)
-        tabla_general = resultado[["Operador", "Recuperación acumulada", "% Recuperación"]].copy()
-        tabla_general["Meta"] = meta_individual
-        tabla_general["Falta"] = (meta_individual - tabla_general["Recuperación acumulada"]).clip(lower=0)
-        tabla_general = tabla_general.sort_values("% Recuperación", ascending=False, kind="stable").reset_index(drop=True)
+            with st.expander("Ver mensaje general y tabla de recuperación", expanded=False):
+                st.text_area("Mensaje general", value=mensaje_general, height=135, key="mensaje_general_recuperacion_v22", label_visibility="collapsed")
+                tabla_compartir = pd.DataFrame({
+                    "Operador": tabla_general["Operador"],
+                    "Recuperación": tabla_general["Recuperación acumulada"].apply(formato_usd),
+                    "Cumplimiento": tabla_general["% Recuperación"].apply(formato_porcentaje),
+                    "Falta": tabla_general["Falta"].apply(formato_usd),
+                })
+                st.dataframe(tabla_compartir, use_container_width=True, hide_index=True)
 
-        total_recuperacion_equipo = float(tabla_general["Recuperación acumulada"].sum())
-        meta_equipo = meta_individual * CANTIDAD_OPERADORES
-        pct_equipo = total_recuperacion_equipo / meta_equipo * 100 if meta_equipo else 0
-        falta_equipo = max(meta_equipo - total_recuperacion_equipo, 0)
+                imagen_recuperacion = generar_imagen_avance_recuperacion(tabla_general, fecha_local_actual(), meta_individual)
+                st.image(imagen_recuperacion, caption="Imagen lista para correo o Telegram", width=760)
+                bi1, bi2, bi3 = st.columns(3)
+                with bi1:
+                    mostrar_boton_copiar_imagen(imagen_recuperacion)
+                with bi2:
+                    st.download_button("🖼️ Descargar imagen", data=imagen_recuperacion.getvalue(), file_name=f"avance_recuperacion_{fecha_local_actual().isoformat()}.png", mime="image/png", use_container_width=True)
+                with bi3:
+                    mailto_general = f"mailto:cobranza@gestiona.bo?subject={quote('Avance de recuperación')}&body={quote(mensaje_general)}"
+                    st.link_button("✉️ Correo general", mailto_general, use_container_width=True)
 
-        st.markdown(
-            '<span class="section-chip">RECUPERACIÓN DEL EQUIPO</span>',
-            unsafe_allow_html=True,
-        )
-        st.markdown("### Avance general")
-        g1, g2, g3 = st.columns(3)
-        g1.metric("Recuperación del equipo", formato_usd(total_recuperacion_equipo))
-        g2.metric("Cumplimiento", formato_porcentaje(pct_equipo))
-        g3.metric("Brecha total", formato_usd(falta_equipo))
+            st.divider()
 
-        mensaje_general = (
-            f"📊 AVANCE DE RECUPERACIÓN – {fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
-            f"Buenos días, equipo. Comparto el avance acumulado de recuperación a la fecha, "
-            f"considerando una meta mensual de {formato_usd(meta_individual)} por operador.\n\n"
-            "Revisemos nuestro porcentaje de cumplimiento y la brecha pendiente. "
-            "Mantengamos el enfoque en recuperación para continuar avanzando hacia la meta mensual. 💪"
-        )
-
-        with st.expander("Ver mensaje general y tabla de recuperación", expanded=False):
-            st.text_area("Mensaje general", value=mensaje_general, height=135, key="mensaje_general_recuperacion_v22", label_visibility="collapsed")
-            tabla_compartir = pd.DataFrame({
-                "Operador": tabla_general["Operador"],
-                "Recuperación": tabla_general["Recuperación acumulada"].apply(formato_usd),
-                "Cumplimiento": tabla_general["% Recuperación"].apply(formato_porcentaje),
-                "Falta": tabla_general["Falta"].apply(formato_usd),
-            })
-            st.dataframe(tabla_compartir, use_container_width=True, hide_index=True)
-
-            imagen_recuperacion = generar_imagen_avance_recuperacion(tabla_general, fecha_local_actual(), meta_individual)
-            st.image(imagen_recuperacion, caption="Imagen lista para correo o Telegram", width=760)
-            bi1, bi2, bi3 = st.columns(3)
-            with bi1:
-                mostrar_boton_copiar_imagen(imagen_recuperacion)
-            with bi2:
-                st.download_button("🖼️ Descargar imagen", data=imagen_recuperacion.getvalue(), file_name=f"avance_recuperacion_{fecha_local_actual().isoformat()}.png", mime="image/png", use_container_width=True)
-            with bi3:
-                mailto_general = f"mailto:cobranza@gestiona.bo?subject={quote('Avance de recuperación')}&body={quote(mensaje_general)}"
-                st.link_button("✉️ Correo general", mailto_general, use_container_width=True)
-
-        st.divider()
-
-        # -------------------------------------------------
-        # ENCABEZADO + CONTROL DEL DÍA — V66
-        # -------------------------------------------------
-        corte_callcenter_v68 = obtener_corte_callcenter(
-            st.session_state.callcenter_df
-        )
-
-        ahora_v66 = (
-            corte_callcenter_v68.to_pydatetime()
-            if hasattr(
-                corte_callcenter_v68,
-                "to_pydatetime",
-            )
-            else corte_callcenter_v68
-        )
-
-        if ahora_v66 is None:
-            ahora_v66 = datetime.now(
-                ZoneInfo("America/La_Paz")
+            # -------------------------------------------------
+            # ENCABEZADO + CONTROL DEL DÍA — V66
+            # -------------------------------------------------
+            corte_callcenter_v68 = obtener_corte_callcenter(
+                st.session_state.callcenter_df
             )
 
-        saludo_v66, emoji_v66 = saludo_segun_hora()
+            ahora_v66 = (
+                corte_callcenter_v68.to_pydatetime()
+                if hasattr(
+                    corte_callcenter_v68,
+                    "to_pydatetime",
+                )
+                else corte_callcenter_v68
+            )
 
-        st.markdown(
-            textwrap.dedent(f"""
-            <div class="hello-v66">
-                <div>
-                    <div class="hello-title-v66">
-                        {saludo_v66}, José Carlos. {emoji_v66}
-                    </div>
-                    <div class="hello-sub-v66">
-                        {ahora_v66.strftime('%d/%m/%Y')} ·
-                        {ahora_v66.strftime('%H:%M')} hrs ·
-                        Seguimiento de metas y avance a la hora
+            if ahora_v66 is None:
+                ahora_v66 = datetime.now(
+                    ZoneInfo("America/La_Paz")
+                )
+
+            saludo_v66, emoji_v66 = saludo_segun_hora()
+
+            st.markdown(
+                textwrap.dedent(f"""
+                <div class="hello-v66">
+                    <div>
+                        <div class="hello-title-v66">
+                            {saludo_v66}, José Carlos. {emoji_v66}
+                        </div>
+                        <div class="hello-sub-v66">
+                            {ahora_v66.strftime('%d/%m/%Y')} ·
+                            {ahora_v66.strftime('%H:%M')} hrs ·
+                            Seguimiento de metas y avance a la hora
+                        </div>
                     </div>
                 </div>
-            </div>
-            """),
-            unsafe_allow_html=True,
-        )
+                """),
+                unsafe_allow_html=True,
+            )
 
-        top_a1, top_a2, top_a3 = st.columns([5, 1.25, 1.25])
+            top_a1, top_a2, top_a3 = st.columns([5, 1.25, 1.25])
 
-        with top_a2:
-            with st.popover(
-                "📄 Mensaje general",
-                use_container_width=True,
-            ):
-                st.text_area(
-                    "Mensaje general",
-                    value=mensaje_general,
-                    height=220,
-                    disabled=True,
-                    label_visibility="collapsed",
-                    key="mensaje_general_popover_v66",
-                )
-
-        with top_a3:
-            with st.popover(
-                "📊 Tabla recuperación",
-                use_container_width=True,
-            ):
-                st.dataframe(
-                    tabla_compartir,
+            with top_a2:
+                with st.popover(
+                    "📄 Mensaje general",
                     use_container_width=True,
-                    hide_index=True,
+                ):
+                    st.text_area(
+                        "Mensaje general",
+                        value=mensaje_general,
+                        height=220,
+                        disabled=True,
+                        label_visibility="collapsed",
+                        key="mensaje_general_popover_v66",
+                    )
+
+            with top_a3:
+                with st.popover(
+                    "📊 Tabla recuperación",
+                    use_container_width=True,
+                ):
+                    st.dataframe(
+                        tabla_compartir,
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+            # -------------------------------------------------
+            # KPIs COMPACTOS
+            # -------------------------------------------------
+            operadores_con_correo = 0
+            operadores_con_telegram = 0
+
+            for _, fila_tmp in resultado.iterrows():
+                usuario_tmp = fila_tmp["Usuario"]
+                contacto_tmp = datos_contacto.get(
+                    usuario_tmp,
+                    {},
                 )
 
-        # -------------------------------------------------
-        # KPIs COMPACTOS
-        # -------------------------------------------------
-        operadores_con_correo = 0
-        operadores_con_telegram = 0
+                correo_tmp = (
+                    contacto_tmp.get("correo")
+                    or str(
+                        fila_tmp.get("Correo", "")
+                    ).strip()
+                )
 
-        for _, fila_tmp in resultado.iterrows():
-            usuario_tmp = fila_tmp["Usuario"]
-            contacto_tmp = datos_contacto.get(
-                usuario_tmp,
-                {},
-            )
-
-            correo_tmp = (
-                contacto_tmp.get("correo")
-                or str(
-                    fila_tmp.get("Correo", "")
-                ).strip()
-            )
-
-            telegram_tmp = (
-                normalizar_telegram_chat_id(
-                    contacto_tmp.get(
-                        "telegram_chat_id",
-                        "",
+                telegram_tmp = (
+                    normalizar_telegram_chat_id(
+                        contacto_tmp.get(
+                            "telegram_chat_id",
+                            "",
+                        )
                     )
                 )
+
+                if correo_tmp:
+                    operadores_con_correo += 1
+
+                if telegram_tmp:
+                    operadores_con_telegram += 1
+
+            promedio_rec_v66 = float(
+                resultado["% Recuperación"].mean()
             )
 
-            if correo_tmp:
-                operadores_con_correo += 1
+            esperado_resumen = float(
+                jornadas_info["esperado_pct"]
+            )
 
-            if telegram_tmp:
-                operadores_con_telegram += 1
+            k1, k2, k3, k4, k5, k6 = st.columns(6)
 
-        promedio_rec_v66 = float(
-            resultado["% Recuperación"].mean()
-        )
+            kpis_v66 = [
+                (
+                    k1,
+                    "kpi-v66-purple",
+                    "👥 OPERADORES",
+                    str(len(resultado)),
+                    "Activos en el reporte",
+                ),
+                (
+                    k2,
+                    "kpi-v66-blue",
+                    "✉️ CORREOS",
+                    str(operadores_con_correo),
+                    "Configurados",
+                ),
+                (
+                    k3,
+                    "kpi-v66-green",
+                    "✈️ TELEGRAM",
+                    str(operadores_con_telegram),
+                    "Configurados",
+                ),
+                (
+                    k4,
+                    "kpi-v66-orange",
+                    "🎯 MÍNIMOS",
+                    "98 / 25",
+                    "Gestiones / compromisos",
+                ),
+                (
+                    k5,
+                    "kpi-v66-blue",
+                    "📈 ESPERADO MES",
+                    formato_porcentaje(esperado_resumen),
+                    "Según jornadas transcurridas",
+                ),
+                (
+                    k6,
+                    "kpi-v66-purple",
+                    "💰 RECUPERACIÓN",
+                    formato_porcentaje(promedio_rec_v66),
+                    "Promedio mensual",
+                ),
+            ]
 
-        esperado_resumen = float(
-            jornadas_info["esperado_pct"]
-        )
-
-        k1, k2, k3, k4, k5, k6 = st.columns(6)
-
-        kpis_v66 = [
-            (
-                k1,
-                "kpi-v66-purple",
-                "👥 OPERADORES",
-                str(len(resultado)),
-                "Activos en el reporte",
-            ),
-            (
-                k2,
-                "kpi-v66-blue",
-                "✉️ CORREOS",
-                str(operadores_con_correo),
-                "Configurados",
-            ),
-            (
-                k3,
-                "kpi-v66-green",
-                "✈️ TELEGRAM",
-                str(operadores_con_telegram),
-                "Configurados",
-            ),
-            (
-                k4,
-                "kpi-v66-orange",
-                "🎯 MÍNIMOS",
-                "98 / 25",
-                "Gestiones / compromisos",
-            ),
-            (
-                k5,
-                "kpi-v66-blue",
-                "📈 ESPERADO MES",
-                formato_porcentaje(esperado_resumen),
-                "Según jornadas transcurridas",
-            ),
-            (
-                k6,
-                "kpi-v66-purple",
-                "💰 RECUPERACIÓN",
-                formato_porcentaje(promedio_rec_v66),
-                "Promedio mensual",
-            ),
-        ]
-
-        for columna_kpi, clase_kpi, etiqueta_kpi, valor_kpi, pie_kpi in kpis_v66:
-            with columna_kpi:
-                st.markdown(
-                    f"""
-                    <div class="kpi-v66 {clase_kpi}">
-                        <div class="kpi-label-v66">{etiqueta_kpi}</div>
-                        <div class="kpi-value-v66">{valor_kpi}</div>
-                        <div class="kpi-foot-v66">{pie_kpi}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+            for columna_kpi, clase_kpi, etiqueta_kpi, valor_kpi, pie_kpi in kpis_v66:
+                with columna_kpi:
+                    st.markdown(
+                        f"""
+                        <div class="kpi-v66 {clase_kpi}">
+                            <div class="kpi-label-v66">{etiqueta_kpi}</div>
+                            <div class="kpi-value-v66">{valor_kpi}</div>
+                            <div class="kpi-foot-v66">{pie_kpi}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
         # -------------------------------------------------
         # AVANCE DEL DÍA A LA HORA
@@ -7386,11 +7480,6 @@ elif menu == "✉️ Mensajes diarios":
                 "el avance del día a la hora de corte del archivo."
             )
 
-        st.caption(
-            "📌 Ranking, tarjetas, vista previa y Telegram usan la misma "
-            "base procesada actualmente en GEN Control."
-        )
-
         enviados_hoy_total = sum(
             1
             for usuario_ctrl in resultado["Usuario"].tolist()
@@ -7401,30 +7490,19 @@ elif menu == "✉️ Mensajes diarios":
         )
 
         st.caption(
-            f"✅ Operadores con al menos un seguimiento enviado hoy: "
-            f"{enviados_hoy_total}/{len(resultado)}."
+            f"✅ Seguimiento enviado hoy: {enviados_hoy_total}/{len(resultado)} operadores · "
+            "los mensajes automáticos respetan turno y hora de corte."
         )
-
-        st.caption(
-            "🕒 Mensajería inteligente: el primer seguimiento incluye recuperación; "
-            "los cortes intermedios priorizan gestiones y compromisos; desde las "
-            "17:00 vuelve a incluir recuperación para el cierre. Fuera de turno "
-            "no se envían nuevos mensajes."
-        )
-
 
         # -------------------------------------------------
         # MENSAJE LIBRE POR TELEGRAM — V90
         # -------------------------------------------------
-        st.markdown("### 💬 Comunicación manual")
-        st.caption("Para avisos, instrucciones o mensajes especiales que quieras redactar tú mismo.")
-
         with st.expander(
-            "💬 Enviar mensaje personalizado",
-            expanded=True,
+            "💬 Mensaje personalizado",
+            expanded=False,
         ):
             st.caption(
-                "Mensaje libre por privado. No modifica ni cuenta como seguimiento automático."
+                "Escribe un aviso libre y elige a quién enviarlo. No cuenta como seguimiento."
             )
 
             opciones_manual_v90 = []
@@ -7609,9 +7687,8 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
-        st.markdown("---")
-        st.markdown("### 📊 Seguimiento operativo")
-        st.caption("Consulta el avance del día y envía seguimientos automáticos basados en las metas y el corte cargado.")
+        st.markdown("### 👥 Seguimiento por operador")
+        st.caption("Prioriza, revisa el avance y envía el seguimiento automático desde una sola vista.")
 
         f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
 
@@ -7724,7 +7801,7 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
             if st.button(
-                f"✈️ Enviar seguimiento a operadores de turno ({len(telegram_pendientes_top)})",
+                f"✈️ Enviar a operadores en turno ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
                 disabled=(
@@ -8562,267 +8639,166 @@ elif menu == "✉️ Mensajes diarios":
             unsafe_allow_html=True,
         )
 
-        st.divider()
-        st.markdown(
-            '<span class="section-chip">TELEGRAM</span>',
-            unsafe_allow_html=True,
-        )
-        st.markdown("### Envío y comunicación")
+        with st.expander("📣 Mensaje y ranking al grupo", expanded=False):
+            coordinador_chat_id = obtener_telegram_coordinador_chat_id()
 
-        st.caption(
-            "Control inteligente activo: cortes sugeridos 10:30 · 13:30 · "
-            "15:30 · 17:30. El aviso al grupo cambia automáticamente entre "
-            "primer seguimiento, seguimiento intermedio y cierre. Puedes enviar "
-            "varios avances durante el turno; si el último fue hace menos de "
-            "60 min, GEN Control te lo advierte sin bloquear."
-        )
-
-        coordinador_chat_id = obtener_telegram_coordinador_chat_id()
-
-        if coordinador_chat_id:
-            st.success(
-                "✅ Copia al coordinador activa. Recibirás una confirmación "
-                "con el mensaje exacto después de cada envío individual exitoso."
-            )
-        else:
-            st.info(
-                "Agrega TELEGRAM_COORDINADOR_CHAT_ID en Streamlit Secrets "
-                "para recibir copia y confirmación de cada envío."
-            )
-
-
-        telegram_group_chat_id = (
-            obtener_telegram_group_chat_id()
-        )
-
-        mensaje_grupo = (
-            generar_mensaje_grupo_recuperacion(
-                tabla_general,
-                meta_individual,
-            )
-        )
-
-
-        # -------------------------------------------------
-        # VISTA PREVIA TELEGRAM — NO ENVÍA NADA
-        # -------------------------------------------------
-        st.markdown("#### 👁️ Vista previa antes de enviar")
-
-        if st.button(
-            "👁️ Ver cómo llegará al grupo",
-            use_container_width=True,
-            key="preview_telegram_grupo",
-        ):
-            st.session_state["mostrar_preview_telegram"] = True
-
-        if st.session_state.get(
-            "mostrar_preview_telegram",
-            False,
-        ):
-            with st.container(border=True):
-                st.caption(
-                    "Vista previa local. No se ha enviado nada a Telegram."
+            if coordinador_chat_id:
+                st.success(
+                    "✅ Copia al coordinador activa. Recibirás una confirmación "
+                    "con el mensaje exacto después de cada envío individual exitoso."
+                )
+            else:
+                st.info(
+                    "Agrega TELEGRAM_COORDINADOR_CHAT_ID en Streamlit Secrets "
+                    "para recibir copia y confirmación de cada envío."
                 )
 
-                st.markdown("**Mensaje de texto**")
-                st.text_area(
-                    "Vista previa del mensaje",
-                    value=mensaje_grupo,
-                    height=235,
-                    disabled=True,
-                    label_visibility="collapsed",
-                    key="preview_texto_telegram",
+
+            telegram_group_chat_id = (
+                obtener_telegram_group_chat_id()
+            )
+
+            mensaje_grupo = (
+                generar_mensaje_grupo_recuperacion(
+                    tabla_general,
+                    meta_individual,
                 )
+            )
 
-                st.markdown("**Imagen del ranking**")
 
-                try:
-                    imagen_preview = (
-                        generar_imagen_recuperacion_telegram(
-                            tabla_general,
-                            meta_individual,
-                        )
-                    )
+            # -------------------------------------------------
+            # VISTA PREVIA TELEGRAM — NO ENVÍA NADA
+            # -------------------------------------------------
+            st.markdown("#### 👁️ Vista previa antes de enviar")
 
-                    st.image(
-                        imagen_preview,
-                        use_container_width=True,
-                    )
-
-                except Exception as e:
-                    st.error(
-                        f"No se pudo generar la vista previa: {e}"
-                    )
-
-                if st.button(
-                    "✖️ Cerrar vista previa",
-                    use_container_width=True,
-                    key="cerrar_preview_telegram",
-                ):
-                    st.session_state[
-                        "mostrar_preview_telegram"
-                    ] = False
-                    st.rerun()
-
-        st.divider()
-
-        tg_col1, tg_col2 = st.columns(2)
-
-        with tg_col1:
             if st.button(
-                "📤 Enviar ahora al grupo",
-                type="primary",
+                "👁️ Ver cómo llegará al grupo",
                 use_container_width=True,
-                disabled=(
-                    not bool(
-                        telegram_group_chat_id
-                    )
-                ),
-                key="enviar_resumen_grupo_telegram",
+                key="preview_telegram_grupo",
             ):
-                # 1. Enviar texto general.
-                ok_texto, detalle_texto = (
-                    enviar_mensaje_telegram(
-                        telegram_group_chat_id,
-                        mensaje_grupo,
-                    )
-                )
+                st.session_state["mostrar_preview_telegram"] = True
 
-                if not ok_texto:
-                    st.error(
-                        f"No se pudo enviar el texto al grupo: {detalle_texto}"
-                    )
-                else:
-                    # 2. Generar y enviar UNA sola imagen del ranking.
-                    imagen_grupo = (
-                        generar_imagen_recuperacion_telegram(
-                            tabla_general,
-                            meta_individual,
-                        )
+            if st.session_state.get(
+                "mostrar_preview_telegram",
+                False,
+            ):
+                with st.container(border=True):
+                    st.caption(
+                        "Vista previa local. No se ha enviado nada a Telegram."
                     )
 
-                    ok_grupo, detalle_grupo = (
-                        enviar_foto_telegram(
-                            telegram_group_chat_id,
-                            imagen_grupo,
-                            "🏆 Ranking actualizado de recuperación",
-                        )
+                    st.markdown("**Mensaje de texto**")
+                    st.text_area(
+                        "Vista previa del mensaje",
+                        value=mensaje_grupo,
+                        height=235,
+                        disabled=True,
+                        label_visibility="collapsed",
+                        key="preview_texto_telegram",
                     )
 
-                    if ok_grupo:
-                        st.success(
-                            "Texto + ranking en imagen enviados al grupo."
+                    st.markdown("**Imagen del ranking**")
+
+                    try:
+                        imagen_preview = (
+                            generar_imagen_recuperacion_telegram(
+                                tabla_general,
+                                meta_individual,
+                            )
                         )
-                    else:
+
+                        st.image(
+                            imagen_preview,
+                            use_container_width=True,
+                        )
+
+                    except Exception as e:
                         st.error(
-                            f"El texto se envió, pero la imagen falló: {detalle_grupo}"
+                            f"No se pudo generar la vista previa: {e}"
                         )
 
+                    if st.button(
+                        "✖️ Cerrar vista previa",
+                        use_container_width=True,
+                        key="cerrar_preview_telegram",
+                    ):
+                        st.session_state[
+                            "mostrar_preview_telegram"
+                        ] = False
+                        st.rerun()
 
-        with tg_col2:
-            estado_grupo = (
-                "Configurado"
-                if telegram_group_chat_id
-                else "Pendiente"
-            )
-            st.metric(
-                "Grupo Telegram",
-                estado_grupo,
-            )
+            st.divider()
 
-        if not telegram_group_chat_id:
-            st.info(
-                "Agrega TELEGRAM_GROUP_CHAT_ID en Streamlit Secrets "
-                "para habilitar el envío al grupo."
-            )
+            tg_col1, tg_col2 = st.columns(2)
 
-        st.markdown("#### Mensajes individuales")
-
-        telegram_configurados = [
-            usuario
-            for usuario in resultado["Usuario"].tolist()
-            if normalizar_telegram_chat_id(
-                datos_contacto.get(
-                    usuario, {}
-                ).get("telegram_chat_id", "")
-            )
-        ]
-
-        col_envio, col_estado = st.columns([2, 1])
-
-        with col_envio:
-            if st.button(
-                f"✈️ Enviar seguimiento individual ({len(telegram_configurados)}/{CANTIDAD_OPERADORES})",
-                type="primary",
-                use_container_width=True,
-                disabled=(len(telegram_configurados) == 0),
-                key="enviar_todos_telegram_compacto",
-            ):
-                enviados = []
-                pendientes = []
-
-                for _, fila_tg in resultado.iterrows():
-                    usuario_tg = fila_tg["Usuario"]
-                    chat_id_tg = normalizar_telegram_chat_id(
-                        datos_contacto.get(
-                            usuario_tg, {}
-                        ).get("telegram_chat_id", "")
-                    )
-
-                    if not chat_id_tg:
-                        pendientes.append(
-                            f"{fila_tg['Operador']}: sin Chat ID"
+            with tg_col1:
+                if st.button(
+                    "📤 Enviar ahora al grupo",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=(
+                        not bool(
+                            telegram_group_chat_id
                         )
-                        continue
-
-                    calculo_tg = generar_mensaje_diario(
-                        fila_tg,
-                        jornadas_info,
-                    )
-
-                    ok_tg, detalle_tg = enviar_mensaje_telegram(
-                        chat_id_tg,
-                        calculo_tg["mensaje"],
-                    )
-
-                    if ok_tg:
-                        enviados.append(
-                            fila_tg["Operador"]
+                    ),
+                    key="enviar_resumen_grupo_telegram",
+                ):
+                    # 1. Enviar texto general.
+                    ok_texto, detalle_texto = (
+                        enviar_mensaje_telegram(
+                            telegram_group_chat_id,
+                            mensaje_grupo,
                         )
+                    )
 
-                        enviar_copia_coordinador(
-                            fila_tg["Operador"],
-                            calculo_tg["mensaje"],
-                            detalle_tg,
+                    if not ok_texto:
+                        st.error(
+                            f"No se pudo enviar el texto al grupo: {detalle_texto}"
                         )
                     else:
-                        pendientes.append(
-                            f"{fila_tg['Operador']}: {detalle_tg}"
+                        # 2. Generar y enviar UNA sola imagen del ranking.
+                        imagen_grupo = (
+                            generar_imagen_recuperacion_telegram(
+                                tabla_general,
+                                meta_individual,
+                            )
                         )
 
-                if enviados:
-                    st.success(
-                        f"Se enviaron correctamente {len(enviados)} mensajes."
-                    )
+                        ok_grupo, detalle_grupo = (
+                            enviar_foto_telegram(
+                                telegram_group_chat_id,
+                                imagen_grupo,
+                                "🏆 Ranking actualizado de recuperación",
+                            )
+                        )
 
-                if pendientes:
-                    st.warning(
-                        "Pendientes:\n\n- "
-                        + "\n- ".join(pendientes)
-                    )
+                        if ok_grupo:
+                            st.success(
+                                "Texto + ranking en imagen enviados al grupo."
+                            )
+                        else:
+                            st.error(
+                                f"El texto se envió, pero la imagen falló: {detalle_grupo}"
+                            )
 
-        with col_estado:
-            st.metric(
-                "Telegram configurados",
-                f"{len(telegram_configurados)}/{CANTIDAD_OPERADORES}",
-            )
 
-        st.caption(
-            "Cada operador recibe su propio mensaje personalizado. "
-            "No se envía un mensaje genérico al grupo."
-        )
+            with tg_col2:
+                estado_grupo = (
+                    "Configurado"
+                    if telegram_group_chat_id
+                    else "Pendiente"
+                )
+                st.metric(
+                    "Grupo Telegram",
+                    estado_grupo,
+                )
 
-        st.caption("Los importes de recuperación se muestran en USD. La meta individual vigente es " + formato_usd(meta_individual) + ".")
+            if not telegram_group_chat_id:
+                st.info(
+                    "Agrega TELEGRAM_GROUP_CHAT_ID en Streamlit Secrets "
+                    "para habilitar el envío al grupo."
+                )
+
 
 
 # =========================================================
