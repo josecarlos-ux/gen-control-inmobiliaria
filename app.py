@@ -7572,6 +7572,46 @@ elif menu == "📈 Comportamiento diario":
                     )
 
                 else:
+                    # Cálculos generales usados por gráficos y resumen.
+                    cumplimiento_g_prom = (
+                        diario["Gestiones"].sum()
+                        / diario["Meta_gestiones"].sum()
+                        * 100
+                        if diario["Meta_gestiones"].sum()
+                        else 0
+                    )
+
+                    cumplimiento_c_prom = (
+                        diario["Compromisos"].sum()
+                        / diario["Meta_compromisos"].sum()
+                        * 100
+                        if diario["Meta_compromisos"].sum()
+                        else 0
+                    )
+
+                    dias_meta_g = int(
+                        (
+                            diario["Gestiones"]
+                            >= diario["Meta_gestiones"]
+                        ).sum()
+                    )
+                    dias_meta_c = int(
+                        (
+                            diario["Compromisos"]
+                            >= diario["Meta_compromisos"]
+                        ).sum()
+                    )
+
+                    mejores = diario.sort_values(
+                        ["Cumplimiento_gestiones", "Gestiones"],
+                        ascending=[False, False],
+                    ).head(3)
+
+                    peores = diario.sort_values(
+                        ["Cumplimiento_gestiones", "Gestiones"],
+                        ascending=[True, True],
+                    ).head(3)
+
                     # ------------------------------
                     # GRÁFICOS SEPARADOS
                     # ------------------------------
@@ -7618,9 +7658,9 @@ elif menu == "📈 Comportamiento diario":
                         with st.container(border=True):
                             st.markdown("#### 📞 Gestiones diarias")
                             st.caption(
-                                f"Promedio: {formato_entero(prom_g)} · "
-                                f"Meta promedio: {formato_entero(diario['Meta_gestiones'].mean())} · "
-                                f"Cumplimiento acumulado: {cumplimiento_g_prom:.0f}%"
+                                f"Promedio diario: {formato_entero(prom_g)} · "
+                                f"Meta diaria promedio: {formato_entero(diario['Meta_gestiones'].mean())} · "
+                                f"Cumplimiento del periodo: {cumplimiento_g_prom:.0f}%"
                             )
                             st.line_chart(
                                 chart_g,
@@ -7632,74 +7672,15 @@ elif menu == "📈 Comportamiento diario":
                         with st.container(border=True):
                             st.markdown("#### 🎯 Compromisos diarios")
                             st.caption(
-                                f"Promedio: {formato_entero(prom_c)} · "
-                                f"Meta promedio: {formato_entero(diario['Meta_compromisos'].mean())} · "
-                                f"Cumplimiento acumulado: {cumplimiento_c_prom:.0f}%"
+                                f"Promedio diario: {formato_entero(prom_c)} · "
+                                f"Meta diaria promedio: {formato_entero(diario['Meta_compromisos'].mean())} · "
+                                f"Cumplimiento del periodo: {cumplimiento_c_prom:.0f}%"
                             )
                             st.line_chart(
                                 chart_c,
                                 use_container_width=True,
                                 height=310,
                             )
-
-                    # ------------------------------
-                    # RESUMEN + MEJORES/PEORES DÍAS
-                    # ------------------------------
-                    cumplimiento_g_prom = (
-                        diario["Gestiones"].sum()
-                        / diario["Meta_gestiones"].sum()
-                        * 100
-                        if diario["Meta_gestiones"].sum()
-                        else 0
-                    )
-
-                    cumplimiento_c_prom = (
-                        diario["Compromisos"].sum()
-                        / diario["Meta_compromisos"].sum()
-                        * 100
-                        if diario["Meta_compromisos"].sum()
-                        else 0
-                    )
-
-                    dias_meta_g = int(
-                        (
-                            diario["Gestiones"]
-                            >= diario["Meta_gestiones"]
-                        ).sum()
-                    )
-                    dias_meta_c = int(
-                        (
-                            diario["Compromisos"]
-                            >= diario["Meta_compromisos"]
-                        ).sum()
-                    )
-
-                    mejores = diario.sort_values(
-                        ["Cumplimiento_gestiones", "Gestiones"],
-                        ascending=[False, False],
-                    ).head(3)
-
-                    peores = diario.sort_values(
-                        ["Cumplimiento_gestiones", "Gestiones"],
-                        ascending=[True, True],
-                    ).head(3)
-
-                    r1, r2, r3 = st.columns([1.05, 1.35, 1.35])
-
-                    with r1:
-                        st.markdown(
-                            f"""
-                            <div class="beh-summary">
-                                <div class="beh-summary-title">Resumen del periodo</div>
-                                <div class="beh-row"><span>Días con información</span><strong>{dias}</strong></div>
-                                <div class="beh-row"><span>Cumplimiento gestiones</span><strong>{cumplimiento_g_prom:.0f}%</strong></div>
-                                <div class="beh-row"><span>Cumplimiento compromisos</span><strong>{cumplimiento_c_prom:.0f}%</strong></div>
-                                <div class="beh-row"><span>Días meta gestiones</span><strong>{dias_meta_g} / {dias}</strong></div>
-                                <div class="beh-row"><span>Días meta compromisos</span><strong>{dias_meta_c} / {dias}</strong></div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
 
                     # ------------------------------
                     # RESUMEN EJECUTIVO DEL PERIODO
