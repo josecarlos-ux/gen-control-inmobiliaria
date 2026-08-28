@@ -3812,30 +3812,30 @@ def generar_aviso_grupo_envios(
 
     hora = ahora.strftime("%H:%M")
 
-    # Primer aviso del día: inicio/primer seguimiento.
-    if numero_seguimiento <= 1:
+    # V89 · El texto no depende de decir "primer/segundo seguimiento".
+    # Así sigue siendo correcto aunque Streamlit reinicie la sesión o el
+    # historial anterior no se encuentre en Supabase.
+    if ahora.hour < 12:
         cuerpo = (
-            "Equipo, se realizó el primer seguimiento individual "
-            "de la jornada a los operadores que se encuentran de turno.\n\n"
-            "Mantengamos el ritmo para avanzar con las metas del día. 💪"
+            "Se realizó un seguimiento individual de avance a los operadores "
+            "que se encuentran actualmente de turno.\n\n"
+            "Mantengamos el ritmo para continuar avanzando con las metas del día. 💪"
         )
 
-    # A partir de la tarde tardía, el mensaje se enfoca en cierre.
-    elif ahora.hour >= 17:
+    elif ahora.hour < 17:
         cuerpo = (
-            "Equipo, se realizó un nuevo corte y seguimiento individual "
-            "a quienes continúan de turno.\n\n"
-            "Aprovechemos las horas restantes para cerrar la jornada "
-            "con el mejor cumplimiento posible. 💪"
+            "Se realizó una nueva actualización y seguimiento individual "
+            "de los avances a los operadores que se encuentran de turno.\n\n"
+            "Continuemos enfocados en las metas del día y en recuperar "
+            "cualquier brecha pendiente. 💪"
         )
 
-    # Seguimientos intermedios: evita repetir el mismo texto.
     else:
         cuerpo = (
-            "Equipo, se realizó una nueva actualización y seguimiento "
-            "individual de los avances.\n\n"
-            "Continuemos enfocados en las metas diarias y en recuperar "
-            "cualquier brecha pendiente. 💪"
+            "Se realizó un nuevo corte y seguimiento individual a los operadores "
+            "que continúan de turno.\n\n"
+            "Aprovechemos las horas restantes para cerrar la jornada "
+            "con el mejor cumplimiento posible. 💪"
         )
 
     return (
