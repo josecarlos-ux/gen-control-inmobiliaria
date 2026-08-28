@@ -7411,6 +7411,202 @@ elif menu == "✉️ Mensajes diarios":
             "17:00 vuelve a incluir recuperación para el cierre. Fuera de turno "
             "no se envían nuevos mensajes."
         )
+        st.caption(
+            "💬 Los mensajes personalizados son manuales y quedan registrados "
+            "como 'mensaje_manual'; no modifican el conteo de seguimientos automáticos."
+        )
+
+
+        # -------------------------------------------------
+        # MENSAJE LIBRE POR TELEGRAM — V90
+        # -------------------------------------------------
+        with st.expander(
+            "💬 Mensaje personalizado por Telegram",
+            expanded=False,
+        ):
+            st.caption(
+                "Escribe un mensaje libre y envíalo por privado a uno o varios "
+                "operadores. Este envío es independiente del seguimiento automático."
+            )
+
+            opciones_manual_v90 = []
+            mapa_manual_v90 = {}
+
+            for _, fila_manual_v90 in resultado.iterrows():
+                usuario_manual_v90 = str(
+                    fila_manual_v90["Usuario"]
+                )
+                nombre_manual_v90 = str(
+                    fila_manual_v90["Operador"]
+                )
+
+                chat_manual_v90 = normalizar_telegram_chat_id(
+                    datos_contacto.get(
+                        usuario_manual_v90,
+                        {},
+                    ).get(
+                        "telegram_chat_id",
+                        "",
+                    )
+                )
+
+                if not chat_manual_v90:
+                    continue
+
+                etiqueta_manual_v90 = (
+                    f"{nombre_manual_v90} · @{usuario_manual_v90}"
+                )
+
+                opciones_manual_v90.append(
+                    etiqueta_manual_v90
+                )
+                mapa_manual_v90[
+                    etiqueta_manual_v90
+                ] = {
+                    "usuario": usuario_manual_v90,
+                    "nombre": nombre_manual_v90,
+                    "chat_id": chat_manual_v90,
+                }
+
+            tipo_destino_manual_v90 = st.radio(
+                "Destinatarios",
+                [
+                    "Un operador",
+                    "Varios operadores",
+                    "Todos los operadores de turno",
+                ],
+                horizontal=True,
+                key="tipo_destino_manual_v90",
+            )
+
+            destinatarios_manual_v90 = []
+
+            if tipo_destino_manual_v90 == "Un operador":
+                seleccion_manual_v90 = st.selectbox(
+                    "Seleccionar operador",
+                    opciones_manual_v90,
+                    index=None,
+                    placeholder="Elige un operador...",
+                    key="operador_manual_v90",
+                )
+
+                if seleccion_manual_v90:
+                    destinatarios_manual_v90 = [
+                        mapa_manual_v90[
+                            seleccion_manual_v90
+                        ]
+                    ]
+
+            elif tipo_destino_manual_v90 == "Varios operadores":
+                seleccion_multiple_manual_v90 = st.multiselect(
+                    "Seleccionar operadores",
+                    opciones_manual_v90,
+                    key="operadores_manual_v90",
+                )
+
+                destinatarios_manual_v90 = [
+                    mapa_manual_v90[x]
+                    for x in seleccion_multiple_manual_v90
+                ]
+
+            else:
+                ahora_manual_v90 = datetime.now(
+                    ZoneInfo("America/La_Paz")
+                )
+
+                destinatarios_manual_v90 = [
+                    datos_manual_v90
+                    for datos_manual_v90 in mapa_manual_v90.values()
+                    if operador_en_turno(
+                        datos_manual_v90["usuario"],
+                        ahora_manual_v90,
+                    )
+                ]
+
+                st.info(
+                    f"Se enviará únicamente a quienes estén de turno ahora: "
+                    f"{len(destinatarios_manual_v90)} operador(es)."
+                )
+
+            mensaje_manual_v90 = st.text_area(
+                "Mensaje",
+                placeholder=(
+                    "Ejemplo: Por favor, prioricemos los compromisos pendientes "
+                    "durante este corte. Gracias."
+                ),
+                height=130,
+                max_chars=3500,
+                key="texto_manual_telegram_v90",
+            )
+
+            if destinatarios_manual_v90:
+                nombres_destino_manual_v90 = ", ".join(
+                    x["nombre"]
+                    for x in destinatarios_manual_v90
+                )
+
+                st.caption(
+                    f"Destinatarios: {nombres_destino_manual_v90}"
+                )
+
+            confirmar_manual_v90 = st.checkbox(
+                "Confirmo que revisé el mensaje y los destinatarios.",
+                key="confirmar_manual_v90",
+            )
+
+            enviar_manual_v90 = st.button(
+                f"✈️ Enviar mensaje personalizado ({len(destinatarios_manual_v90)})",
+                use_container_width=True,
+                type="primary",
+                disabled=(
+                    not destinatarios_manual_v90
+                    or not mensaje_manual_v90.strip()
+                    or not confirmar_manual_v90
+                ),
+                key="enviar_manual_telegram_v90",
+            )
+
+            if enviar_manual_v90:
+                enviados_manual_v90 = []
+                errores_manual_v90 = []
+
+                for destino_manual_v90 in destinatarios_manual_v90:
+                    ok_manual_v90, detalle_manual_v90 = enviar_mensaje_telegram(
+                        destino_manual_v90["chat_id"],
+                        mensaje_manual_v90.strip(),
+                    )
+
+                    if ok_manual_v90:
+                        enviados_manual_v90.append(
+                            destino_manual_v90["nombre"]
+                        )
+
+                        registrar_envio_diario(
+                            destino_manual_v90["usuario"],
+                            destino_manual_v90["nombre"],
+                            canal="telegram",
+                            tipo="mensaje_manual",
+                            detalle=detalle_manual_v90,
+                        )
+
+                    else:
+                        errores_manual_v90.append(
+                            f"{destino_manual_v90['nombre']}: {detalle_manual_v90}"
+                        )
+
+                if enviados_manual_v90:
+                    st.success(
+                        f"Mensaje enviado correctamente a "
+                        f"{len(enviados_manual_v90)} operador(es)."
+                    )
+
+                if errores_manual_v90:
+                    st.warning(
+                        "No se pudo enviar a:\n\n- "
+                        + "\n- ".join(
+                            errores_manual_v90
+                        )
+                    )
 
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
