@@ -827,14 +827,64 @@ def generar_mensaje_diario(fila, jornadas_info):
                 f"para el mínimo diario"
             )
 
+    # V87 · La recuperación no se repite en cada seguimiento.
+    # Se muestra en el primer seguimiento individual del día y vuelve
+    # a aparecer desde las 17:00 como referencia de cierre.
+    ahora_mensaje_v87 = datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+    ya_recibio_seguimiento_v87 = envio_ya_realizado_hoy(
+        usuario,
+        "seguimiento",
+    )
+    mostrar_recuperacion_v87 = (
+        not ya_recibio_seguimiento_v87
+        or ahora_mensaje_v87.hour >= 17
+    )
+
+    if mostrar_recuperacion_v87:
+        bloque_mes_v87 = (
+            f"📊 Acumulado del mes\n"
+            f"{linea_g}\n"
+            f"{linea_c}\n"
+            f"{linea_r}"
+        )
+    else:
+        bloque_mes_v87 = (
+            f"📊 Acumulado del mes\n"
+            f"{linea_g}\n"
+            f"{linea_c}"
+        )
+
+    # En los seguimientos intermedios el cierre se enfoca en lo que el
+    # operador puede corregir durante la jornada: gestiones y compromisos.
+    if (
+        ya_recibio_seguimiento_v87
+        and ahora_mensaje_v87.hour < 17
+    ):
+        if avance_hora.get("disponible"):
+            cierre_v87 = (
+                "Sigamos enfocados en el avance de hoy y en recuperar "
+                "cualquier brecha antes del siguiente corte."
+            )
+        else:
+            cierre_v87 = (
+                "Mantengamos el ritmo diario para continuar avanzando "
+                "hacia las metas del mes."
+            )
+    elif ahora_mensaje_v87.hour >= 17:
+        cierre_v87 = (
+            "Aprovechemos las horas restantes para cerrar la jornada "
+            "con el mejor cumplimiento posible."
+        )
+    else:
+        cierre_v87 = cierre
+
     mensaje = (
         f"{saludo_individual}, {nombre}. {emoji_individual}\n\n"
-        f"📊 Avance del mes\n"
-        f"{linea_g}\n"
-        f"{linea_c}\n"
-        f"{linea_r}"
+        f"{bloque_mes_v87}"
         f"{bloque_hoy}\n\n"
-        f"{cierre} 💪"
+        f"{cierre_v87} 💪"
     )
 
     return {
@@ -7325,9 +7375,10 @@ elif menu == "✉️ Mensajes diarios":
         )
 
         st.caption(
-            "🕒 Regla de envío: durante su turno un operador puede recibir "
-            "varios avances. Al terminar su horario queda bloqueado y ya no "
-            "recibe nuevos mensajes, aunque vuelvas a cargar o enviar."
+            "🕒 Mensajería inteligente: el primer seguimiento incluye recuperación; "
+            "los cortes intermedios priorizan gestiones y compromisos; desde las "
+            "17:00 vuelve a incluir recuperación para el cierre. Fuera de turno "
+            "no se envían nuevos mensajes."
         )
 
         # -------------------------------------------------
