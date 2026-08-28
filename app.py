@@ -6269,6 +6269,21 @@ def estado_datos_para_seguimiento(resultado=None):
     }
 
 
+def operador_habilitado_para_envio(usuario, momento=None):
+    """En turno + habilitación individual + habilitación global."""
+    return bool(
+        operador_en_turno(usuario, momento)
+        or st.session_state.get(
+            f"override_fuera_turno_{usuario}",
+            False,
+        )
+        or st.session_state.get(
+            "permitir_envio_fuera_turno",
+            False,
+        )
+    )
+
+
 if menu == "🏠 Resumen":
 
     resultado = st.session_state.resultado_operadores
@@ -7886,13 +7901,15 @@ elif menu == "✉️ Mensajes diarios":
                 )
             ]
 
-            # V82:
-            # Mientras el operador esté EN TURNO puede recibir varios
-            # seguimientos durante el día. Ya no se bloquea por haber
-            # recibido un mensaje anteriormente.
-            telegram_pendientes_top = list(
-                telegram_en_turno_top
-            )
+            # V100: lista real usada por contador, botón y envío.
+            telegram_pendientes_top = [
+                usuario
+                for usuario in telegram_configurados_top
+                if operador_habilitado_para_envio(
+                    usuario,
+                    momento_envio_top,
+                )
+            ]
 
             telegram_fuera_turno_top = [
                 usuario
@@ -7905,7 +7922,7 @@ elif menu == "✉️ Mensajes diarios":
 
             st.caption(
                 f"En turno ahora: {len(telegram_en_turno_top)} · "
-                f"Pendientes de envío: {len(telegram_pendientes_top)} · "
+                f"Seleccionados para envío: {len(telegram_pendientes_top)} · "
                 f"Fuera de turno: {len(telegram_fuera_turno_top)}"
             )
 
@@ -7946,8 +7963,9 @@ elif menu == "✉️ Mensajes diarios":
                     if not chat_id_envio:
                         continue
 
-                    if not operador_en_turno(
-                        usuario_envio
+                    if not operador_habilitado_para_envio(
+                        usuario_envio,
+                        momento_envio_top,
                     ):
                         continue
 
@@ -8635,6 +8653,20 @@ elif menu == "✉️ Mensajes diarios":
                                 texto_envio_estado
                             )
 
+                            override_individual = st.toggle(
+                                "🔓 Habilitar envío fuera de turno",
+                                value=bool(
+                                    st.session_state.get(
+                                        f"override_fuera_turno_{usuario}",
+                                        False,
+                                    )
+                                ),
+                                key=f"toggle_override_fuera_turno_enviado_{usuario}",
+                            )
+                            st.session_state[
+                                f"override_fuera_turno_{usuario}"
+                            ] = override_individual
+
                         elif not en_turno_actual:
                             override_individual = st.toggle(
                                 "🔓 Habilitar envío fuera de turno",
@@ -8670,16 +8702,8 @@ elif menu == "✉️ Mensajes diarios":
                         with a1:
                             if (
                                 telegram_chat_id
-                                and (
-                                    en_turno_actual
-                                    or st.session_state.get(
-                                        f"override_fuera_turno_{usuario}",
-                                        False,
-                                    )
-                                    or st.session_state.get(
-                                        "permitir_envio_fuera_turno",
-                                        False,
-                                    )
+                                and operador_habilitado_para_envio(
+                                    usuario
                                 )
                             ):
                                 if st.button(
