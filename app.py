@@ -3644,14 +3644,98 @@ def operador_fuera_de_horario(
 
 
 
+def _clave_aviso_grupal(fecha=None):
+    fecha = fecha or fecha_local_actual()
+    return f"aviso_grupal_seguimiento|{fecha.isoformat()}"
+
+
+def contar_avisos_grupales_hoy():
+    """
+    Cuenta cuántos avisos grupales de seguimiento se enviaron hoy.
+    Usa Supabase si está disponible y Session State como respaldo.
+    """
+    fecha = fecha_local_actual()
+    clave = _clave_aviso_grupal(fecha)
+
+    cache = st.session_state.setdefault(
+        "avisos_grupales_cache",
+        {},
+    )
+
+    # Supabase es la fuente preferida porque conserva el conteo
+    # aunque Streamlit reinicie la sesión.
+    sb = get_supabase()
+    if sb is not None:
+        try:
+            resp = (
+                sb.table("envios_mensajes")
+                .select("fecha_hora")
+                .eq("fecha", fecha.isoformat())
+                .eq("tipo", "aviso_grupal_seguimiento")
+                .eq("estado", "enviado")
+                .execute()
+            )
+            if resp.data is not None:
+                total = len(resp.data)
+                cache[clave] = total
+                return total
+        except Exception:
+            pass
+
+    return int(cache.get(clave, 0) or 0)
+
+
+def registrar_aviso_grupal_enviado(detalle=""):
+    ahora = datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+    clave = _clave_aviso_grupal(
+        ahora.date()
+    )
+
+    cache = st.session_state.setdefault(
+        "avisos_grupales_cache",
+        {},
+    )
+    cache[clave] = int(
+        cache.get(clave, 0) or 0
+    ) + 1
+
+    registro = {
+        "fecha": ahora.date().isoformat(),
+        "fecha_hora": ahora.isoformat(),
+        "usuario": "grupo",
+        "operador": "Grupo Inmobiliaria",
+        "canal": "telegram",
+        "tipo": "aviso_grupal_seguimiento",
+        "estado": "enviado",
+        "detalle": str(detalle or ""),
+    }
+
+    sb = get_supabase()
+    if sb is not None:
+        try:
+            (
+                sb.table("envios_mensajes")
+                .insert(registro)
+                .execute()
+            )
+        except Exception:
+            pass
+
+    return registro
+
+
 def generar_aviso_grupo_envios(
     operadores_enviados,
     operadores_fuera_turno=None,
+    numero_seguimiento=None,
 ):
     """
-    Aviso breve al grupo después de realizar seguimientos individuales.
-    No expone nombres, atrasos ni operadores fuera de turno.
-    Su objetivo es dejar visible que coordinación está realizando seguimiento.
+    Genera un aviso grupal distinto según el momento de la jornada y
+    la cantidad de seguimientos grupales realizados hoy.
+
+    No expone nombres ni resultados individuales.
     """
     operadores_enviados = list(
         operadores_enviados or []
@@ -3664,13 +3748,45 @@ def generar_aviso_grupo_envios(
         ZoneInfo("America/La_Paz")
     )
 
+    if numero_seguimiento is None:
+        numero_seguimiento = (
+            contar_avisos_grupales_hoy()
+            + 1
+        )
+
+    hora = ahora.strftime("%H:%M")
+
+    # Primer aviso del día: inicio/primer seguimiento.
+    if numero_seguimiento <= 1:
+        cuerpo = (
+            "Equipo, se realizó el primer seguimiento individual "
+            "de la jornada a los operadores que se encuentran de turno.\n\n"
+            "Mantengamos el ritmo para avanzar con las metas del día. 💪"
+        )
+
+    # A partir de la tarde tardía, el mensaje se enfoca en cierre.
+    elif ahora.hour >= 17:
+        cuerpo = (
+            "Equipo, se realizó un nuevo corte y seguimiento individual "
+            "a quienes continúan de turno.\n\n"
+            "Aprovechemos las horas restantes para cerrar la jornada "
+            "con el mejor cumplimiento posible. 💪"
+        )
+
+    # Seguimientos intermedios: evita repetir el mismo texto.
+    else:
+        cuerpo = (
+            "Equipo, se realizó una nueva actualización y seguimiento "
+            "individual de los avances.\n\n"
+            "Continuemos enfocados en las metas diarias y en recuperar "
+            "cualquier brecha pendiente. 💪"
+        )
+
     return (
-        f"📊 Seguimiento de avance · {ahora.strftime('%H:%M')}\n\n"
-        "Se acaba de realizar el seguimiento individual de avance "
-        "a los operadores que se encuentran actualmente de turno.\n\n"
-        "Por favor, revisemos nuestros resultados y mantengamos el ritmo "
-        "para el cumplimiento de las metas del día. 💪"
+        f"📊 Seguimiento de avance · {hora}\n\n"
+        + cuerpo
     )
+
 
 def enviar_aviso_grupo_post_envio(
     operadores_enviados,
@@ -3681,19 +3797,35 @@ def enviar_aviso_grupo_post_envio(
     if not chat_grupo:
         return False, "No está configurado TELEGRAM_GROUP_CHAT_ID."
 
+    numero_seguimiento = (
+        contar_avisos_grupales_hoy()
+        + 1
+    )
+
     mensaje = generar_aviso_grupo_envios(
         operadores_enviados,
         operadores_fuera_turno,
+        numero_seguimiento=numero_seguimiento,
     )
 
     if not mensaje:
         return False, "No hubo envíos individuales para informar."
 
-    return enviar_mensaje_telegram(
+    ok, detalle = enviar_mensaje_telegram(
         chat_grupo,
         mensaje,
     )
 
+    if ok:
+        registrar_aviso_grupal_enviado(
+            detalle=(
+                f"Seguimiento grupal #{numero_seguimiento}. "
+                f"Operadores con envío individual: "
+                f"{len(list(operadores_enviados or []))}."
+            )
+        )
+
+    return ok, detalle
 
 def enviar_copia_coordinador(operador, mensaje_original, detalle_envio):
     chat_coord = obtener_telegram_coordinador_chat_id()
@@ -8023,9 +8155,10 @@ elif menu == "✉️ Mensajes diarios":
 
         st.caption(
             "Control inteligente activo: cortes sugeridos 10:30 · 13:30 · "
-            "15:30 · 17:30. Puedes enviar varios seguimientos durante el turno; "
-            "si el último fue hace menos de 60 min, GEN Control te lo advierte "
-            "sin bloquear. Al terminar el turno se bloquean nuevos envíos."
+            "15:30 · 17:30. El aviso al grupo cambia automáticamente entre "
+            "primer seguimiento, seguimiento intermedio y cierre. Puedes enviar "
+            "varios avances durante el turno; si el último fue hace menos de "
+            "60 min, GEN Control te lo advierte sin bloquear."
         )
 
         coordinador_chat_id = obtener_telegram_coordinador_chat_id()
