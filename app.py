@@ -8636,17 +8636,33 @@ elif menu == "✉️ Mensajes diarios":
                             )
 
                         elif not en_turno_actual:
-                            if st.session_state.get(
-                                "permitir_envio_fuera_turno",
-                                False,
+                            override_individual = st.toggle(
+                                "🔓 Habilitar envío fuera de turno",
+                                value=bool(
+                                    st.session_state.get(
+                                        f"override_fuera_turno_{usuario}",
+                                        False,
+                                    )
+                                ),
+                                key=f"toggle_override_fuera_turno_{usuario}",
+                            )
+                            st.session_state[
+                                f"override_fuera_turno_{usuario}"
+                            ] = override_individual
+
+                            if (
+                                override_individual
+                                or st.session_state.get(
+                                    "permitir_envio_fuera_turno",
+                                    False,
+                                )
                             ):
                                 st.warning(
                                     f"{estado_turno_actual} · envío excepcional habilitado."
                                 )
                             else:
                                 st.info(
-                                    f"{estado_turno_actual} · no se enviará seguimiento "
-                                    "fuera de su turno."
+                                    f"{estado_turno_actual} · envío bloqueado por horario."
                                 )
 
                         a1, a2 = st.columns(2)
@@ -8656,6 +8672,10 @@ elif menu == "✉️ Mensajes diarios":
                                 telegram_chat_id
                                 and (
                                     en_turno_actual
+                                    or st.session_state.get(
+                                        f"override_fuera_turno_{usuario}",
+                                        False,
+                                    )
                                     or st.session_state.get(
                                         "permitir_envio_fuera_turno",
                                         False,
@@ -8723,10 +8743,10 @@ elif menu == "✉️ Mensajes diarios":
                                             )
                             elif not en_turno_actual:
                                 st.button(
-                                    "🕒 Fuera de turno",
+                                    "🔒 Habilita arriba",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"fuera_turno_v82_{usuario}",
+                                    key=f"fuera_turno_v99_{usuario}",
                                 )
                             else:
                                 st.button(
