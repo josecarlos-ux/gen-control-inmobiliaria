@@ -7679,7 +7679,7 @@ elif menu == "📈 Comportamiento diario":
                             "en el cumplimiento, brechas, rankings ni tendencias hasta cerrar la jornada."
                         )
                     st.markdown(
-                        '<div class="beh-section-sub">Cada indicador utiliza su propia escala para evitar distorsiones.</div>',
+                        '<div class="beh-section-sub">Compara el resultado real de cada jornada con la meta diaria. Solo se evalúan jornadas completas.</div>',
                         unsafe_allow_html=True,
                     )
 
@@ -7861,7 +7861,7 @@ elif menu == "📈 Comportamiento diario":
 
                     with graf1:
                         with st.container(border=True):
-                            st.markdown("#### 📞 Gestiones diarias")
+                            st.markdown("#### 📞 Cumplimiento diario de Gestiones")
                             st.caption(
                                 f"Promedio {formato_entero(prom_g)} · "
                                 f"Meta promedio {formato_entero(diario['Meta_gestiones'].mean())} · "
@@ -7872,19 +7872,19 @@ elif menu == "📈 Comportamiento diario":
                                 f"""
                                 <div class="chart-mini-grid">
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Días sobre meta</div>
-                                        <div class="chart-mini-value">{dias_sobre_meta_g} / {dias_evaluados}</div>
+                                        <div class="chart-mini-label">Meta cumplida</div>
+                                        <div class="chart-mini-value">{dias_sobre_meta_g} de {dias_evaluados} días</div>
                                     </div>
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Días bajo meta</div>
-                                        <div class="chart-mini-value">{dias_bajo_meta_g} / {dias_evaluados}</div>
+                                        <div class="chart-mini-label">Meta no cumplida</div>
+                                        <div class="chart-mini-value">{dias_bajo_meta_g} de {dias_evaluados} días</div>
                                     </div>
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Mejor racha</div>
+                                        <div class="chart-mini-label">Mayor racha cumpliendo</div>
                                         <div class="chart-mini-value">{racha_sobre_g} días</div>
                                     </div>
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Mayor brecha</div>
+                                        <div class="chart-mini-label">Mayor racha sin cumplir</div>
                                         <div class="chart-mini-value">{racha_bajo_g} días</div>
                                     </div>
                                 </div>
@@ -7905,13 +7905,12 @@ elif menu == "📈 Comportamiento diario":
                             )
 
                             st.caption(
-                                "Línea continua: real · línea segmentada: meta · "
-                                "línea punteada: promedio · puntos destacados: días que alcanzaron meta."
+                                "Resultado diario vs meta. La línea punteada muestra el promedio del periodo."
                             )
 
                     with graf2:
                         with st.container(border=True):
-                            st.markdown("#### 🎯 Compromisos diarios")
+                            st.markdown("#### 🎯 Cumplimiento diario de Compromisos")
                             st.caption(
                                 f"Promedio {formato_entero(prom_c)} · "
                                 f"Meta promedio {formato_entero(diario['Meta_compromisos'].mean())} · "
@@ -7922,19 +7921,19 @@ elif menu == "📈 Comportamiento diario":
                                 f"""
                                 <div class="chart-mini-grid">
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Días sobre meta</div>
-                                        <div class="chart-mini-value">{dias_sobre_meta_c} / {dias_evaluados}</div>
+                                        <div class="chart-mini-label">Meta cumplida</div>
+                                        <div class="chart-mini-value">{dias_sobre_meta_c} de {dias_evaluados} días</div>
                                     </div>
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Días bajo meta</div>
-                                        <div class="chart-mini-value">{dias_bajo_meta_c} / {dias_evaluados}</div>
+                                        <div class="chart-mini-label">Meta no cumplida</div>
+                                        <div class="chart-mini-value">{dias_bajo_meta_c} de {dias_evaluados} días</div>
                                     </div>
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Mejor racha</div>
+                                        <div class="chart-mini-label">Mayor racha cumpliendo</div>
                                         <div class="chart-mini-value">{racha_sobre_c} días</div>
                                     </div>
                                     <div class="chart-mini">
-                                        <div class="chart-mini-label">Mayor brecha</div>
+                                        <div class="chart-mini-label">Mayor racha sin cumplir</div>
                                         <div class="chart-mini-value">{racha_bajo_c} días</div>
                                     </div>
                                 </div>
@@ -7955,8 +7954,7 @@ elif menu == "📈 Comportamiento diario":
                             )
 
                             st.caption(
-                                "Línea continua: real · línea segmentada: meta · "
-                                "línea punteada: promedio · puntos destacados: días que alcanzaron meta."
+                                "Resultado diario vs meta. La línea punteada muestra el promedio del periodo."
                             )
 
                     # ------------------------------
