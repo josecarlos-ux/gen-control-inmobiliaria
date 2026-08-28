@@ -22,6 +22,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 # =========================================================
+# GEN CONTROL · MASTER STREAMLIT
+# Versión consolidada para operación estable.
+# Mantener esta versión como base antes de una futura migración web.
+# =========================================================
+
+# =========================================================
 # CONFIGURACIÓN GENERAL
 # =========================================================
 
