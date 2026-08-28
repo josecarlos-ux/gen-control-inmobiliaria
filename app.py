@@ -7777,6 +7777,22 @@ elif menu == "✉️ Mensajes diarios":
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
         st.markdown("### Seguimiento individual")
+        modo_fuera_final = bool(
+            st.session_state.get(
+                "permitir_envio_fuera_turno",
+                False,
+            )
+        )
+        st.caption(
+            "Estado operativo del envío: "
+            + (
+                "🔓 modo excepcional global activo"
+                if modo_fuera_final
+                else "🔒 protección de horario activa"
+            )
+            + " · los desbloqueos individuales se suman al contador real de destinatarios."
+        )
+
         st.markdown(
             """
             <div style="
@@ -7970,7 +7986,7 @@ elif menu == "✉️ Mensajes diarios":
                         continue
 
                     # Puede recibir nuevamente mientras siga en turno.
-                    # El único bloqueo operativo es estar fuera de horario.
+                    # Fuera de horario se bloquea por defecto, salvo habilitación excepcional.
                     calculo_envio = generar_mensaje_operador_actual(
                         usuario_envio,
                         jornadas_info,
@@ -8633,7 +8649,7 @@ elif menu == "✉️ Mensajes diarios":
                                         if hora_envio_actual
                                         else ""
                                     )
-                                    + " · puede recibir otro mientras siga en turno"
+                                    + " · puede recibir otro; fuera de turno requiere habilitación excepcional"
                                 )
                                 st.success(
                                     texto_envio_estado
