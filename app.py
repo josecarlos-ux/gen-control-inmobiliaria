@@ -3473,41 +3473,29 @@ def generar_aviso_grupo_envios(
     operadores_enviados,
     operadores_fuera_turno=None,
 ):
+    """
+    Aviso breve al grupo después de realizar seguimientos individuales.
+    No expone nombres, atrasos ni operadores fuera de turno.
+    Su objetivo es dejar visible que coordinación está realizando seguimiento.
+    """
     operadores_enviados = list(
         operadores_enviados or []
-    )
-    operadores_fuera_turno = list(
-        operadores_fuera_turno or []
-    )
-
-    ahora = datetime.now(
-        ZoneInfo("America/La_Paz")
     )
 
     if not operadores_enviados:
         return ""
 
-    nombres = ", ".join(
-        operadores_enviados
+    ahora = datetime.now(
+        ZoneInfo("America/La_Paz")
     )
 
-    mensaje = (
-        f"📣 Seguimiento de avance · {ahora.strftime('%H:%M')}\n\n"
-        f"Se envió de manera individual el avance actualizado "
-        f"a los operadores que se encuentran de turno.\n\n"
-        f"✅ Enviados ({len(operadores_enviados)}): {nombres}\n\n"
-        f"Por favor, revisar el mensaje privado y mantener el ritmo "
-        f"de acuerdo con las metas del día."
+    return (
+        f"📊 Seguimiento de avance · {ahora.strftime('%H:%M')}\n\n"
+        "Se acaba de realizar el seguimiento individual de avance "
+        "a los operadores que se encuentran actualmente de turno.\n\n"
+        "Por favor, revisemos nuestros resultados y mantengamos el ritmo "
+        "para el cumplimiento de las metas del día. 💪"
     )
-
-    if operadores_fuera_turno:
-        mensaje += (
-            f"\n\nℹ️ Los operadores fuera de turno no recibieron "
-            f"un nuevo mensaje."
-        )
-
-    return mensaje
-
 
 def enviar_aviso_grupo_post_envio(
     operadores_enviados,
@@ -6979,28 +6967,16 @@ elif menu == "✉️ Mensajes diarios":
                         f"Se enviaron {len(enviados_top)} mensajes individuales."
                     )
 
-                    nombres_fuera_turno = [
-                        OPERADORES.get(
-                            usuario_ft,
-                            {},
-                        ).get(
-                            "nombre",
-                            usuario_ft,
-                        )
-                        for usuario_ft in telegram_fuera_turno_top
-                    ]
-
                     ok_aviso_grupo, detalle_aviso_grupo = (
                         enviar_aviso_grupo_post_envio(
                             enviados_top,
-                            nombres_fuera_turno,
                         )
                     )
 
                     if ok_aviso_grupo:
                         st.info(
-                            "📣 También se informó al grupo que los avances "
-                            "individuales fueron enviados."
+                            "📣 Se informó al grupo que se realizó el "
+                            "seguimiento individual a los operadores de turno."
                         )
                     else:
                         st.warning(
@@ -7718,8 +7694,10 @@ elif menu == "✉️ Mensajes diarios":
         st.markdown("### Envío y comunicación")
 
         st.caption(
-            "Control de turno activo: se permite reenviar avances varias veces "
-            "durante la jornada. Al salir de turno, el envío queda bloqueado."
+            "Control de turno activo: puedes enviar varios seguimientos durante "
+            "la jornada. Al terminar el turno se bloquean nuevos envíos. "
+            "Después de cada envío masivo exitoso, el grupo recibe un único "
+            "aviso breve de seguimiento, sin exponer resultados individuales."
         )
 
         coordinador_chat_id = obtener_telegram_coordinador_chat_id()
