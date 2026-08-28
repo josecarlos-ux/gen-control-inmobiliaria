@@ -2083,6 +2083,194 @@ def guardar_carga_supabase(
         pass
 
 
+
+# =========================================================
+# PERSISTENCIA DEL ESTADO OPERATIVO — V93
+# =========================================================
+
+def guardar_estado_operativo_supabase(clave, nombre_archivo="", datos=None):
+    sb = get_supabase()
+    if sb is None:
+        return False, "Supabase no está conectado."
+
+    payload = {
+        "clave": str(clave),
+        "actualizado_en": datetime.now(
+            ZoneInfo("America/La_Paz")
+        ).isoformat(),
+        "nombre_archivo": str(nombre_archivo or ""),
+        "datos": datos or {},
+    }
+
+    try:
+        (
+            sb.table("estado_operativo")
+            .upsert(payload, on_conflict="clave")
+            .execute()
+        )
+        return True, "Estado guardado."
+    except Exception as e:
+        return False, str(e)
+
+
+def cargar_estado_operativo_supabase(clave):
+    sb = get_supabase()
+    if sb is None:
+        return None
+
+    try:
+        resp = (
+            sb.table("estado_operativo")
+            .select("*")
+            .eq("clave", str(clave))
+            .limit(1)
+            .execute()
+        )
+        if resp.data:
+            return resp.data[0]
+    except Exception:
+        pass
+
+    return None
+
+
+def dataframe_a_json_v93(df):
+    if df is None or df.empty:
+        return []
+
+    return json.loads(
+        df.to_json(
+            orient="records",
+            date_format="iso",
+            force_ascii=False,
+        )
+    )
+
+
+def guardar_snapshot_promesas_v93(
+    resultado_df,
+    monto_sin_usuario,
+    distribucion,
+    nombre_archivo,
+):
+    return guardar_estado_operativo_supabase(
+        "promesas_actual",
+        nombre_archivo,
+        {
+            "resultado_operadores": dataframe_a_json_v93(
+                resultado_df
+            ),
+            "monto_sin_usuario": float(
+                monto_sin_usuario or 0.0
+            ),
+            "distribucion_sin_usuario": float(
+                distribucion or 0.0
+            ),
+        },
+    )
+
+
+def guardar_snapshot_callcenter_v93(df, nombre_archivo):
+    if df is None or df.empty:
+        return False, "CallCenter vacío."
+
+    # Solo se guardan columnas útiles para los cálculos de GEN Control.
+    cols = []
+    grupos = [
+        ["fecha"],
+        ["usuario"],
+        ["compromiso"],
+        ["tipo gestion", "tipo gestión"],
+        ["contacto"],
+        ["resultado"],
+        ["monto($us)", "monto"],
+    ]
+
+    for candidatos in grupos:
+        col = buscar_columna(df, candidatos)
+        if col is not None and col not in cols:
+            cols.append(col)
+
+    compacto = df[cols].copy() if cols else df.copy()
+
+    return guardar_estado_operativo_supabase(
+        "callcenter_actual",
+        nombre_archivo,
+        {
+            "filas": dataframe_a_json_v93(compacto),
+            "registros": int(len(compacto)),
+        },
+    )
+
+
+def restaurar_estado_operativo_v93():
+    """
+    Recupera automáticamente los últimos reportes procesados
+    después de F5, cierre de pestaña, reinicio o nueva sesión.
+    """
+    if get_supabase() is None:
+        return
+
+    if st.session_state.get("resultado_operadores") is None:
+        snap = cargar_estado_operativo_supabase(
+            "promesas_actual"
+        )
+        if snap:
+            datos = snap.get("datos") or {}
+            filas = datos.get("resultado_operadores") or []
+
+            if filas:
+                st.session_state.resultado_operadores = pd.DataFrame(
+                    filas
+                )
+                st.session_state.monto_sin_usuario = float(
+                    datos.get("monto_sin_usuario", 0.0) or 0.0
+                )
+                st.session_state.distribucion_sin_usuario = float(
+                    datos.get("distribucion_sin_usuario", 0.0) or 0.0
+                )
+                st.session_state.promesas_nombre_archivo = str(
+                    snap.get("nombre_archivo") or ""
+                )
+
+                ts = snap.get("actualizado_en")
+                if ts:
+                    try:
+                        st.session_state.promesas_cargado_en = (
+                            pd.to_datetime(ts).to_pydatetime()
+                        )
+                    except Exception:
+                        pass
+
+    call = st.session_state.get("callcenter_df")
+    if call is None or (
+        hasattr(call, "empty") and call.empty
+    ):
+        snap = cargar_estado_operativo_supabase(
+            "callcenter_actual"
+        )
+        if snap:
+            datos = snap.get("datos") or {}
+            filas = datos.get("filas") or []
+
+            if filas:
+                st.session_state.callcenter_df = pd.DataFrame(
+                    filas
+                )
+                st.session_state.callcenter_nombre_archivo = str(
+                    snap.get("nombre_archivo") or ""
+                )
+
+                ts = snap.get("actualizado_en")
+                if ts:
+                    try:
+                        st.session_state.callcenter_cargado_en = (
+                            pd.to_datetime(ts).to_pydatetime()
+                        )
+                    except Exception:
+                        pass
+
+
 # =========================================================
 # SESSION STATE
 # =========================================================
@@ -2158,6 +2346,14 @@ if (
 ):
     sincronizar_operadores_base()
     st.session_state.operadores_supabase_cargados = True
+
+if "estado_operativo_restaurado_v93" not in st.session_state:
+    st.session_state.estado_operativo_restaurado_v93 = False
+
+if not st.session_state.estado_operativo_restaurado_v93:
+    restaurar_estado_operativo_v93()
+    st.session_state.estado_operativo_restaurado_v93 = True
+
 
 
 
@@ -5877,6 +6073,9 @@ with st.sidebar:
         st.session_state.get(
             "callcenter_cargado_en"
         )
+        or st.session_state.get(
+            "promesas_cargado_en"
+        )
         or datetime.now(
             ZoneInfo("America/La_Paz")
         )
@@ -6865,16 +7064,20 @@ elif menu == "✉️ Mensajes diarios":
     </style>
     """, unsafe_allow_html=True)
 
+    st.markdown("""
+    <style>
+    /* V93: la información técnica se conserva, pero no ocupa media pantalla */
+    .data-ready-v86{display:none!important}
+    .control-v92{display:none!important}
+    .daily-panel{display:none!important}
+    .legend-v71{margin-top:8px!important}
+    </style>
+    """, unsafe_allow_html=True)
+
+
     st.markdown(
-        f"""
-        <div class="daily-panel">
-            <div class="daily-panel-title">✉️ Mensajes diarios</div>
-            <div class="daily-panel-sub">
-                Seguimiento operativo y comunicación por Telegram ·
-                {jornadas_info['disponibles']} jornadas disponibles
-            </div>
-        </div>
-        """,
+        '<div style="font-size:26px;font-weight:850;color:#17324d;margin:2px 0 2px;">Mensajes diarios</div>'
+        '<div style="font-size:11px;color:#718096;margin-bottom:12px;">Seguimiento individual, mensajes libres y comunicación al grupo.</div>',
         unsafe_allow_html=True,
     )
 
@@ -7017,7 +7220,69 @@ elif menu == "✉️ Mensajes diarios":
                     + ". Puedes reenviar si es necesario; GEN Control solo avisa para evitar mensajes demasiado seguidos."
                 )
 
-        with st.expander("💰 Recuperación y mensaje general", expanded=False):
+
+        ahora_v93 = datetime.now(
+            ZoneInfo("America/La_Paz")
+        )
+        corte_v93 = obtener_corte_callcenter(
+            st.session_state.get("callcenter_df")
+        )
+
+        if corte_v93 is not None and hasattr(
+            corte_v93,
+            "to_pydatetime",
+        ):
+            corte_v93 = corte_v93.to_pydatetime()
+
+        corte_txt_v93 = (
+            corte_v93.strftime("%H:%M")
+            if corte_v93 is not None
+            else "--:--"
+        )
+
+        usuarios_v93 = resultado["Usuario"].astype(str).tolist()
+        en_turno_v93 = sum(
+            1
+            for usuario_v93 in usuarios_v93
+            if operador_en_turno(
+                usuario_v93,
+                ahora_v93,
+            )
+        )
+
+        enviados_v93 = sum(
+            1
+            for usuario_v93 in usuarios_v93
+            if envio_ya_realizado_hoy(
+                usuario_v93,
+                "seguimiento",
+            )
+        )
+
+        proximo_v93 = informacion_corte_recomendado(
+            ahora_v93
+        )
+        proximo_txt_v93 = (
+            proximo_v93.get("hora", "--:--")
+            if proximo_v93.get("estado") != "finalizado"
+            else "Cierre"
+        )
+
+        st.markdown(
+            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 12px;">'
+            f'<div style="border:1px solid #e4e9ef;border-radius:10px;padding:9px 11px;"><span style="font-size:8px;color:#8291a3;text-transform:uppercase;">Corte cargado</span><b style="display:block;font-size:16px;color:#1d354d;">{corte_txt_v93}</b></div>'
+            f'<div style="border:1px solid #e4e9ef;border-radius:10px;padding:9px 11px;"><span style="font-size:8px;color:#8291a3;text-transform:uppercase;">En turno</span><b style="display:block;font-size:16px;color:#1d354d;">{en_turno_v93}/{len(usuarios_v93)}</b></div>'
+            f'<div style="border:1px solid #e4e9ef;border-radius:10px;padding:9px 11px;"><span style="font-size:8px;color:#8291a3;text-transform:uppercase;">Seguimiento hoy</span><b style="display:block;font-size:16px;color:#1d354d;">{enviados_v93}/{len(usuarios_v93)}</b></div>'
+            f'<div style="border:1px solid #e4e9ef;border-radius:10px;padding:9px 11px;"><span style="font-size:8px;color:#8291a3;text-transform:uppercase;">Próximo corte</span><b style="display:block;font-size:16px;color:#1d354d;">{proximo_txt_v93}</b></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.caption(
+            "Los reportes y la hora del último seguimiento quedan guardados en Supabase y se restauran al actualizar la app."
+        )
+
+        with st.expander("📣 Grupo y recuperación", expanded=False):
             # -------------------------------------------------
             # AVANCE GENERAL DE RECUPERACIÓN
             # -------------------------------------------------
@@ -7245,260 +7510,10 @@ elif menu == "✉️ Mensajes diarios":
                     )
 
         # -------------------------------------------------
-        # AVANCE DEL DÍA A LA HORA
-        # -------------------------------------------------
-        avances_hoy_v66 = []
-
-        for _, fila_hoy_v66 in resultado.iterrows():
-            avance_tmp_v66 = calcular_avance_hora_operador(
-                fila_hoy_v66["Usuario"],
-                st.session_state.callcenter_df,
-                ahora_v66,
-            )
-
-            if avance_tmp_v66.get("disponible"):
-                avances_hoy_v66.append(
-                    avance_tmp_v66
-                )
-
-        if avances_hoy_v66:
-            total_g_hoy_v66 = sum(
-                x["gestiones_hoy"]
-                for x in avances_hoy_v66
-            )
-            compromisos_validos_v69 = [
-                x["compromisos_hoy"]
-                for x in avances_hoy_v66
-                if x.get(
-                    "compromisos_disponibles"
-                )
-            ]
-
-            total_c_hoy_v66 = (
-                sum(
-                    compromisos_validos_v69
-                )
-                if compromisos_validos_v69
-                else None
-            )
-            esperado_g_hoy_v66 = sum(
-                x["esperado_gestiones"]
-                for x in avances_hoy_v66
-            )
-            esperado_c_hoy_v66 = (
-                sum(
-                    x["esperado_compromisos"]
-                    for x in avances_hoy_v66
-                    if x.get(
-                        "compromisos_disponibles"
-                    )
-                )
-                if compromisos_validos_v69
-                else None
-            )
-
-            delta_g_hoy_v66 = (
-                total_g_hoy_v66
-                - esperado_g_hoy_v66
-            )
-            delta_c_hoy_v66 = (
-                total_c_hoy_v66
-                - esperado_c_hoy_v66
-                if total_c_hoy_v66 is not None
-                else None
-            )
-
-            corte_panel_v68 = obtener_corte_callcenter(
-                st.session_state.callcenter_df
-            )
-
-            if hasattr(
-                corte_panel_v68,
-                "to_pydatetime",
-            ):
-                corte_panel_v68 = (
-                    corte_panel_v68.to_pydatetime()
-                )
-
-            jornada_pct_v66 = float(
-                avances_hoy_v66[0].get(
-                    "progreso_jornada_pct",
-                    0,
-                )
-            )
-
-            fin_v66 = corte_panel_v68.replace(
-                hour=JORNADA_FIN_HORA,
-                minute=0,
-                second=0,
-                microsecond=0,
-            )
-
-            horas_restantes_v66 = max(
-                (
-                    fin_v66
-                    - corte_panel_v68
-                ).total_seconds()
-                / 3600,
-                0,
-            )
-
-            with st.container(
-                border=True,
-            ):
-                st.markdown(
-                    f"#### ⏱️ Avance del día · corte del archivo {corte_panel_v68.strftime('%H:%M')}"
-                )
-
-                st.caption(
-                    "Los cálculos usan la última fecha/hora registrada en "
-                    "el GEN CallCenter cargado, no la hora actual del sistema."
-                )
-
-                d1, d2, d3 = st.columns(
-                    [1, 1.35, 1.35]
-                )
-
-                with d1:
-                    progresos_ind_v70 = [
-                        float(
-                            x.get(
-                                "progreso_jornada_pct",
-                                0,
-                            )
-                        )
-                        for x in avances_hoy_v66
-                    ]
-
-                    prom_jornada_v70 = (
-                        sum(
-                            progresos_ind_v70
-                        )
-                        / len(
-                            progresos_ind_v70
-                        )
-                        if progresos_ind_v70
-                        else 0
-                    )
-
-                    st.metric(
-                        "Jornada promedio",
-                        formato_porcentaje(
-                            prom_jornada_v70
-                        ),
-                    )
-
-                    st.caption(
-                        f"Corte del archivo: "
-                        f"{corte_panel_v68.strftime('%H:%M')}"
-                    )
-
-                    st.caption(
-                        "Cada operador se compara contra "
-                        "su propio horario."
-                    )
-
-                with d2:
-                    st.metric(
-                        "📞 Gestiones hoy",
-                        formato_entero(
-                            total_g_hoy_v66
-                        ),
-                        (
-                            f"{delta_g_hoy_v66:+d} "
-                            "vs ritmo esperado"
-                        ),
-                    )
-                    st.caption(
-                        f"Esperadas al corte: "
-                        f"{formato_entero(esperado_g_hoy_v66)}"
-                    )
-
-                    progreso_g_v68 = (
-                        total_g_hoy_v66
-                        / esperado_g_hoy_v66
-                        if esperado_g_hoy_v66
-                        else 0
-                    )
-
-                    st.progress(
-                        min(
-                            max(
-                                progreso_g_v68,
-                                0,
-                            ),
-                            1,
-                        )
-                    )
-
-                with d3:
-                    if total_c_hoy_v66 is not None:
-                        st.metric(
-                            "🤝 Compromisos hoy",
-                            formato_entero(
-                                total_c_hoy_v66
-                            ),
-                            (
-                                f"{delta_c_hoy_v66:+d} "
-                                "vs ritmo esperado"
-                            ),
-                        )
-                        st.caption(
-                            f"Esperados al corte: "
-                            f"{formato_entero(esperado_c_hoy_v66)}"
-                        )
-
-                        progreso_c_v68 = (
-                            total_c_hoy_v66
-                            / esperado_c_hoy_v66
-                            if esperado_c_hoy_v66
-                            else 0
-                        )
-
-                        st.progress(
-                            min(
-                                max(
-                                    progreso_c_v68,
-                                    0,
-                                ),
-                                1,
-                            )
-                        )
-                    else:
-                        st.metric(
-                            "🤝 Compromisos hoy",
-                            "No disponible",
-                        )
-                        st.caption(
-                            "El GEN CallCenter cargado no trae "
-                            "un campo de compromiso por llamada."
-                        )
-
-        else:
-            st.info(
-                "Carga el reporte GEN CallCenter para activar "
-                "el avance del día a la hora de corte del archivo."
-            )
-
-        enviados_hoy_total = sum(
-            1
-            for usuario_ctrl in resultado["Usuario"].tolist()
-            if envio_ya_realizado_hoy(
-                usuario_ctrl,
-                "seguimiento",
-            )
-        )
-
-        st.caption(
-            f"✅ Seguimiento enviado hoy: {enviados_hoy_total}/{len(resultado)} operadores · "
-            "los mensajes automáticos respetan turno y hora de corte."
-        )
-
-        # -------------------------------------------------
         # MENSAJE LIBRE POR TELEGRAM — V90
         # -------------------------------------------------
         with st.expander(
-            "💬 Mensaje personalizado",
+            "💬 Escribir mensaje libre",
             expanded=False,
         ):
             st.caption(
@@ -7687,8 +7702,8 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
-        st.markdown("### 👥 Seguimiento por operador")
-        st.caption("Prioriza, revisa el avance y envía el seguimiento automático desde una sola vista.")
+        st.markdown("### Seguimiento individual")
+        st.caption("Aquí está el trabajo principal: avance de hoy, prioridad y envío por operador.")
 
         f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
 
@@ -8639,7 +8654,7 @@ elif menu == "✉️ Mensajes diarios":
             unsafe_allow_html=True,
         )
 
-        with st.expander("📣 Mensaje y ranking al grupo", expanded=False):
+        with st.expander("📊 Vista previa y envío del ranking", expanded=False):
             coordinador_chat_id = obtener_telegram_coordinador_chat_id()
 
             if coordinador_chat_id:
@@ -8876,6 +8891,12 @@ elif menu == "📥 Cargar reportes":
                     st.session_state.promesas_nombre_archivo = archivo.name
 
                     if supabase_disponible():
+                        guardar_snapshot_promesas_v93(
+                            resultado,
+                            monto_sin_usuario,
+                            distribucion,
+                            archivo.name,
+                        )
                         guardar_resultados_supabase(
                             resultado,
                             fecha_local_actual(),
@@ -8890,6 +8911,13 @@ elif menu == "📥 Cargar reportes":
                         ZoneInfo("America/La_Paz")
                     )
                     st.session_state.callcenter_nombre_archivo = archivo.name
+
+                    if supabase_disponible():
+                        guardar_snapshot_callcenter_v93(
+                            df,
+                            archivo.name,
+                        )
+
                     callcenter_procesado = True
 
             except Exception as e:
