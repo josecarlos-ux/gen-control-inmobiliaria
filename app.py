@@ -371,6 +371,387 @@ st.set_page_config(
 
 
 # =========================================================
+# DISEÑO VISUAL EJECUTIVO — FINAL VISUAL
+# =========================================================
+st.markdown(
+    """
+    <style>
+    :root{
+        --gen-navy:#102A43;
+        --gen-navy-2:#163A5F;
+        --gen-blue:#2F80ED;
+        --gen-cyan:#22B8CF;
+        --gen-green:#12B76A;
+        --gen-orange:#F79009;
+        --gen-red:#F04438;
+        --gen-purple:#7A5AF8;
+        --gen-bg:#F4F7FB;
+        --gen-card:#FFFFFF;
+        --gen-border:#E6ECF3;
+        --gen-text:#172B4D;
+        --gen-muted:#6B7C93;
+    }
+
+    /* Fondo general */
+    .stApp{
+        background:
+            radial-gradient(circle at 92% 4%, rgba(47,128,237,.07), transparent 24rem),
+            radial-gradient(circle at 15% 92%, rgba(34,184,207,.05), transparent 28rem),
+            var(--gen-bg);
+    }
+
+    .block-container{
+        max-width: 1500px;
+        padding-top: 1.35rem !important;
+        padding-bottom: 3.5rem !important;
+        padding-left: 2.25rem !important;
+        padding-right: 2.25rem !important;
+    }
+
+    /* Tipografía y jerarquía */
+    h1,h2,h3{
+        letter-spacing:-.025em !important;
+        color:var(--gen-text) !important;
+    }
+    h2{font-weight:800!important}
+    h3{font-weight:780!important}
+
+    /* Sidebar */
+    [data-testid="stSidebar"]{
+        background:
+            linear-gradient(180deg,#0E2742 0%,#102A43 55%,#0B2037 100%) !important;
+        border-right:1px solid rgba(255,255,255,.06)!important;
+        box-shadow:16px 0 40px rgba(16,42,67,.08);
+    }
+
+    [data-testid="stSidebar"] div[role="radiogroup"] label{
+        min-height:42px;
+        border-radius:12px!important;
+        margin:2px 3px!important;
+        padding:9px 11px!important;
+    }
+
+    [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked){
+        background:
+            linear-gradient(90deg,rgba(47,128,237,.30),rgba(34,184,207,.14))!important;
+        border:1px solid rgba(112,189,255,.18)!important;
+        box-shadow:
+            inset 3px 0 0 #47D7D0,
+            0 8px 18px rgba(0,0,0,.08)!important;
+    }
+
+    .sidebar-logo{
+        background:linear-gradient(135deg,#2F80ED,#22B8CF)!important;
+        box-shadow:0 10px 22px rgba(47,128,237,.24)!important;
+    }
+
+    .sidebar-status-card{
+        background:
+            linear-gradient(135deg,rgba(34,184,207,.18),rgba(47,128,237,.16))!important;
+        border:1px solid rgba(106,203,213,.18)!important;
+        box-shadow:0 12px 24px rgba(0,0,0,.08)!important;
+    }
+
+    /* Hero principal */
+    .hero-card{
+        position:relative;
+        overflow:hidden;
+        border:none!important;
+        border-radius:20px!important;
+        padding:24px 26px!important;
+        margin-bottom:18px!important;
+        background:
+            linear-gradient(115deg,#102A43 0%,#163A5F 56%,#1D5D7C 100%)!important;
+        box-shadow:0 18px 42px rgba(16,42,67,.16)!important;
+    }
+
+    .hero-card:after{
+        content:"";
+        position:absolute;
+        width:220px;height:220px;
+        right:-55px;top:-100px;
+        border-radius:50%;
+        background:rgba(71,215,208,.12);
+        box-shadow:
+            -115px 160px 0 15px rgba(47,128,237,.10);
+        pointer-events:none;
+    }
+
+    .hero-title{
+        position:relative;
+        z-index:1;
+        color:#fff!important;
+        font-size:26px!important;
+        font-weight:850!important;
+        letter-spacing:-.035em;
+    }
+
+    .hero-subtitle{
+        position:relative;
+        z-index:1;
+        color:#BCD0E5!important;
+        font-size:12px!important;
+        margin-top:5px!important;
+    }
+
+    /* Estado del equipo */
+    .team-state-v79{
+        border-radius:16px!important;
+        padding:14px 18px!important;
+        border:1px solid var(--gen-border)!important;
+        box-shadow:0 8px 24px rgba(16,42,67,.05)!important;
+        background:#fff!important;
+        margin-bottom:14px!important;
+    }
+
+    .team-state-green-v79{
+        border-left:5px solid var(--gen-green)!important;
+        background:linear-gradient(90deg,#F0FDF6,#FFFFFF 34%)!important;
+    }
+    .team-state-orange-v79{
+        border-left:5px solid var(--gen-orange)!important;
+        background:linear-gradient(90deg,#FFF8EB,#FFFFFF 34%)!important;
+    }
+    .team-state-red-v79{
+        border-left:5px solid var(--gen-red)!important;
+        background:linear-gradient(90deg,#FFF3F2,#FFFFFF 34%)!important;
+    }
+
+    .team-state-title-v79{
+        font-size:17px!important;
+        font-weight:830!important;
+        color:var(--gen-text)!important;
+    }
+    .team-state-sub-v79{
+        font-size:10px!important;
+        color:var(--gen-muted)!important;
+        margin-top:2px!important;
+    }
+    .team-focus-v79{
+        border-radius:999px!important;
+        padding:7px 11px!important;
+        background:#F2F6FA!important;
+        color:#40566D!important;
+        font-size:10px!important;
+        font-weight:750!important;
+    }
+
+    /* KPIs */
+    .kpi-card-v79{
+        min-height:126px;
+        border-radius:17px!important;
+        padding:15px 17px!important;
+        border:1px solid var(--gen-border)!important;
+        background:#fff!important;
+        box-shadow:0 10px 26px rgba(16,42,67,.055)!important;
+        transition:transform .14s ease, box-shadow .14s ease;
+    }
+    .kpi-card-v79:hover{
+        transform:translateY(-2px);
+        box-shadow:0 16px 34px rgba(16,42,67,.09)!important;
+    }
+    .kpi-card-blue-v79{border-top:3px solid var(--gen-blue)!important}
+    .kpi-card-orange-v79{border-top:3px solid var(--gen-orange)!important}
+    .kpi-card-green-v79{border-top:3px solid var(--gen-green)!important}
+    .kpi-card-purple-v79{border-top:3px solid var(--gen-purple)!important}
+
+    .kpi-label-v79{
+        font-size:10px!important;
+        font-weight:800!important;
+        color:#61758A!important;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+    }
+    .kpi-value-v79{
+        color:#102A43!important;
+        font-size:27px!important;
+        line-height:1.05!important;
+        font-weight:860!important;
+        margin:10px 0 7px!important;
+        letter-spacing:-.04em;
+    }
+    .kpi-foot-v79{
+        font-size:9px!important;
+        color:#7A8DA1!important;
+    }
+
+    /* Avance vs esperado */
+    .compare-card-v79{
+        border-radius:16px!important;
+        background:#fff!important;
+        border:1px solid var(--gen-border)!important;
+        padding:15px 16px!important;
+        box-shadow:0 8px 22px rgba(16,42,67,.045)!important;
+    }
+    .compare-title-v79{
+        font-size:10px!important;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+        color:#708399!important;
+        font-weight:800!important;
+    }
+    .compare-value-v79{
+        font-size:25px!important;
+        color:#102A43!important;
+        font-weight:850!important;
+        margin:7px 0 5px!important;
+    }
+
+    /* Contenedores estándar */
+    [data-testid="stVerticalBlockBorderWrapper"]{
+        border:1px solid var(--gen-border)!important;
+        border-radius:16px!important;
+        background:#fff!important;
+        box-shadow:0 7px 22px rgba(16,42,67,.035)!important;
+    }
+
+    /* Métricas Streamlit */
+    [data-testid="stMetric"]{
+        border:1px solid var(--gen-border)!important;
+        background:#fff!important;
+        border-radius:14px!important;
+        padding:10px 12px!important;
+        box-shadow:none!important;
+    }
+    [data-testid="stMetricValue"]{
+        color:#102A43!important;
+        font-weight:850!important;
+        letter-spacing:-.035em!important;
+    }
+    [data-testid="stMetricLabel"] p{
+        color:#71849A!important;
+        font-weight:700!important;
+    }
+
+    /* Inputs */
+    [data-baseweb="input"] > div,
+    [data-baseweb="select"] > div,
+    [data-testid="stTextArea"] textarea{
+        border-radius:11px!important;
+        border-color:#DDE6EF!important;
+        background:#fff!important;
+    }
+
+    /* Tabs */
+    button[data-baseweb="tab"]{
+        border-radius:10px!important;
+        padding:9px 14px!important;
+        font-weight:750!important;
+        color:#5C7085!important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"]{
+        color:#12395B!important;
+        background:#EAF3FB!important;
+    }
+
+    /* Botones */
+    [data-testid="stButton"] button{
+        min-height:40px;
+        border-radius:11px!important;
+        font-weight:760!important;
+        transition:transform .12s ease, box-shadow .12s ease!important;
+    }
+    [data-testid="stButton"] button:hover{
+        transform:translateY(-1px);
+        box-shadow:0 7px 16px rgba(16,42,67,.10)!important;
+    }
+    [data-testid="stButton"] button[kind="primary"]{
+        background:linear-gradient(135deg,#2F80ED,#2570D7)!important;
+        border:none!important;
+        color:#fff!important;
+    }
+
+    /* Dataframes */
+    [data-testid="stDataFrame"]{
+        border:1px solid var(--gen-border)!important;
+        border-radius:14px!important;
+        overflow:hidden!important;
+        box-shadow:0 8px 24px rgba(16,42,67,.04)!important;
+        background:#fff!important;
+    }
+
+    /* Expanders */
+    [data-testid="stExpander"]{
+        border:1px solid var(--gen-border)!important;
+        border-radius:13px!important;
+        background:#fff!important;
+        box-shadow:none!important;
+    }
+
+    /* Alertas */
+    [data-testid="stAlert"]{
+        border-radius:13px!important;
+        border-width:1px!important;
+    }
+
+    /* Ranking / alertas */
+    .leader-strip-v77{
+        border-radius:13px!important;
+        padding:11px 13px!important;
+        box-shadow:none!important;
+    }
+    .alert-summary-v77{
+        border-radius:16px!important;
+        border:1px solid #F3D7D2!important;
+        background:linear-gradient(90deg,#FFF7F5,#FFFFFF)!important;
+        box-shadow:0 8px 20px rgba(240,68,56,.04)!important;
+    }
+
+    /* Mensajes diarios: tarjetas operadores */
+    .op-head-v74{margin-bottom:9px!important}
+    .op-name-v74{
+        font-size:16px!important;
+        color:#172B4D!important;
+        font-weight:850!important;
+        letter-spacing:-.02em;
+    }
+    .op-contact-v74{
+        color:#7A8EA5!important;
+        font-size:9px!important;
+    }
+    .schedule-v74{
+        border-radius:8px!important;
+        background:#F6F9FC!important;
+        border:1px solid #E7EDF4!important;
+        color:#60748A!important;
+    }
+    .action-v74{
+        border-radius:9px!important;
+        font-weight:760!important;
+    }
+    .monthly-v74{
+        border-top:1px solid #EDF1F5!important;
+    }
+
+    /* Scrollbar sutil */
+    ::-webkit-scrollbar{width:10px;height:10px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{
+        background:#C7D3DF;
+        border-radius:999px;
+        border:3px solid transparent;
+        background-clip:padding-box;
+    }
+
+    /* Responsive */
+    @media(max-width:1100px){
+        .block-container{
+            padding-left:1.35rem!important;
+            padding-right:1.35rem!important;
+        }
+        .kpi-value-v79{font-size:23px!important}
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# =========================================================
+# VERSIÓN FINAL VISUAL · UI ejecutiva
+# =========================================================
+
+# =========================================================
 # FUNCIONES AUXILIARES
 # =========================================================
 
@@ -6292,9 +6673,20 @@ if menu == "🏠 Resumen":
     st.markdown(
         f"""
         <div class="hero-card">
+            <div style="
+                position:relative;z-index:1;
+                display:inline-flex;align-items:center;gap:6px;
+                padding:5px 9px;border-radius:999px;
+                background:rgba(255,255,255,.10);
+                color:#CDE7F6;font-size:9px;font-weight:800;
+                letter-spacing:.06em;text-transform:uppercase;
+                margin-bottom:10px;
+            ">
+                ● GEN CONTROL · COBRANZAS INMOBILIARIAS
+            </div>
             <div class="hero-title">Centro de control operativo</div>
             <div class="hero-subtitle">
-                Seguimiento de metas y brechas ·
+                Seguimiento ejecutivo de metas, brechas y recuperación ·
                 {fecha_local_actual().strftime("%d/%m/%Y")}
             </div>
         </div>
@@ -7148,8 +7540,26 @@ elif menu == "✉️ Mensajes diarios":
 
 
     st.markdown(
-        '<div style="font-size:26px;font-weight:850;color:#17324d;margin:2px 0 2px;">Mensajes diarios</div>'
-        '<div style="font-size:11px;color:#718096;margin-bottom:12px;">Seguimiento individual, mensajes libres y comunicación al grupo.</div>',
+        """
+        <div style="
+            background:linear-gradient(120deg,#102A43,#164A6A);
+            border-radius:18px;padding:18px 20px;margin:2px 0 14px;
+            box-shadow:0 14px 32px rgba(16,42,67,.13);
+        ">
+            <div style="
+                display:inline-block;padding:4px 8px;border-radius:999px;
+                background:rgba(255,255,255,.10);color:#BFD7E8;
+                font-size:8px;font-weight:800;letter-spacing:.06em;
+                text-transform:uppercase;margin-bottom:8px;
+            ">Telegram · Seguimiento operativo</div>
+            <div style="font-size:23px;font-weight:850;color:#fff;letter-spacing:-.03em;">
+                Mensajes diarios
+            </div>
+            <div style="font-size:10px;color:#BED0E0;margin-top:3px;">
+                Seguimiento individual, mensajes libres y comunicación al grupo.
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
