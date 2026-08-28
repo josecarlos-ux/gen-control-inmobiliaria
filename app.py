@@ -7762,31 +7762,50 @@ elif menu == "✉️ Mensajes diarios":
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
         st.markdown("### Seguimiento individual")
-        col_modo_v97_a, col_modo_v97_b = st.columns([1.35, 1])
+        st.markdown(
+            """
+            <div style="
+                margin:10px 0 8px;
+                padding:10px 13px;
+                border:1px solid #dfe6ee;
+                border-radius:11px;
+                background:#f8fafc;
+            ">
+                <div style="font-size:12px;font-weight:800;color:#20364d;">
+                    🔐 Control de horario para envíos
+                </div>
+                <div style="font-size:9px;color:#708195;margin-top:2px;">
+                    Normalmente GEN Control bloquea el envío cuando el operador termina su jornada.
+                    Activa el modo excepcional solo cuando necesites escribirle después de su salida.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        with col_modo_v97_a:
-            st.session_state.permitir_envio_fuera_turno = st.toggle(
-                "🔓 Permitir envíos fuera de turno",
-                value=st.session_state.get(
+        permitir_fuera_v98 = st.toggle(
+            "🔓 Habilitar envío a operadores fuera de turno",
+            value=bool(
+                st.session_state.get(
                     "permitir_envio_fuera_turno",
                     False,
-                ),
-                help=(
-                    "Al activarlo, podrás enviar seguimiento incluso a operadores "
-                    "que ya terminaron su jornada. El estado seguirá mostrando "
-                    "'Fuera de turno' para que quede claro."
-                ),
-                key="toggle_fuera_turno_v97",
+                )
+            ),
+            key="permitir_fuera_turno_v98",
+        )
+        st.session_state.permitir_envio_fuera_turno = permitir_fuera_v98
+
+        if permitir_fuera_v98:
+            st.warning(
+                "Modo excepcional activo: también puedes enviar a quienes ya finalizaron su jornada.",
+                icon="⚠️",
+            )
+        else:
+            st.caption(
+                "🔒 Protección activa · los operadores fuera de turno permanecen bloqueados."
             )
 
-        with col_modo_v97_b:
-            if st.session_state.permitir_envio_fuera_turno:
-                st.warning(
-                    "Modo excepcional activo",
-                    icon="⚠️",
-                )
-            else:
-                st.caption(
+        st.caption(
                     "Protección de horario activa."
                 )
 
@@ -8635,8 +8654,12 @@ elif menu == "✉️ Mensajes diarios":
                         with a1:
                             if (
                                 telegram_chat_id
-                                and puede_enviar_seguimiento(
-                                    usuario
+                                and (
+                                    en_turno_actual
+                                    or st.session_state.get(
+                                        "permitir_envio_fuera_turno",
+                                        False,
+                                    )
                                 )
                             ):
                                 if st.button(
