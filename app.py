@@ -7360,6 +7360,38 @@ elif menu == "📈 Comportamiento diario":
                 fecha_min = df_cc["Fecha_dia"].min()
                 fecha_max = df_cc["Fecha_dia"].max()
 
+                # V8 · Calendario operativo real:
+                # los días con datos no equivalen necesariamente a días laborables.
+                # La evaluación usa el calendario configurado (feriados incluidos).
+                def es_dia_laboral_configurado(fecha_obj):
+                    clave = f"{fecha_obj.year:04d}-{fecha_obj.month:02d}"
+
+                    # Inicializar mes localmente si aún no existe.
+                    if clave not in st.session_state.calendario_laboral:
+                        inicializar_calendario_mes(
+                            date(fecha_obj.year, fecha_obj.month, 1)
+                        )
+
+                        # Recuperar configuración guardada en Supabase.
+                        if supabase_disponible():
+                            calendario_guardado_v8 = cargar_calendario_supabase(
+                                fecha_obj.year,
+                                fecha_obj.month,
+                            )
+                            if calendario_guardado_v8:
+                                st.session_state.calendario_laboral[
+                                    clave
+                                ].update(calendario_guardado_v8)
+
+                    return bool(
+                        st.session_state.calendario_laboral[
+                            clave
+                        ].get(
+                            fecha_obj.day,
+                            fecha_obj.weekday() != 6,
+                        )
+                    )
+
                 f1, f2 = st.columns([2, 1])
 
                 with f1:
@@ -7433,13 +7465,22 @@ elif menu == "📈 Comportamiento diario":
                     diario["Compromisos"].astype(int)
                 )
 
-                # V5 · Lectura correcta de cumplimiento:
-                # no comparar domingos ni el corte parcial de hoy como jornadas completas.
+                # V8 · La fuente de verdad es el calendario laboral configurado.
+                # Un domingo puede tener actividad por cobertura especial, pero no
+                # aumenta el número de jornadas laborables del equipo si sustituye
+                # un descanso compensatorio entre semana.
                 hoy_bolivia_comp = fecha_local_actual()
                 diario["_fecha_ts"] = pd.to_datetime(diario["Fecha_dia"])
                 diario["_weekday"] = diario["_fecha_ts"].dt.weekday
                 diario["_es_domingo"] = diario["_weekday"].eq(6)
                 diario["_es_hoy"] = diario["Fecha_dia"].eq(hoy_bolivia_comp)
+                diario["_es_laboral_cfg"] = diario["Fecha_dia"].apply(
+                    es_dia_laboral_configurado
+                )
+                diario["_cobertura_especial"] = (
+                    diario["_es_domingo"]
+                    & (diario["Operadores_activos"] > 0)
+                )
 
                 total_gestiones = int(
                     diario["Gestiones"].sum()
@@ -7487,15 +7528,16 @@ elif menu == "📈 Comportamiento diario":
                     diario["Meta_gestiones"] = META_DIARIA_GESTIONES
                     diario["Meta_compromisos"] = META_DIARIA_COMPROMISOS
 
+                # Los días no laborables (domingos/feriados configurados)
+                # pueden mostrar actividad real, pero no se usan para cumplimiento
+                # del equipo ni para ampliar el denominador mensual.
                 diario.loc[
-                    diario["_es_domingo"],
+                    ~diario["_es_laboral_cfg"],
                     ["Meta_gestiones", "Meta_compromisos"],
                 ] = 0
 
-                # Para porcentajes y rankings se consideran únicamente jornadas
-                # completas. El día actual se muestra, pero no distorsiona el análisis.
                 diario["_jornada_completa"] = (
-                    ~diario["_es_domingo"]
+                    diario["_es_laboral_cfg"]
                     & ~diario["_es_hoy"]
                 )
 
@@ -7515,6 +7557,36 @@ elif menu == "📈 Comportamiento diario":
                     / diario["Gestiones"].replace(0, pd.NA)
                     * 100
                 ).fillna(0)
+
+                # Total de jornadas laborables programadas en el periodo,
+                # aunque no exista registro en el CallCenter ese día.
+                fechas_periodo_v8 = pd.date_range(
+                    start=inicio,
+                    end=fin,
+                    freq="D",
+                )
+                jornadas_programadas_v8 = [
+                    d.date()
+                    for d in fechas_periodo_v8
+                    if es_dia_laboral_configurado(d.date())
+                ]
+                total_jornadas_programadas_v8 = len(
+                    jornadas_programadas_v8
+                )
+
+                feriados_periodo_v8 = [
+                    d.date()
+                    for d in fechas_periodo_v8
+                    if (
+                        d.weekday() != 6
+                        and not es_dia_laboral_configurado(d.date())
+                    )
+                ]
+                total_feriados_v8 = len(feriados_periodo_v8)
+
+                coberturas_domingo_v8 = int(
+                    diario["_cobertura_especial"].sum()
+                )
 
                 if not diario.empty:
                     idx_mejor_g = diario["Gestiones"].idxmax()
@@ -8003,7 +8075,7 @@ elif menu == "📈 Comportamiento diario":
                     with r1:
                         with st.container(border=True):
                             st.markdown("#### 📌 Resumen del periodo")
-                            st.write(f"**Días con información:** {dias}")
+                            st.write(f"**Jornadas laborables programadas:** {total_jornadas_programadas_v8}")
                             st.write(
                                 f"**Cumplimiento gestiones:** {cumplimiento_g_prom:.0f}%"
                             )
@@ -8011,10 +8083,17 @@ elif menu == "📈 Comportamiento diario":
                                 f"**Cumplimiento compromisos:** {cumplimiento_c_prom:.0f}%"
                             )
                             st.write(
-                                f"**Días con meta de gestiones:** {dias_meta_g} / {dias}"
+                                f"**Feriados/no laborables entre semana:** {total_feriados_v8}"
+                            )
+                            if coberturas_domingo_v8:
+                                st.write(
+                                    f"**Coberturas especiales en domingo:** {coberturas_domingo_v8}"
+                                )
+                            st.write(
+                                f"**Jornadas con meta de gestiones cumplida:** {dias_meta_g} / {len(diario_eval)}"
                             )
                             st.write(
-                                f"**Días con meta de compromisos:** {dias_meta_c} / {dias}"
+                                f"**Jornadas con meta de compromisos cumplida:** {dias_meta_c} / {len(diario_eval)}"
                             )
                             st.caption(
                                 f"Meta diaria promedio observada: "
@@ -8070,12 +8149,12 @@ elif menu == "📈 Comportamiento diario":
 
                     dias_bajos_g = int(
                         (
-                            diario["Cumplimiento_gestiones"] < 100
+                            diario_eval["Cumplimiento_gestiones"] < 100
                         ).sum()
                     )
                     dias_bajos_c = int(
                         (
-                            diario["Cumplimiento_compromisos"] < 100
+                            diario_eval["Cumplimiento_compromisos"] < 100
                         ).sum()
                     )
 
@@ -8104,8 +8183,8 @@ elif menu == "📈 Comportamiento diario":
 
                     with i2:
                         st.info(
-                            f"{dias_bajos_g} de {dias} días quedaron por debajo de "
-                            f"la meta de gestiones y {dias_bajos_c} de {dias} "
+                            f"{dias_bajos_g} de {len(diario_eval)} jornadas cerradas quedaron por debajo de "
+                            f"la meta de gestiones y {dias_bajos_c} de {len(diario_eval)} "
                             "por debajo de compromisos."
                         )
 
@@ -8151,9 +8230,13 @@ elif menu == "📈 Comportamiento diario":
                             "En curso"
                             if bool(r["_es_hoy"])
                             else (
-                                "No laborable"
-                                if bool(r["_es_domingo"])
-                                else "Cerrado"
+                                "Cobertura especial"
+                                if bool(r["_cobertura_especial"])
+                                else (
+                                    "Feriado / no laborable"
+                                    if not bool(r["_es_laboral_cfg"])
+                                    else "Cerrado"
+                                )
                             )
                         ),
                         axis=1,
