@@ -2058,6 +2058,12 @@ if "callcenter_cargado_en" not in st.session_state:
 if "callcenter_nombre_archivo" not in st.session_state:
     st.session_state.callcenter_nombre_archivo = ""
 
+if "promesas_cargado_en" not in st.session_state:
+    st.session_state.promesas_cargado_en = None
+
+if "promesas_nombre_archivo" not in st.session_state:
+    st.session_state.promesas_nombre_archivo = ""
+
 if "envios_diarios_cache" not in st.session_state:
     st.session_state.envios_diarios_cache = {}
 
@@ -5889,6 +5895,74 @@ st.markdown(
 # RESUMEN
 # =========================================================
 
+
+def estado_datos_para_seguimiento(resultado=None):
+    ahora = datetime.now(ZoneInfo("America/La_Paz"))
+    hoy = ahora.date()
+    promesas_ok = resultado is not None and not resultado.empty
+    promesas_cargado = st.session_state.get("promesas_cargado_en")
+    call_df = st.session_state.get("callcenter_df")
+    call_ok = call_df is not None and not call_df.empty
+    call_cargado = st.session_state.get("callcenter_cargado_en")
+    corte = obtener_corte_callcenter(call_df) if call_ok else None
+    if hasattr(corte, "to_pydatetime"):
+        corte = corte.to_pydatetime()
+
+    minutos_call = None
+    if call_cargado is not None:
+        try:
+            minutos_call = max(int((ahora-call_cargado).total_seconds()//60),0)
+        except Exception:
+            pass
+
+    fecha_operativa_call = None
+    if call_ok:
+        col_fecha = buscar_columna(call_df, ["fecha"])
+        if col_fecha is not None:
+            serie = pd.to_datetime(call_df[col_fecha], dayfirst=True, errors="coerce").dropna()
+            if not serie.empty:
+                fecha_operativa_call = serie.max().date()
+
+    usuarios_detectados = 0
+    if promesas_ok and "Usuario" in resultado.columns:
+        usuarios_detectados = int(resultado["Usuario"].astype(str).nunique())
+
+    recuperacion_ok = (
+        promesas_ok
+        and "Recuperación acumulada" in resultado.columns
+        and resultado["Recuperación acumulada"].notna().any()
+    )
+
+    bloqueos, avisos = [], []
+    if not promesas_ok:
+        bloqueos.append("Falta Promesas de Pago")
+    if not call_ok:
+        bloqueos.append("Falta GEN CallCenter")
+    elif fecha_operativa_call is not None and fecha_operativa_call != hoy:
+        bloqueos.append(f"CallCenter corresponde al {fecha_operativa_call.strftime('%d/%m/%Y')}")
+    if usuarios_detectados and usuarios_detectados < CANTIDAD_OPERADORES:
+        avisos.append(f"Solo se identificaron {usuarios_detectados}/{CANTIDAD_OPERADORES} operadores")
+    if call_ok and minutos_call is not None and minutos_call > 180:
+        avisos.append(f"CallCenter fue cargado hace {minutos_call//60} h {minutos_call%60} min")
+
+    if bloqueos:
+        nivel,titulo="rojo","Datos no listos para enviar"
+    elif avisos:
+        nivel,titulo="naranja","Revisar antes de enviar"
+    else:
+        nivel,titulo="verde","Datos listos para seguimiento"
+
+    return {
+        "nivel":nivel,"titulo":titulo,"promesas_ok":promesas_ok,
+        "promesas_cargado":promesas_cargado,"call_ok":call_ok,
+        "call_cargado":call_cargado,"corte":corte,"minutos_call":minutos_call,
+        "fecha_operativa_call":fecha_operativa_call,
+        "usuarios_detectados":usuarios_detectados,"recuperacion_ok":recuperacion_ok,
+        "razones_bloqueo":bloqueos,"advertencias":avisos,
+        "bloquear_envio":bool(bloqueos),
+    }
+
+
 if menu == "🏠 Resumen":
 
     resultado = st.session_state.resultado_operadores
@@ -6579,6 +6653,26 @@ elif menu == "✉️ Mensajes diarios":
     resultado = st.session_state.resultado_operadores
     jornadas_info = jornadas_configuradas()
 
+    st.markdown("""
+    <style>
+    .daily-panel{padding:16px 18px!important;border-radius:14px!important;margin-bottom:12px!important;background:linear-gradient(135deg,#f8fbff,#eef5ff)!important;border:1px solid #dbe7f5!important}
+    .daily-panel-title{font-size:23px!important;font-weight:800!important;color:#102a43!important}
+    .daily-panel-sub{font-size:12px!important;color:#627d98!important;margin-top:2px!important}
+    .data-ready-v86{border:1px solid #dbe5ef;border-radius:13px;padding:12px 14px;margin:6px 0 14px;background:#fff}
+    .data-ready-head-v86{font-size:14px;font-weight:800;color:#102a43;margin-bottom:9px}
+    .data-grid-v86{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+    .data-item-v86{background:#f7f9fc;border:1px solid #e7edf4;border-radius:9px;padding:8px 9px}
+    .data-label-v86{font-size:9px;font-weight:800;color:#829ab1;text-transform:uppercase;letter-spacing:.35px}
+    .data-value-v86{font-size:12px;font-weight:700;color:#243b53;margin-top:2px}
+    div[data-testid="stMetric"]{background:#fff;border:1px solid #e4eaf1;padding:8px 10px;border-radius:11px}
+    div[data-testid="stMetric"] label{font-size:10px!important;color:#627d98!important}
+    div[data-testid="stMetricValue"]{font-size:19px!important;font-weight:800!important}
+    div[data-testid="stVerticalBlockBorderWrapper"]{border-color:#e1e8f0!important;border-radius:13px!important}
+    div[data-testid="stButton"] button{border-radius:9px!important;font-weight:700!important}
+    @media(max-width:900px){.data-grid-v86{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    </style>
+    """, unsafe_allow_html=True)
+
     st.markdown(
         f"""
         <div class="daily-panel">
@@ -6605,6 +6699,41 @@ elif menu == "✉️ Mensajes diarios":
                     "telegram_chat_id": str(op.get("telegram_chat_id") or ""),
                     "nombre_mensaje": str(op.get("nombre_mensaje") or op.get("nombre") or ""),
                 }
+
+        validacion_v86 = estado_datos_para_seguimiento(resultado)
+        icono_v86 = {"verde":"🟢","naranja":"🟠","rojo":"🔴"}[validacion_v86["nivel"]]
+
+        promesas_txt_v86 = "Disponible" if validacion_v86["promesas_ok"] else "No cargado"
+        if validacion_v86["promesas_cargado"] is not None:
+            promesas_txt_v86 += " · " + validacion_v86["promesas_cargado"].strftime("%H:%M")
+
+        if validacion_v86["call_ok"]:
+            corte_v86 = validacion_v86["corte"]
+            call_txt_v86 = f"Corte {corte_v86.strftime('%H:%M')}" if corte_v86 else "Cargado"
+            if validacion_v86["minutos_call"] is not None:
+                call_txt_v86 += f" · hace {validacion_v86['minutos_call']} min"
+        else:
+            call_txt_v86 = "No cargado"
+
+        operadores_txt_v86 = f"{validacion_v86['usuarios_detectados']}/{CANTIDAD_OPERADORES} identificados"
+        rec_txt_v86 = "Disponible" if validacion_v86["recuperacion_ok"] else "No disponible"
+
+        html_v86 = (
+            '<div class="data-ready-v86">'
+            f'<div class="data-ready-head-v86">{icono_v86} {validacion_v86["titulo"]}</div>'
+            '<div class="data-grid-v86">'
+            f'<div class="data-item-v86"><div class="data-label-v86">Promesas</div><div class="data-value-v86">{promesas_txt_v86}</div></div>'
+            f'<div class="data-item-v86"><div class="data-label-v86">CallCenter</div><div class="data-value-v86">{call_txt_v86}</div></div>'
+            f'<div class="data-item-v86"><div class="data-label-v86">Operadores</div><div class="data-value-v86">{operadores_txt_v86}</div></div>'
+            f'<div class="data-item-v86"><div class="data-label-v86">Recuperación</div><div class="data-value-v86">{rec_txt_v86}</div></div>'
+            '</div></div>'
+        )
+        st.markdown(html_v86, unsafe_allow_html=True)
+
+        if validacion_v86["razones_bloqueo"]:
+            st.error("No se habilitará el envío masivo hasta corregir: " + " · ".join(validacion_v86["razones_bloqueo"]))
+        elif validacion_v86["advertencias"]:
+            st.warning("Revisión recomendada: " + " · ".join(validacion_v86["advertencias"]))
 
         # Resumen superior compacto
         c1, c2, c3, c4 = st.columns(4)
@@ -7318,8 +7447,11 @@ elif menu == "✉️ Mensajes diarios":
                 f"✈️ Enviar avance a operadores de turno ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
-                disabled=(len(telegram_pendientes_top) == 0),
-                key="enviar_todos_top_v84",
+                disabled=(
+                    len(telegram_pendientes_top) == 0
+                    or validacion_v86["bloquear_envio"]
+                ),
+                key="enviar_todos_top_v86",
             ):
                 enviados_top = []
                 errores_top = []
@@ -8478,6 +8610,10 @@ elif menu == "📥 Cargar reportes":
                     st.session_state.distribucion_sin_usuario = (
                         distribucion
                     )
+                    st.session_state.promesas_cargado_en = datetime.now(
+                        ZoneInfo("America/La_Paz")
+                    )
+                    st.session_state.promesas_nombre_archivo = archivo.name
 
                     if supabase_disponible():
                         guardar_resultados_supabase(
