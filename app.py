@@ -2365,6 +2365,9 @@ if "promesas_nombre_archivo" not in st.session_state:
 if "envios_diarios_cache" not in st.session_state:
     st.session_state.envios_diarios_cache = {}
 
+if "permitir_envio_fuera_turno" not in st.session_state:
+    st.session_state.permitir_envio_fuera_turno = False
+
 
 if "config_desbloqueada" not in st.session_state:
     st.session_state.config_desbloqueada = False
@@ -3834,6 +3837,26 @@ def resumen_frecuencia_seguimiento(
             )
 
     return recientes, disponibles
+
+
+def puede_enviar_seguimiento(usuario, momento=None):
+    """
+    Permite envío normal dentro de turno.
+    Si coordinación activa el modo excepcional, también permite
+    enviar fuera de turno.
+    """
+    return (
+        operador_en_turno(
+            usuario,
+            momento,
+        )
+        or bool(
+            st.session_state.get(
+                "permitir_envio_fuera_turno",
+                False,
+            )
+        )
+    )
 
 
 def operador_en_turno(
@@ -7181,9 +7204,15 @@ elif menu == "✉️ Mensajes diarios":
         usuarios_turno_actual = [
             usuario_ctrl
             for usuario_ctrl in usuarios_resultado
-            if operador_en_turno(
-                usuario_ctrl,
-                ahora_seguimiento,
+            if (
+                operador_en_turno(
+                    usuario_ctrl,
+                    ahora_seguimiento,
+                )
+                or st.session_state.get(
+                    "permitir_envio_fuera_turno",
+                    False,
+                )
             )
         ]
 
@@ -7733,6 +7762,34 @@ elif menu == "✉️ Mensajes diarios":
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
         st.markdown("### Seguimiento individual")
+        col_modo_v97_a, col_modo_v97_b = st.columns([1.35, 1])
+
+        with col_modo_v97_a:
+            st.session_state.permitir_envio_fuera_turno = st.toggle(
+                "🔓 Permitir envíos fuera de turno",
+                value=st.session_state.get(
+                    "permitir_envio_fuera_turno",
+                    False,
+                ),
+                help=(
+                    "Al activarlo, podrás enviar seguimiento incluso a operadores "
+                    "que ya terminaron su jornada. El estado seguirá mostrando "
+                    "'Fuera de turno' para que quede claro."
+                ),
+                key="toggle_fuera_turno_v97",
+            )
+
+        with col_modo_v97_b:
+            if st.session_state.permitir_envio_fuera_turno:
+                st.warning(
+                    "Modo excepcional activo",
+                    icon="⚠️",
+                )
+            else:
+                st.caption(
+                    "Protección de horario activa."
+                )
+
         st.caption("Aquí está el trabajo principal: avance de hoy, prioridad y envío por operador.")
 
         f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
@@ -7846,7 +7903,7 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
             if st.button(
-                f"✈️ Enviar a operadores en turno ({len(telegram_pendientes_top)})",
+                f"✈️ Enviar seguimiento seleccionado ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
                 disabled=(
@@ -8560,17 +8617,27 @@ elif menu == "✉️ Mensajes diarios":
                             )
 
                         elif not en_turno_actual:
-                            st.info(
-                                f"{estado_turno_actual} · no se enviará seguimiento "
-                                "fuera de su turno."
-                            )
+                            if st.session_state.get(
+                                "permitir_envio_fuera_turno",
+                                False,
+                            ):
+                                st.warning(
+                                    f"{estado_turno_actual} · envío excepcional habilitado."
+                                )
+                            else:
+                                st.info(
+                                    f"{estado_turno_actual} · no se enviará seguimiento "
+                                    "fuera de su turno."
+                                )
 
                         a1, a2 = st.columns(2)
 
                         with a1:
                             if (
                                 telegram_chat_id
-                                and en_turno_actual
+                                and puede_enviar_seguimiento(
+                                    usuario
+                                )
                             ):
                                 if st.button(
                                     "✈️ Enviar",
