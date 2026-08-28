@@ -7109,9 +7109,146 @@ if menu == "🏠 Resumen":
 
 elif menu == "📈 Comportamiento diario":
 
-    st.subheader("📈 Comportamiento diario")
-    st.caption(
-        "Aquí se analiza únicamente la evolución por fecha del reporte GEN CallCenter."
+    # =====================================================
+    # COMPORTAMIENTO DIARIO · DISEÑO EJECUTIVO
+    # =====================================================
+    st.markdown(
+        """
+        <style>
+        .beh-hero{
+            background:linear-gradient(120deg,#102A43 0%,#163A5F 62%,#1A6080 100%);
+            border-radius:19px;
+            padding:20px 22px;
+            margin:0 0 15px 0;
+            box-shadow:0 14px 32px rgba(16,42,67,.12);
+            position:relative;
+            overflow:hidden;
+        }
+        .beh-hero:after{
+            content:"";
+            position:absolute;
+            width:180px;height:180px;border-radius:50%;
+            right:-50px;top:-90px;
+            background:rgba(70,214,208,.11);
+        }
+        .beh-kicker{
+            display:inline-block;
+            padding:4px 8px;
+            border-radius:999px;
+            background:rgba(255,255,255,.10);
+            color:#C8DCEB;
+            font-size:8px;
+            font-weight:800;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+            margin-bottom:7px;
+        }
+        .beh-title{
+            color:white;
+            font-size:24px;
+            line-height:1.1;
+            font-weight:850;
+            letter-spacing:-.03em;
+        }
+        .beh-sub{
+            color:#BDD0E0;
+            font-size:10px;
+            margin-top:5px;
+        }
+        .beh-kpi{
+            min-height:124px;
+            border:1px solid #E4EBF3;
+            border-radius:16px;
+            background:#FFFFFF;
+            padding:14px 15px 13px;
+            box-shadow:0 8px 22px rgba(16,42,67,.045);
+        }
+        .beh-kpi-label{
+            font-size:9px;
+            color:#708399;
+            font-weight:800;
+            text-transform:uppercase;
+            letter-spacing:.04em;
+        }
+        .beh-kpi-value{
+            font-size:25px;
+            line-height:1.05;
+            color:#102A43;
+            font-weight:850;
+            letter-spacing:-.035em;
+            margin:8px 0 5px;
+        }
+        .beh-kpi-sub{
+            color:#71849A;
+            font-size:9px;
+            line-height:1.35;
+        }
+        .beh-section{
+            margin:18px 0 9px;
+            font-size:18px;
+            font-weight:830;
+            color:#102A43;
+            letter-spacing:-.025em;
+        }
+        .beh-section-sub{
+            color:#71849A;
+            font-size:9px;
+            margin-top:-6px;
+            margin-bottom:9px;
+        }
+        .beh-summary{
+            border:1px solid #E4EBF3;
+            border-radius:15px;
+            background:#FFFFFF;
+            padding:13px 15px;
+            min-height:136px;
+            box-shadow:0 7px 20px rgba(16,42,67,.035);
+        }
+        .beh-summary-title{
+            font-size:11px;
+            font-weight:820;
+            color:#102A43;
+            margin-bottom:9px;
+        }
+        .beh-row{
+            display:flex;
+            justify-content:space-between;
+            gap:14px;
+            padding:5px 0;
+            border-bottom:1px solid #F0F3F7;
+            font-size:9px;
+            color:#65798E;
+        }
+        .beh-row:last-child{border-bottom:none}
+        .beh-row strong{color:#183B5B}
+        .beh-good{color:#067647!important}
+        .beh-warn{color:#B54708!important}
+        .beh-bad{color:#B42318!important}
+        .beh-pill{
+            display:inline-block;
+            border-radius:999px;
+            padding:4px 8px;
+            background:#EEF6FF;
+            color:#245A8D;
+            font-size:8px;
+            font-weight:800;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="beh-hero">
+            <div class="beh-kicker">GEN Control · Analítica operativa</div>
+            <div class="beh-title">Comportamiento diario</div>
+            <div class="beh-sub">
+                Evolución real de gestiones y compromisos, cumplimiento diario y días que requieren atención.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     callcenter = st.session_state.callcenter_df
@@ -7142,6 +7279,7 @@ elif menu == "📈 Comportamiento diario":
                 "No se encontraron las columnas Fecha y Usuario "
                 "necesarias para el análisis diario."
             )
+
         else:
             df_cc["Fecha_dt"] = pd.to_datetime(
                 df_cc[col_fecha],
@@ -7184,185 +7322,628 @@ elif menu == "📈 Comportamiento diario":
             else:
                 df_cc["_tiene_compromiso"] = False
 
-            fecha_min = df_cc["Fecha_dia"].min()
-            fecha_max = df_cc["Fecha_dia"].max()
-
-            c1, c2 = st.columns([2, 1])
-
-            with c1:
-                rango = st.date_input(
-                    "Periodo",
-                    value=(
-                        fecha_min,
-                        fecha_max,
-                    ),
-                    min_value=fecha_min,
-                    max_value=fecha_max,
-                    key="periodo_comportamiento_v14",
+            if df_cc.empty:
+                st.warning(
+                    "El reporte cargado no contiene registros válidos "
+                    "para los operadores configurados."
                 )
-
-            with c2:
-                operador_sel = st.selectbox(
-                    "Operador",
-                    ["Todos"] + [
-                        datos["nombre"]
-                        for datos in OPERADORES.values()
-                    ],
-                    key="operador_comportamiento_v14",
-                )
-
-            if (
-                isinstance(rango, tuple)
-                and len(rango) == 2
-            ):
-                inicio, fin = rango
             else:
-                inicio = fin = rango
+                fecha_min = df_cc["Fecha_dia"].min()
+                fecha_max = df_cc["Fecha_dia"].max()
 
-            filtrado = df_cc[
-                (df_cc["Fecha_dia"] >= inicio)
-                & (df_cc["Fecha_dia"] <= fin)
-            ].copy()
+                f1, f2 = st.columns([2, 1])
 
-            if operador_sel != "Todos":
-                usuario_sel = next(
-                    usuario
-                    for usuario, datos in OPERADORES.items()
-                    if datos["nombre"] == operador_sel
-                )
+                with f1:
+                    rango = st.date_input(
+                        "Periodo de análisis",
+                        value=(
+                            fecha_min,
+                            fecha_max,
+                        ),
+                        min_value=fecha_min,
+                        max_value=fecha_max,
+                        key="periodo_comportamiento_final",
+                    )
 
-                filtrado = filtrado[
-                    filtrado["_usuario_norm"]
-                    == usuario_sel
+                with f2:
+                    operador_sel = st.selectbox(
+                        "Operador",
+                        ["Todos"] + [
+                            datos["nombre"]
+                            for datos in OPERADORES.values()
+                        ],
+                        key="operador_comportamiento_final",
+                    )
+
+                if (
+                    isinstance(rango, tuple)
+                    and len(rango) == 2
+                ):
+                    inicio, fin = rango
+                else:
+                    inicio = fin = rango
+
+                filtrado = df_cc[
+                    (df_cc["Fecha_dia"] >= inicio)
+                    & (df_cc["Fecha_dia"] <= fin)
                 ].copy()
 
-            total_gestiones = len(filtrado)
-            total_compromisos = int(
-                filtrado["_tiene_compromiso"].sum()
-            )
-            dias = int(
-                filtrado["Fecha_dia"].nunique()
-            )
+                usuario_sel = None
 
-            c1, c2, c3 = st.columns(3)
+                if operador_sel != "Todos":
+                    usuario_sel = next(
+                        usuario
+                        for usuario, datos in OPERADORES.items()
+                        if datos["nombre"] == operador_sel
+                    )
 
-            with c1:
-                st.metric(
-                    "Gestiones del periodo",
-                    formato_entero(
-                        total_gestiones
-                    ),
-                )
+                    filtrado = filtrado[
+                        filtrado["_usuario_norm"]
+                        == usuario_sel
+                    ].copy()
 
-            with c2:
-                st.metric(
-                    "Compromisos del periodo",
-                    formato_entero(
-                        total_compromisos
-                    ),
-                )
-
-            with c3:
-                st.metric(
-                    "Promedio de gestiones/día",
-                    formato_entero(
-                        total_gestiones / dias
-                        if dias
-                        else 0
-                    ),
-                )
-
-            diario = (
-                filtrado
-                .groupby("Fecha_dia")
-                .agg(
-                    Gestiones=("Fecha_dia", "size"),
-                    Compromisos=(
-                        "_tiene_compromiso",
-                        "sum",
-                    ),
-                )
-                .reset_index()
-                .sort_values("Fecha_dia")
-            )
-
-            diario["Compromisos"] = (
-                diario["Compromisos"].astype(int)
-            )
-
-            st.markdown("### Tendencia diaria")
-            st.line_chart(
-                diario.set_index(
-                    "Fecha_dia"
-                )[
-                    [
-                        "Gestiones",
-                        "Compromisos",
-                    ]
-                ],
-                use_container_width=True,
-            )
-
-            st.markdown("### Detalle por fecha")
-            st.dataframe(
-                diario,
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            if operador_sel == "Todos":
-                st.markdown("### Comparación entre operadores")
-
-                comp_op = (
+                diario = (
                     filtrado
-                    .groupby("_usuario_norm")
+                    .groupby("Fecha_dia")
                     .agg(
                         Gestiones=("Fecha_dia", "size"),
                         Compromisos=(
                             "_tiene_compromiso",
                             "sum",
                         ),
+                        Operadores_activos=(
+                            "_usuario_norm",
+                            "nunique",
+                        ),
                     )
                     .reset_index()
+                    .sort_values("Fecha_dia")
                 )
 
-                comp_op["Operador"] = comp_op[
-                    "_usuario_norm"
-                ].map(
-                    {
-                        u: d["nombre"]
-                        for u, d in OPERADORES.items()
-                    }
+                diario["Compromisos"] = (
+                    diario["Compromisos"].astype(int)
                 )
 
-                comp_op = controles_ordenamiento(
-                    comp_op,
-                    [
-                        "Gestiones",
-                        "Compromisos",
-                        "Operador",
-                    ],
-                    key_prefix="comparacion_diaria_v14",
-                    columna_default="Gestiones",
-                    descendente_default=True,
-                    etiquetas={
-                        "Gestiones": "Gestiones",
-                        "Compromisos": "Compromisos",
-                        "Operador": "Operador (A-Z / Z-A)",
-                    },
+                total_gestiones = int(
+                    diario["Gestiones"].sum()
+                ) if not diario.empty else 0
+
+                total_compromisos = int(
+                    diario["Compromisos"].sum()
+                ) if not diario.empty else 0
+
+                dias = int(len(diario))
+
+                prom_g = (
+                    total_gestiones / dias
+                    if dias
+                    else 0
+                )
+                prom_c = (
+                    total_compromisos / dias
+                    if dias
+                    else 0
                 )
 
-                st.dataframe(
-                    comp_op[
+                conversion = (
+                    total_compromisos
+                    / total_gestiones
+                    * 100
+                    if total_gestiones
+                    else 0
+                )
+
+                # La meta del equipo se calcula según operadores activos
+                # observados ese día. Para un operador individual se usa 98 / 25.
+                if operador_sel == "Todos":
+                    diario["Meta_gestiones"] = (
+                        diario["Operadores_activos"]
+                        * META_DIARIA_GESTIONES
+                    )
+                    diario["Meta_compromisos"] = (
+                        diario["Operadores_activos"]
+                        * META_DIARIA_COMPROMISOS
+                    )
+                else:
+                    diario["Meta_gestiones"] = META_DIARIA_GESTIONES
+                    diario["Meta_compromisos"] = META_DIARIA_COMPROMISOS
+
+                diario["Cumplimiento_gestiones"] = (
+                    diario["Gestiones"]
+                    / diario["Meta_gestiones"].replace(0, pd.NA)
+                    * 100
+                ).fillna(0)
+
+                diario["Cumplimiento_compromisos"] = (
+                    diario["Compromisos"]
+                    / diario["Meta_compromisos"].replace(0, pd.NA)
+                    * 100
+                ).fillna(0)
+
+                diario["Conversion"] = (
+                    diario["Compromisos"]
+                    / diario["Gestiones"].replace(0, pd.NA)
+                    * 100
+                ).fillna(0)
+
+                if not diario.empty:
+                    idx_mejor_g = diario["Gestiones"].idxmax()
+                    idx_mejor_c = diario["Compromisos"].idxmax()
+                    mejor_g = diario.loc[idx_mejor_g]
+                    mejor_c = diario.loc[idx_mejor_c]
+                else:
+                    mejor_g = None
+                    mejor_c = None
+
+                # ------------------------------
+                # KPIs
+                # ------------------------------
+                k1, k2, k3, k4, k5 = st.columns(5)
+
+                with k1:
+                    st.markdown(
+                        f"""
+                        <div class="beh-kpi">
+                            <div class="beh-kpi-label">📞 Gestiones</div>
+                            <div class="beh-kpi-value">{formato_entero(total_gestiones)}</div>
+                            <div class="beh-kpi-sub">
+                                Promedio diario · <b>{formato_entero(prom_g)}</b>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                with k2:
+                    st.markdown(
+                        f"""
+                        <div class="beh-kpi">
+                            <div class="beh-kpi-label">🎯 Compromisos</div>
+                            <div class="beh-kpi-value">{formato_entero(total_compromisos)}</div>
+                            <div class="beh-kpi-sub">
+                                Promedio diario · <b>{formato_entero(prom_c)}</b>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                with k3:
+                    fecha_mejor_g = (
+                        pd.Timestamp(mejor_g["Fecha_dia"]).strftime("%d/%m/%Y")
+                        if mejor_g is not None
+                        else "—"
+                    )
+                    valor_mejor_g = (
+                        formato_entero(mejor_g["Gestiones"])
+                        if mejor_g is not None
+                        else "0"
+                    )
+                    st.markdown(
+                        f"""
+                        <div class="beh-kpi">
+                            <div class="beh-kpi-label">🏆 Mejor día · Gestiones</div>
+                            <div class="beh-kpi-value">{valor_mejor_g}</div>
+                            <div class="beh-kpi-sub">{fecha_mejor_g}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                with k4:
+                    fecha_mejor_c = (
+                        pd.Timestamp(mejor_c["Fecha_dia"]).strftime("%d/%m/%Y")
+                        if mejor_c is not None
+                        else "—"
+                    )
+                    valor_mejor_c = (
+                        formato_entero(mejor_c["Compromisos"])
+                        if mejor_c is not None
+                        else "0"
+                    )
+                    st.markdown(
+                        f"""
+                        <div class="beh-kpi">
+                            <div class="beh-kpi-label">⭐ Mejor día · Compromisos</div>
+                            <div class="beh-kpi-value">{valor_mejor_c}</div>
+                            <div class="beh-kpi-sub">{fecha_mejor_c}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                with k5:
+                    st.markdown(
+                        f"""
+                        <div class="beh-kpi">
+                            <div class="beh-kpi-label">🔄 Conversión</div>
+                            <div class="beh-kpi-value">{conversion:.1f}%</div>
+                            <div class="beh-kpi-sub">
+                                Compromisos / Gestiones
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                if diario.empty:
+                    st.info(
+                        "No hay información dentro del periodo seleccionado."
+                    )
+
+                else:
+                    # ------------------------------
+                    # GRÁFICOS SEPARADOS
+                    # ------------------------------
+                    st.markdown(
+                        '<div class="beh-section">Evolución diaria</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        '<div class="beh-section-sub">Cada indicador utiliza su propia escala para evitar distorsiones.</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    graf1, graf2 = st.columns(2)
+
+                    chart_g = diario[
                         [
-                            "Operador",
+                            "Fecha_dia",
                             "Gestiones",
-                            "Compromisos",
+                            "Meta_gestiones",
                         ]
-                    ],
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                    ].copy()
+                    chart_g = chart_g.rename(
+                        columns={
+                            "Gestiones": "Gestiones reales",
+                            "Meta_gestiones": "Meta diaria",
+                        }
+                    ).set_index("Fecha_dia")
+
+                    chart_c = diario[
+                        [
+                            "Fecha_dia",
+                            "Compromisos",
+                            "Meta_compromisos",
+                        ]
+                    ].copy()
+                    chart_c = chart_c.rename(
+                        columns={
+                            "Compromisos": "Compromisos reales",
+                            "Meta_compromisos": "Meta diaria",
+                        }
+                    ).set_index("Fecha_dia")
+
+                    with graf1:
+                        with st.container(border=True):
+                            st.markdown("#### 📞 Gestiones diarias")
+                            st.caption(
+                                "Real vs. meta correspondiente a los operadores activos."
+                            )
+                            st.line_chart(
+                                chart_g,
+                                use_container_width=True,
+                                height=310,
+                            )
+
+                    with graf2:
+                        with st.container(border=True):
+                            st.markdown("#### 🎯 Compromisos diarios")
+                            st.caption(
+                                "Real vs. meta correspondiente a los operadores activos."
+                            )
+                            st.line_chart(
+                                chart_c,
+                                use_container_width=True,
+                                height=310,
+                            )
+
+                    # ------------------------------
+                    # RESUMEN + MEJORES/PEORES DÍAS
+                    # ------------------------------
+                    cumplimiento_g_prom = (
+                        diario["Gestiones"].sum()
+                        / diario["Meta_gestiones"].sum()
+                        * 100
+                        if diario["Meta_gestiones"].sum()
+                        else 0
+                    )
+
+                    cumplimiento_c_prom = (
+                        diario["Compromisos"].sum()
+                        / diario["Meta_compromisos"].sum()
+                        * 100
+                        if diario["Meta_compromisos"].sum()
+                        else 0
+                    )
+
+                    dias_meta_g = int(
+                        (
+                            diario["Gestiones"]
+                            >= diario["Meta_gestiones"]
+                        ).sum()
+                    )
+                    dias_meta_c = int(
+                        (
+                            diario["Compromisos"]
+                            >= diario["Meta_compromisos"]
+                        ).sum()
+                    )
+
+                    mejores = diario.sort_values(
+                        ["Cumplimiento_gestiones", "Gestiones"],
+                        ascending=[False, False],
+                    ).head(3)
+
+                    peores = diario.sort_values(
+                        ["Cumplimiento_gestiones", "Gestiones"],
+                        ascending=[True, True],
+                    ).head(3)
+
+                    r1, r2, r3 = st.columns([1.05, 1.35, 1.35])
+
+                    with r1:
+                        st.markdown(
+                            f"""
+                            <div class="beh-summary">
+                                <div class="beh-summary-title">Resumen del periodo</div>
+                                <div class="beh-row"><span>Días con información</span><strong>{dias}</strong></div>
+                                <div class="beh-row"><span>Cumplimiento gestiones</span><strong>{cumplimiento_g_prom:.0f}%</strong></div>
+                                <div class="beh-row"><span>Cumplimiento compromisos</span><strong>{cumplimiento_c_prom:.0f}%</strong></div>
+                                <div class="beh-row"><span>Días meta gestiones</span><strong>{dias_meta_g} / {dias}</strong></div>
+                                <div class="beh-row"><span>Días meta compromisos</span><strong>{dias_meta_c} / {dias}</strong></div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                    def filas_ranking_comportamiento(df_rank):
+                        filas_html = []
+                        for pos, (_, fila_r) in enumerate(
+                            df_rank.iterrows(),
+                            start=1,
+                        ):
+                            fecha_txt = pd.Timestamp(
+                                fila_r["Fecha_dia"]
+                            ).strftime("%d/%m")
+                            filas_html.append(
+                                f"""
+                                <div class="beh-row">
+                                    <span>{pos}. {fecha_txt}</span>
+                                    <strong>
+                                        {formato_entero(fila_r["Gestiones"])} gest. ·
+                                        {formato_entero(fila_r["Compromisos"])} comp.
+                                    </strong>
+                                </div>
+                                """
+                            )
+                        return "".join(filas_html)
+
+                    with r2:
+                        st.markdown(
+                            f"""
+                            <div class="beh-summary">
+                                <div class="beh-summary-title">🏆 Días con mayor desempeño</div>
+                                {filas_ranking_comportamiento(mejores)}
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                    with r3:
+                        st.markdown(
+                            f"""
+                            <div class="beh-summary">
+                                <div class="beh-summary-title">⚠️ Días con menor desempeño</div>
+                                {filas_ranking_comportamiento(peores)}
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                    # ------------------------------
+                    # DETALLE POR FECHA
+                    # ------------------------------
+                    st.markdown(
+                        '<div class="beh-section">Detalle por fecha</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        '<div class="beh-section-sub">Lectura diaria con meta, cumplimiento y conversión.</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    nombres_dia = {
+                        0: "Lunes",
+                        1: "Martes",
+                        2: "Miércoles",
+                        3: "Jueves",
+                        4: "Viernes",
+                        5: "Sábado",
+                        6: "Domingo",
+                    }
+
+                    detalle = diario.copy()
+                    detalle["Fecha"] = pd.to_datetime(
+                        detalle["Fecha_dia"]
+                    )
+                    detalle["Día"] = (
+                        detalle["Fecha"]
+                        .dt.weekday
+                        .map(nombres_dia)
+                    )
+                    detalle["Fecha"] = (
+                        detalle["Fecha"]
+                        .dt.strftime("%d/%m/%Y")
+                    )
+                    detalle["% Gestiones"] = (
+                        detalle["Cumplimiento_gestiones"]
+                        / 100
+                    )
+                    detalle["% Compromisos"] = (
+                        detalle["Cumplimiento_compromisos"]
+                        / 100
+                    )
+                    detalle["Conversión"] = (
+                        detalle["Conversion"]
+                        / 100
+                    )
+
+                    detalle_tabla = detalle[
+                        [
+                            "Fecha",
+                            "Día",
+                            "Gestiones",
+                            "Meta_gestiones",
+                            "% Gestiones",
+                            "Compromisos",
+                            "Meta_compromisos",
+                            "% Compromisos",
+                            "Conversión",
+                        ]
+                    ].rename(
+                        columns={
+                            "Meta_gestiones": "Meta gestiones",
+                            "Meta_compromisos": "Meta compromisos",
+                        }
+                    )
+
+                    st.dataframe(
+                        detalle_tabla.sort_values(
+                            "Fecha",
+                            ascending=False,
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "Fecha": st.column_config.TextColumn(
+                                "Fecha",
+                                width="small",
+                            ),
+                            "Día": st.column_config.TextColumn(
+                                "Día",
+                                width="small",
+                            ),
+                            "Gestiones": st.column_config.NumberColumn(
+                                "Gestiones",
+                                format="%d",
+                            ),
+                            "Meta gestiones": st.column_config.NumberColumn(
+                                "Meta gestiones",
+                                format="%d",
+                            ),
+                            "% Gestiones": st.column_config.ProgressColumn(
+                                "% Gestiones",
+                                min_value=0,
+                                max_value=1,
+                                format="%.0f%%",
+                            ),
+                            "Compromisos": st.column_config.NumberColumn(
+                                "Compromisos",
+                                format="%d",
+                            ),
+                            "Meta compromisos": st.column_config.NumberColumn(
+                                "Meta compromisos",
+                                format="%d",
+                            ),
+                            "% Compromisos": st.column_config.ProgressColumn(
+                                "% Compromisos",
+                                min_value=0,
+                                max_value=1,
+                                format="%.0f%%",
+                            ),
+                            "Conversión": st.column_config.NumberColumn(
+                                "Conversión",
+                                format="%.1f%%",
+                            ),
+                        },
+                    )
+
+                    # ------------------------------
+                    # COMPARACIÓN ENTRE OPERADORES
+                    # ------------------------------
+                    if operador_sel == "Todos":
+                        with st.expander(
+                            "👥 Ver comparación acumulada entre operadores",
+                            expanded=False,
+                        ):
+                            comp_op = (
+                                filtrado
+                                .groupby("_usuario_norm")
+                                .agg(
+                                    Gestiones=("Fecha_dia", "size"),
+                                    Compromisos=(
+                                        "_tiene_compromiso",
+                                        "sum",
+                                    ),
+                                    Dias=("Fecha_dia", "nunique"),
+                                )
+                                .reset_index()
+                            )
+
+                            comp_op["Operador"] = comp_op[
+                                "_usuario_norm"
+                            ].map(
+                                {
+                                    u: d["nombre"]
+                                    for u, d in OPERADORES.items()
+                                }
+                            )
+
+                            comp_op["Prom. gestiones"] = (
+                                comp_op["Gestiones"]
+                                / comp_op["Dias"].replace(0, pd.NA)
+                            ).fillna(0).round(1)
+
+                            comp_op["Prom. compromisos"] = (
+                                comp_op["Compromisos"]
+                                / comp_op["Dias"].replace(0, pd.NA)
+                            ).fillna(0).round(1)
+
+                            comp_op["Conversión"] = (
+                                comp_op["Compromisos"]
+                                / comp_op["Gestiones"].replace(0, pd.NA)
+                            ).fillna(0)
+
+                            comp_op = controles_ordenamiento(
+                                comp_op,
+                                [
+                                    "Gestiones",
+                                    "Compromisos",
+                                    "Prom. gestiones",
+                                    "Operador",
+                                ],
+                                key_prefix="comparacion_diaria_final",
+                                columna_default="Gestiones",
+                                descendente_default=True,
+                                etiquetas={
+                                    "Gestiones": "Gestiones",
+                                    "Compromisos": "Compromisos",
+                                    "Prom. gestiones": "Promedio diario",
+                                    "Operador": "Operador (A-Z / Z-A)",
+                                },
+                            )
+
+                            st.dataframe(
+                                comp_op[
+                                    [
+                                        "Operador",
+                                        "Gestiones",
+                                        "Compromisos",
+                                        "Prom. gestiones",
+                                        "Prom. compromisos",
+                                        "Conversión",
+                                    ]
+                                ],
+                                use_container_width=True,
+                                hide_index=True,
+                                column_config={
+                                    "Conversión": st.column_config.NumberColumn(
+                                        "Conversión",
+                                        format="%.1f%%",
+                                    ),
+                                },
+                            )
 
 
 # =========================================================
