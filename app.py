@@ -3370,6 +3370,76 @@ def hora_envio_hoy(
         return ""
 
 
+
+def operador_en_turno(
+    usuario,
+    momento=None,
+):
+    """
+    True únicamente si el operador está dentro de su jornada actual:
+    entrada <= hora actual < salida.
+
+    El break sigue siendo parte del turno, aunque el cálculo productivo
+    permanezca congelado durante esos 30 minutos.
+    """
+    momento = momento or datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    horario = obtener_horario_operador(
+        usuario,
+        momento.date(),
+    )
+
+    if not horario:
+        return False
+
+    entrada = _hora_en_fecha(
+        momento,
+        horario["entrada"],
+    )
+    salida = _hora_en_fecha(
+        momento,
+        horario["salida"],
+    )
+
+    return entrada <= momento < salida
+
+
+def texto_estado_turno(
+    usuario,
+    momento=None,
+):
+    momento = momento or datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    horario = obtener_horario_operador(
+        usuario,
+        momento.date(),
+    )
+
+    if not horario:
+        return "Horario no configurado"
+
+    entrada = _hora_en_fecha(
+        momento,
+        horario["entrada"],
+    )
+    salida = _hora_en_fecha(
+        momento,
+        horario["salida"],
+    )
+
+    if momento < entrada:
+        return f"Inicia a las {horario['entrada']}"
+
+    if momento >= salida:
+        return f"Fuera de turno · salió {horario['salida']}"
+
+    return f"En turno · hasta {horario['salida']}"
+
+
 def operador_fuera_de_horario(
     usuario,
     momento=None,
@@ -3396,6 +3466,70 @@ def operador_fuera_de_horario(
     )
 
     return momento >= salida
+
+
+
+def generar_aviso_grupo_envios(
+    operadores_enviados,
+    operadores_fuera_turno=None,
+):
+    operadores_enviados = list(
+        operadores_enviados or []
+    )
+    operadores_fuera_turno = list(
+        operadores_fuera_turno or []
+    )
+
+    ahora = datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    if not operadores_enviados:
+        return ""
+
+    nombres = ", ".join(
+        operadores_enviados
+    )
+
+    mensaje = (
+        f"📣 Seguimiento de avance · {ahora.strftime('%H:%M')}\n\n"
+        f"Se envió de manera individual el avance actualizado "
+        f"a los operadores que se encuentran de turno.\n\n"
+        f"✅ Enviados ({len(operadores_enviados)}): {nombres}\n\n"
+        f"Por favor, revisar el mensaje privado y mantener el ritmo "
+        f"de acuerdo con las metas del día."
+    )
+
+    if operadores_fuera_turno:
+        mensaje += (
+            f"\n\nℹ️ Los operadores fuera de turno no recibieron "
+            f"un nuevo mensaje."
+        )
+
+    return mensaje
+
+
+def enviar_aviso_grupo_post_envio(
+    operadores_enviados,
+    operadores_fuera_turno=None,
+):
+    chat_grupo = obtener_telegram_group_chat_id()
+
+    if not chat_grupo:
+        return False, "No está configurado TELEGRAM_GROUP_CHAT_ID."
+
+    mensaje = generar_aviso_grupo_envios(
+        operadores_enviados,
+        operadores_fuera_turno,
+    )
+
+    if not mensaje:
+        return False, "No hubo envíos individuales para informar."
+
+    return enviar_mensaje_telegram(
+        chat_grupo,
+        mensaje,
+    )
 
 
 def enviar_copia_coordinador(operador, mensaje_original, detalle_envio):
@@ -6665,6 +6799,12 @@ elif menu == "✉️ Mensajes diarios":
             "los ya enviados no se incluyen nuevamente en el envío masivo."
         )
 
+        st.caption(
+            "🕒 Regla de envío: solo reciben mensajes los operadores que se "
+            "encuentran actualmente dentro de su turno. Quienes ya salieron "
+            "o todavía no ingresaron quedan excluidos."
+        )
+
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
@@ -6730,17 +6870,45 @@ elif menu == "✉️ Mensajes diarios":
                 )
             ]
 
-            telegram_pendientes_top = [
+            momento_envio_top = datetime.now(
+                ZoneInfo("America/La_Paz")
+            )
+
+            telegram_en_turno_top = [
                 usuario
                 for usuario in telegram_configurados_top
+                if operador_en_turno(
+                    usuario,
+                    momento_envio_top,
+                )
+            ]
+
+            telegram_pendientes_top = [
+                usuario
+                for usuario in telegram_en_turno_top
                 if not envio_ya_realizado_hoy(
                     usuario,
                     "seguimiento",
                 )
             ]
 
+            telegram_fuera_turno_top = [
+                usuario
+                for usuario in telegram_configurados_top
+                if not operador_en_turno(
+                    usuario,
+                    momento_envio_top,
+                )
+            ]
+
+            st.caption(
+                f"En turno ahora: {len(telegram_en_turno_top)} · "
+                f"Pendientes de envío: {len(telegram_pendientes_top)} · "
+                f"Fuera de turno: {len(telegram_fuera_turno_top)}"
+            )
+
             if st.button(
-                f"✈️ Enviar pendientes ({len(telegram_pendientes_top)})",
+                f"✈️ Enviar a operadores de turno ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
                 disabled=(len(telegram_pendientes_top) == 0),
@@ -6759,6 +6927,11 @@ elif menu == "✉️ Mensajes diarios":
                     )
 
                     if not chat_id_envio:
+                        continue
+
+                    if not operador_en_turno(
+                        usuario_envio
+                    ):
                         continue
 
                     if envio_ya_realizado_hoy(
@@ -6808,8 +6981,37 @@ elif menu == "✉️ Mensajes diarios":
 
                 if enviados_top:
                     st.success(
-                        f"Se enviaron {len(enviados_top)} mensajes."
+                        f"Se enviaron {len(enviados_top)} mensajes individuales."
                     )
+
+                    nombres_fuera_turno = [
+                        OPERADORES.get(
+                            usuario_ft,
+                            {},
+                        ).get(
+                            "nombre",
+                            usuario_ft,
+                        )
+                        for usuario_ft in telegram_fuera_turno_top
+                    ]
+
+                    ok_aviso_grupo, detalle_aviso_grupo = (
+                        enviar_aviso_grupo_post_envio(
+                            enviados_top,
+                            nombres_fuera_turno,
+                        )
+                    )
+
+                    if ok_aviso_grupo:
+                        st.info(
+                            "📣 También se informó al grupo que los avances "
+                            "individuales fueron enviados."
+                        )
+                    else:
+                        st.warning(
+                            "Los mensajes individuales se enviaron, pero no "
+                            f"se pudo informar al grupo: {detalle_aviso_grupo}"
+                        )
 
                 if errores_top:
                     st.warning(
@@ -7365,7 +7567,15 @@ elif menu == "✉️ Mensajes diarios":
                             "seguimiento",
                         )
 
+                        en_turno_actual = operador_en_turno(
+                            usuario
+                        )
+
                         fuera_horario = operador_fuera_de_horario(
+                            usuario
+                        )
+
+                        estado_turno_actual = texto_estado_turno(
                             usuario
                         )
 
@@ -7386,15 +7596,20 @@ elif menu == "✉️ Mensajes diarios":
                                 texto_envio_estado
                             )
 
-                        elif fuera_horario:
-                            st.warning(
-                                "Jornada finalizada · seguimiento aún pendiente."
+                        elif not en_turno_actual:
+                            st.info(
+                                f"{estado_turno_actual} · no se enviará seguimiento "
+                                "fuera de su turno."
                             )
 
                         a1, a2 = st.columns(2)
 
                         with a1:
-                            if telegram_chat_id and not enviado_hoy:
+                            if (
+                                telegram_chat_id
+                                and en_turno_actual
+                                and not enviado_hoy
+                            ):
                                 if st.button(
                                     "✈️ Enviar",
                                     use_container_width=True,
@@ -7442,14 +7657,21 @@ elif menu == "✉️ Mensajes diarios":
                                     "✅ Enviado",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"ya_enviado_v80_{usuario}",
+                                    key=f"ya_enviado_v81_{usuario}",
+                                )
+                            elif not en_turno_actual:
+                                st.button(
+                                    "🕒 Fuera de turno",
+                                    disabled=True,
+                                    use_container_width=True,
+                                    key=f"fuera_turno_v81_{usuario}",
                                 )
                             else:
                                 st.button(
                                     "✈️ Pendiente",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"sin_telegram_v80_{usuario}",
+                                    key=f"sin_telegram_v81_{usuario}",
                                 )
 
                         with a2:
