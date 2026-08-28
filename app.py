@@ -7618,7 +7618,9 @@ elif menu == "📈 Comportamiento diario":
                         with st.container(border=True):
                             st.markdown("#### 📞 Gestiones diarias")
                             st.caption(
-                                "Real vs. meta correspondiente a los operadores activos."
+                                f"Promedio: {formato_entero(prom_g)} · "
+                                f"Meta promedio: {formato_entero(diario['Meta_gestiones'].mean())} · "
+                                f"Cumplimiento acumulado: {cumplimiento_g_prom:.0f}%"
                             )
                             st.line_chart(
                                 chart_g,
@@ -7630,7 +7632,9 @@ elif menu == "📈 Comportamiento diario":
                         with st.container(border=True):
                             st.markdown("#### 🎯 Compromisos diarios")
                             st.caption(
-                                "Real vs. meta correspondiente a los operadores activos."
+                                f"Promedio: {formato_entero(prom_c)} · "
+                                f"Meta promedio: {formato_entero(diario['Meta_compromisos'].mean())} · "
+                                f"Cumplimiento acumulado: {cumplimiento_c_prom:.0f}%"
                             )
                             st.line_chart(
                                 chart_c,
@@ -7697,48 +7701,209 @@ elif menu == "📈 Comportamiento diario":
                             unsafe_allow_html=True,
                         )
 
-                    def filas_ranking_comportamiento(df_rank):
-                        filas_html = []
-                        for pos, (_, fila_r) in enumerate(
-                            df_rank.iterrows(),
-                            start=1,
-                        ):
-                            fecha_txt = pd.Timestamp(
-                                fila_r["Fecha_dia"]
-                            ).strftime("%d/%m")
-                            filas_html.append(
-                                f"""
-                                <div class="beh-row">
-                                    <span>{pos}. {fecha_txt}</span>
-                                    <strong>
-                                        {formato_entero(fila_r["Gestiones"])} gest. ·
-                                        {formato_entero(fila_r["Compromisos"])} comp.
-                                    </strong>
-                                </div>
-                                """
-                            )
-                        return "".join(filas_html)
+                    # ------------------------------
+                    # RESUMEN EJECUTIVO DEL PERIODO
+                    # ------------------------------
+                    meta_g_total = int(
+                        diario["Meta_gestiones"].sum()
+                    )
+                    meta_c_total = int(
+                        diario["Meta_compromisos"].sum()
+                    )
 
-                    with r2:
-                        st.markdown(
-                            f"""
-                            <div class="beh-summary">
-                                <div class="beh-summary-title">🏆 Días con mayor desempeño</div>
-                                {filas_ranking_comportamiento(mejores)}
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
+                    brecha_g_total = (
+                        total_gestiones - meta_g_total
+                    )
+                    brecha_c_total = (
+                        total_compromisos - meta_c_total
+                    )
+
+                    tendencia_g = 0.0
+                    tendencia_c = 0.0
+                    if len(diario) >= 4:
+                        mitad = max(len(diario) // 2, 1)
+                        prom_g_1 = diario.iloc[:mitad]["Gestiones"].mean()
+                        prom_g_2 = diario.iloc[mitad:]["Gestiones"].mean()
+                        prom_c_1 = diario.iloc[:mitad]["Compromisos"].mean()
+                        prom_c_2 = diario.iloc[mitad:]["Compromisos"].mean()
+
+                        if prom_g_1:
+                            tendencia_g = (
+                                (prom_g_2 - prom_g_1)
+                                / prom_g_1
+                                * 100
+                            )
+                        if prom_c_1:
+                            tendencia_c = (
+                                (prom_c_2 - prom_c_1)
+                                / prom_c_1
+                                * 100
+                            )
+
+                    promedio_meta_g = (
+                        diario["Meta_gestiones"].mean()
+                        if dias
+                        else 0
+                    )
+                    promedio_meta_c = (
+                        diario["Meta_compromisos"].mean()
+                        if dias
+                        else 0
+                    )
+
+                    st.markdown(
+                        '<div class="beh-section">Lectura ejecutiva del periodo</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.caption(
+                        "Meta acumulada, brecha, tendencia y consistencia diaria."
+                    )
+
+                    e1, e2, e3, e4 = st.columns(4)
+
+                    with e1:
+                        st.metric(
+                            "Meta acumulada · Gestiones",
+                            formato_entero(meta_g_total),
+                            f"{brecha_g_total:+,} de brecha".replace(",", "."),
                         )
 
+                    with e2:
+                        st.metric(
+                            "Meta acumulada · Compromisos",
+                            formato_entero(meta_c_total),
+                            f"{brecha_c_total:+,} de brecha".replace(",", "."),
+                        )
+
+                    with e3:
+                        st.metric(
+                            "Tendencia · Gestiones",
+                            f"{tendencia_g:+.1f}%",
+                            "2ª mitad vs 1ª mitad",
+                        )
+
+                    with e4:
+                        st.metric(
+                            "Tendencia · Compromisos",
+                            f"{tendencia_c:+.1f}%",
+                            "2ª mitad vs 1ª mitad",
+                        )
+
+                    r1, r2, r3 = st.columns([1.05, 1.35, 1.35])
+
+                    with r1:
+                        with st.container(border=True):
+                            st.markdown("#### 📌 Resumen del periodo")
+                            st.write(f"**Días con información:** {dias}")
+                            st.write(
+                                f"**Cumplimiento gestiones:** {cumplimiento_g_prom:.0f}%"
+                            )
+                            st.write(
+                                f"**Cumplimiento compromisos:** {cumplimiento_c_prom:.0f}%"
+                            )
+                            st.write(
+                                f"**Días con meta de gestiones:** {dias_meta_g} / {dias}"
+                            )
+                            st.write(
+                                f"**Días con meta de compromisos:** {dias_meta_c} / {dias}"
+                            )
+                            st.caption(
+                                f"Meta diaria promedio observada: "
+                                f"{formato_entero(promedio_meta_g)} gestiones · "
+                                f"{formato_entero(promedio_meta_c)} compromisos."
+                            )
+
+                    with r2:
+                        with st.container(border=True):
+                            st.markdown("#### 🏆 Días con mayor desempeño")
+                            for pos, (_, fila_r) in enumerate(
+                                mejores.iterrows(),
+                                start=1,
+                            ):
+                                fecha_txt = pd.Timestamp(
+                                    fila_r["Fecha_dia"]
+                                ).strftime("%d/%m/%Y")
+                                st.markdown(
+                                    f"**{pos}. {fecha_txt}**  \n"
+                                    f"📞 {formato_entero(fila_r['Gestiones'])} gestiones · "
+                                    f"🎯 {formato_entero(fila_r['Compromisos'])} compromisos · "
+                                    f"**{fila_r['Cumplimiento_gestiones']:.0f}%** de meta"
+                                )
+
                     with r3:
-                        st.markdown(
-                            f"""
-                            <div class="beh-summary">
-                                <div class="beh-summary-title">⚠️ Días con menor desempeño</div>
-                                {filas_ranking_comportamiento(peores)}
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
+                        with st.container(border=True):
+                            st.markdown("#### ⚠️ Días con menor desempeño")
+                            for pos, (_, fila_r) in enumerate(
+                                peores.iterrows(),
+                                start=1,
+                            ):
+                                fecha_txt = pd.Timestamp(
+                                    fila_r["Fecha_dia"]
+                                ).strftime("%d/%m/%Y")
+                                brecha_dia = int(
+                                    fila_r["Gestiones"]
+                                    - fila_r["Meta_gestiones"]
+                                )
+                                st.markdown(
+                                    f"**{pos}. {fecha_txt}**  \n"
+                                    f"📞 {formato_entero(fila_r['Gestiones'])} gestiones · "
+                                    f"🎯 {formato_entero(fila_r['Compromisos'])} compromisos · "
+                                    f"brecha **{brecha_dia:+d}**"
+                                )
+
+                    # ------------------------------
+                    # INSIGHTS AUTOMÁTICOS
+                    # ------------------------------
+                    st.markdown(
+                        '<div class="beh-section">Qué está pasando</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    dias_bajos_g = int(
+                        (
+                            diario["Cumplimiento_gestiones"] < 100
+                        ).sum()
+                    )
+                    dias_bajos_c = int(
+                        (
+                            diario["Cumplimiento_compromisos"] < 100
+                        ).sum()
+                    )
+
+                    mejor_fecha_txt = pd.Timestamp(
+                        mejor_g["Fecha_dia"]
+                    ).strftime("%d/%m/%Y")
+
+                    peor_fila = peores.iloc[0]
+                    peor_fecha_txt = pd.Timestamp(
+                        peor_fila["Fecha_dia"]
+                    ).strftime("%d/%m/%Y")
+
+                    i1, i2, i3 = st.columns(3)
+
+                    with i1:
+                        if brecha_g_total >= 0:
+                            st.success(
+                                f"Gestiones están {formato_entero(abs(brecha_g_total))} "
+                                "por encima de la meta acumulada del periodo."
+                            )
+                        else:
+                            st.warning(
+                                f"Gestiones están {formato_entero(abs(brecha_g_total))} "
+                                "por debajo de la meta acumulada del periodo."
+                            )
+
+                    with i2:
+                        st.info(
+                            f"{dias_bajos_g} de {dias} días quedaron por debajo de "
+                            f"la meta de gestiones y {dias_bajos_c} de {dias} "
+                            "por debajo de compromisos."
+                        )
+
+                    with i3:
+                        st.info(
+                            f"Mejor día: {mejor_fecha_txt}. "
+                            f"Día que más atención requiere: {peor_fecha_txt}."
                         )
 
                     # ------------------------------
@@ -7789,6 +7954,15 @@ elif menu == "📈 Comportamiento diario":
                         / 100
                     )
 
+                    detalle["Brecha gestiones"] = (
+                        detalle["Gestiones"]
+                        - detalle["Meta_gestiones"]
+                    )
+                    detalle["Brecha compromisos"] = (
+                        detalle["Compromisos"]
+                        - detalle["Meta_compromisos"]
+                    )
+
                     detalle_tabla = detalle[
                         [
                             "Fecha",
@@ -7796,9 +7970,11 @@ elif menu == "📈 Comportamiento diario":
                             "Gestiones",
                             "Meta_gestiones",
                             "% Gestiones",
+                            "Brecha gestiones",
                             "Compromisos",
                             "Meta_compromisos",
                             "% Compromisos",
+                            "Brecha compromisos",
                             "Conversión",
                         ]
                     ].rename(
@@ -7838,6 +8014,10 @@ elif menu == "📈 Comportamiento diario":
                                 max_value=1,
                                 format="%.0f%%",
                             ),
+                            "Brecha gestiones": st.column_config.NumberColumn(
+                                "Brecha gestiones",
+                                format="%+d",
+                            ),
                             "Compromisos": st.column_config.NumberColumn(
                                 "Compromisos",
                                 format="%d",
@@ -7851,6 +8031,10 @@ elif menu == "📈 Comportamiento diario":
                                 min_value=0,
                                 max_value=1,
                                 format="%.0f%%",
+                            ),
+                            "Brecha compromisos": st.column_config.NumberColumn(
+                                "Brecha compromisos",
+                                format="%+d",
                             ),
                             "Conversión": st.column_config.NumberColumn(
                                 "Conversión",
