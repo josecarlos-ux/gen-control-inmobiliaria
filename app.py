@@ -96,60 +96,68 @@ OPERADORES = {
 
 HORARIOS_OPERADORES = {
     "arodriguez": {
-        "entrada": "09:00",
-        "break_inicio": "13:00",
-        "break_fin": "13:30",
-        "salida": "16:00",
-        "jornada_horas": 7,
+        0: {"entrada": "08:30", "break_inicio": "13:00", "break_fin": "13:30", "salida": "15:30", "jornada_horas": 7},
+        1: {"entrada": "09:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "16:00", "jornada_horas": 7},
+        2: {"entrada": "08:30", "break_inicio": "13:00", "break_fin": "13:30", "salida": "15:30", "jornada_horas": 7},
+        3: {"entrada": "09:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "16:00", "jornada_horas": 7},
+        4: {"entrada": "08:30", "break_inicio": "13:00", "break_fin": "13:30", "salida": "15:30", "jornada_horas": 7},
+        5: {"entrada": "08:00", "break_inicio": None, "break_fin": None, "salida": "13:00", "jornada_horas": 5},
     },
     "malvarez": {
-        "entrada": "08:30",
-        "break_inicio": "12:30",
-        "break_fin": "13:00",
-        "salida": "15:30",
-        "jornada_horas": 7,
+        0: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
+        1: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
+        2: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
+        3: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
+        4: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
+        5: {"entrada": "08:30", "break_inicio": None, "break_fin": None, "salida": "13:30", "jornada_horas": 5},
     },
     "avargas": {
-        "entrada": "12:30",
-        "break_inicio": "15:30",
-        "break_fin": "16:00",
-        "salida": "19:30",
-        "jornada_horas": 7,
+        0: {"entrada": "12:30", "break_inicio": "15:30", "break_fin": "16:00", "salida": "19:30", "jornada_horas": 7},
+        1: {"entrada": "12:30", "break_inicio": "15:30", "break_fin": "16:00", "salida": "19:30", "jornada_horas": 7},
+        2: {"entrada": "12:30", "break_inicio": "15:30", "break_fin": "16:00", "salida": "19:30", "jornada_horas": 7},
+        3: {"entrada": "12:30", "break_inicio": "15:30", "break_fin": "16:00", "salida": "19:30", "jornada_horas": 7},
+        4: {"entrada": "12:30", "break_inicio": "15:30", "break_fin": "16:00", "salida": "19:30", "jornada_horas": 7},
+        5: {"entrada": "14:00", "break_inicio": None, "break_fin": None, "salida": "19:00", "jornada_horas": 5},
     },
     "yarinez": {
-        "entrada": "08:00",
-        "break_inicio": "12:00",
-        "break_fin": "12:30",
-        "salida": "15:00",
-        "jornada_horas": 7,
+        0: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        1: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        2: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        3: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        4: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        5: {"entrada": "09:00", "break_inicio": None, "break_fin": None, "salida": "14:00", "jornada_horas": 5},
     },
     "jborja": {
-        "entrada": "12:00",
-        "break_inicio": "13:00",
-        "break_fin": "13:30",
-        "salida": "20:00",
-        "jornada_horas": 8,
+        0: {"entrada": "12:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "20:00", "jornada_horas": 8},
+        1: {"entrada": "12:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "20:00", "jornada_horas": 8},
+        2: {"entrada": "12:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "20:00", "jornada_horas": 8},
+        3: {"entrada": "12:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "20:00", "jornada_horas": 8},
+        4: {"entrada": "12:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "20:00", "jornada_horas": 8},
+        5: {"entrada": "12:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "20:00", "jornada_horas": 8},
     },
     "cvaca": {
-        "entrada": "13:00",
-        "break_inicio": "16:00",
-        "break_fin": "16:30",
-        "salida": "20:00",
-        "jornada_horas": 7,
+        0: {"entrada": "13:00", "break_inicio": "16:00", "break_fin": "16:30", "salida": "20:00", "jornada_horas": 7},
+        1: {"entrada": "13:00", "break_inicio": "16:00", "break_fin": "16:30", "salida": "20:00", "jornada_horas": 7},
+        2: {"entrada": "13:00", "break_inicio": "16:00", "break_fin": "16:30", "salida": "20:00", "jornada_horas": 7},
+        3: {"entrada": "13:00", "break_inicio": "16:00", "break_fin": "16:30", "salida": "20:00", "jornada_horas": 7},
+        4: {"entrada": "13:00", "break_inicio": "16:00", "break_fin": "16:30", "salida": "20:00", "jornada_horas": 7},
+        5: {"entrada": "14:30", "break_inicio": None, "break_fin": None, "salida": "19:30", "jornada_horas": 5},
     },
     "projas": {
-        "entrada": "10:00",
-        "break_inicio": "12:30",
-        "break_fin": "13:00",
-        "salida": "18:00",
-        "jornada_horas": 8,
+        0: {"entrada": "10:00", "break_inicio": "12:30", "break_fin": "13:00", "salida": "18:00", "jornada_horas": 8},
+        1: {"entrada": "10:00", "break_inicio": "12:30", "break_fin": "13:00", "salida": "18:00", "jornada_horas": 8},
+        2: {"entrada": "10:00", "break_inicio": "12:30", "break_fin": "13:00", "salida": "18:00", "jornada_horas": 8},
+        3: {"entrada": "10:00", "break_inicio": "12:30", "break_fin": "13:00", "salida": "18:00", "jornada_horas": 8},
+        4: {"entrada": "10:00", "break_inicio": "12:30", "break_fin": "13:00", "salida": "18:00", "jornada_horas": 8},
+        5: {"entrada": "09:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "17:30", "jornada_horas": 8},
     },
     "yrivas": {
-        "entrada": "08:00",
-        "break_inicio": "12:00",
-        "break_fin": "12:30",
-        "salida": "15:00",
-        "jornada_horas": 7,
+        0: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        1: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        2: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        3: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        4: {"entrada": "08:00", "break_inicio": "12:00", "break_fin": "12:30", "salida": "15:00", "jornada_horas": 7},
+        5: {"entrada": "08:00", "break_inicio": None, "break_fin": None, "salida": "13:00", "jornada_horas": 5},
     },
 }
 
@@ -172,14 +180,25 @@ def _hora_en_fecha(fecha_base, hhmm):
 
 def obtener_horario_operador(usuario, fecha=None):
     """
-    Devuelve el horario operativo vigente del operador.
-
-    En esta fase se usa el horario base compartido por coordinación.
-    La estructura queda preparada para incorporar excepciones por día
-    sin cambiar la lógica de cálculo.
+    Devuelve el horario real según operador + día de la semana.
+    Lunes=0 ... Sábado=5. Domingo no tiene jornada.
     """
+    if fecha is None:
+        fecha = fecha_local_actual()
+
+    if hasattr(fecha, "date") and not hasattr(fecha, "weekday"):
+        fecha = fecha.date()
+
+    dia_semana = fecha.weekday()
+
+    if dia_semana == 6:
+        return None
+
     return HORARIOS_OPERADORES.get(
-        usuario
+        usuario,
+        {},
+    ).get(
+        dia_semana
     )
 
 
@@ -221,13 +240,26 @@ def calcular_progreso_jornada_operador(
         corte,
         horario["entrada"],
     )
-    break_inicio = _hora_en_fecha(
-        corte,
-        horario["break_inicio"],
+    tiene_break = bool(
+        horario.get("break_inicio")
+        and horario.get("break_fin")
     )
-    break_fin = _hora_en_fecha(
-        corte,
-        horario["break_fin"],
+
+    break_inicio = (
+        _hora_en_fecha(
+            corte,
+            horario["break_inicio"],
+        )
+        if tiene_break
+        else None
+    )
+    break_fin = (
+        _hora_en_fecha(
+            corte,
+            horario["break_fin"],
+        )
+        if tiene_break
+        else None
     )
     salida = _hora_en_fecha(
         corte,
@@ -242,65 +274,56 @@ def calcular_progreso_jornada_operador(
             )
         )
 
-    tramo_1 = max(
-        (
-            break_inicio
-            - entrada
-        ).total_seconds()
-        / 60,
-        0,
-    )
-
-    tramo_2 = max(
-        (
-            salida
-            - break_fin
-        ).total_seconds()
-        / 60,
-        0,
-    )
-
-    minutos_totales = (
-        tramo_1
-        + tramo_2
-    )
-
-    if corte < entrada:
-        minutos_transcurridos = 0
-        estado = "Jornada aún no iniciada"
-
-    elif corte < break_inicio:
-        minutos_transcurridos = min(
-            (
-                corte
-                - entrada
-            ).total_seconds()
-            / 60,
-            tramo_1,
+    if tiene_break:
+        tramo_1 = max(
+            (break_inicio - entrada).total_seconds() / 60,
+            0,
         )
-        estado = "En jornada"
+        tramo_2 = max(
+            (salida - break_fin).total_seconds() / 60,
+            0,
+        )
+        minutos_totales = tramo_1 + tramo_2
 
-    elif corte < break_fin:
-        minutos_transcurridos = tramo_1
-        estado = "En break"
-
-    elif corte < salida:
-        minutos_transcurridos = (
-            tramo_1
-            + min(
-                (
-                    corte
-                    - break_fin
-                ).total_seconds()
-                / 60,
+        if corte < entrada:
+            minutos_transcurridos = 0
+            estado = "Jornada aún no iniciada"
+        elif corte < break_inicio:
+            minutos_transcurridos = min(
+                (corte - entrada).total_seconds() / 60,
+                tramo_1,
+            )
+            estado = "En jornada"
+        elif corte < break_fin:
+            minutos_transcurridos = tramo_1
+            estado = "En break"
+        elif corte < salida:
+            minutos_transcurridos = tramo_1 + min(
+                (corte - break_fin).total_seconds() / 60,
                 tramo_2,
             )
-        )
-        estado = "En jornada"
-
+            estado = "En jornada"
+        else:
+            minutos_transcurridos = minutos_totales
+            estado = "Jornada finalizada"
     else:
-        minutos_transcurridos = minutos_totales
-        estado = "Jornada finalizada"
+        minutos_totales = max(
+            (salida - entrada).total_seconds() / 60,
+            0,
+        )
+
+        if corte < entrada:
+            minutos_transcurridos = 0
+            estado = "Jornada aún no iniciada"
+        elif corte < salida:
+            minutos_transcurridos = min(
+                (corte - entrada).total_seconds() / 60,
+                minutos_totales,
+            )
+            estado = "En jornada"
+        else:
+            minutos_transcurridos = minutos_totales
+            estado = "Jornada finalizada"
 
     proporcion = (
         minutos_transcurridos
@@ -8366,7 +8389,7 @@ elif menu == "✉️ Mensajes diarios":
                                 f"""
                                 <div class="schedule-v74">
                                     🕒 {horario['entrada']}–{horario['salida']}
-                                    · ☕ {horario['break_inicio']}–{horario['break_fin']}
+                                    · ☕ {f"{horario['break_inicio']}–{horario['break_fin']}" if horario.get('break_inicio') and horario.get('break_fin') else "Sin break"}
                                     · 📍 {estado_jornada}
                                 </div>
                                 """,
@@ -9198,30 +9221,44 @@ elif menu == "👥 Equipo":
         st.markdown("### 🕒 Horarios operativos")
 
         horarios_v70 = []
+        nombres_dias_v94 = {
+            0: "Lunes",
+            1: "Martes",
+            2: "Miércoles",
+            3: "Jueves",
+            4: "Viernes",
+            5: "Sábado",
+        }
 
-        for usuario_h, datos_h in HORARIOS_OPERADORES.items():
+        for usuario_h, horarios_dia_h in HORARIOS_OPERADORES.items():
             operador_h = OPERADORES.get(
                 usuario_h,
                 {},
             )
 
-            horarios_v70.append(
-                {
-                    "Operador": operador_h.get(
-                        "nombre",
-                        usuario_h,
-                    ),
-                    "Entrada": datos_h["entrada"],
-                    "Break": (
-                        f"{datos_h['break_inicio']}–"
-                        f"{datos_h['break_fin']}"
-                    ),
-                    "Salida": datos_h["salida"],
-                    "Jornada": (
-                        f"{datos_h['jornada_horas']} h"
-                    ),
-                }
-            )
+            for dia_h, datos_h in horarios_dia_h.items():
+                break_h = (
+                    f"{datos_h['break_inicio']}–{datos_h['break_fin']}"
+                    if datos_h.get("break_inicio")
+                    and datos_h.get("break_fin")
+                    else "Sin break"
+                )
+
+                horarios_v70.append(
+                    {
+                        "Operador": operador_h.get(
+                            "nombre",
+                            usuario_h,
+                        ),
+                        "Día": nombres_dias_v94.get(
+                            dia_h,
+                            str(dia_h),
+                        ),
+                        "Entrada": datos_h["entrada"],
+                        "Break": break_h,
+                        "Salida": datos_h["salida"],
+                    }
+                )
 
         st.dataframe(
             pd.DataFrame(
