@@ -6722,6 +6722,37 @@ elif menu == "✉️ Mensajes diarios":
     @media(max-width:900px){.data-grid-v86{grid-template-columns:repeat(2,minmax(0,1fr))}}
     </style>
     """, unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    /* V88 · Tarjetas con semáforo y mejor jerarquía */
+    .op-head-v74{align-items:center!important;margin-bottom:8px!important}
+    .op-name-v74{font-size:17px!important;line-height:1.12!important;font-weight:800!important}
+    .op-contact-v74{font-size:10px!important;color:#7b8794!important;margin-top:4px!important}
+    .status-v74{font-size:10px!important;padding:5px 9px!important;border:1px solid transparent!important}
+    .v74-red{background:#fff0f1!important;color:#b42318!important;border-color:#fecaca!important}
+    .v74-orange{background:#fff7ed!important;color:#b54708!important;border-color:#fed7aa!important}
+    .v74-green{background:#ecfdf3!important;color:#067647!important;border-color:#abefc6!important}
+    .v74-gray{background:#f3f4f6!important;color:#667085!important;border-color:#e5e7eb!important}
+    .schedule-v74{font-size:10px!important;padding:6px 8px!important;background:#f9fbfd!important}
+    .kicker-v74{font-size:10px!important;color:#667085!important;margin:7px 0 6px!important}
+    .action-v74{font-size:11px!important;padding:8px 10px!important;margin:8px 0!important}
+    .monthly-v74{font-size:10px!important;padding-top:7px!important;margin-top:8px!important}
+    .monthly-v74 span:first-child{font-weight:800!important;color:#667085!important}
+    [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricValue"]{
+        font-size:24px!important;line-height:1.05!important
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricLabel"] p{
+        font-size:11px!important;font-weight:700!important
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMetricDelta"]{
+        font-size:11px!important
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCaptionContainer"] p{
+        font-size:10px!important;color:#667085!important
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 
     st.markdown(
         f"""
@@ -7817,8 +7848,13 @@ elif menu == "✉️ Mensajes diarios":
                 "No hay operadores que coincidan con los filtros seleccionados."
             )
 
+        st.caption(
+            "Semáforo: 🔴 requiere seguimiento · 🟠 bajo el ritmo esperado · "
+            "🟢 en ritmo o adelantado · ⚪ sin datos o fuera del momento de seguimiento."
+        )
+
         # -------------------------------------------------
-        # TARJETAS DE OPERADORES — V74
+        # TARJETAS DE OPERADORES — V88
         # 3 por fila para recuperar legibilidad
         # -------------------------------------------------
         for bloque_inicio in range(
@@ -7897,41 +7933,41 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
                 if not avance.get("disponible"):
-                    estado_txt = "Sin datos"
+                    estado_txt = "⚪ Sin datos"
                     status_cls = "v74-gray"
                     action_cls = "action-gray-v74"
-                    action_txt = "Carga CallCenter para ver avance"
+                    action_txt = "Carga CallCenter para habilitar seguimiento"
                 elif estado_jornada == "Jornada aún no iniciada":
-                    estado_txt = "Aún no inicia"
+                    estado_txt = "⚪ Aún no inicia"
                     status_cls = "v74-gray"
                     action_cls = "action-gray-v74"
-                    action_txt = "Jornada todavía no iniciada"
+                    action_txt = "Aún no corresponde seguimiento"
                 elif min(dg, dc) <= -10:
-                    estado_txt = "Crítico"
+                    estado_txt = "🔴 Seguimiento"
                     status_cls = "v74-red"
                     action_cls = "action-red-v74"
                     if dg <= dc:
-                        action_txt = f"Prioridad: recuperar {abs(dg)} gestiones"
+                        action_txt = f"Recuperar {abs(dg)} gestiones para volver al ritmo"
                     else:
-                        action_txt = f"Prioridad: recuperar {abs(dc)} compromisos"
+                        action_txt = f"Recuperar {abs(dc)} compromisos para volver al ritmo"
                 elif min(dg, dc) < 0:
-                    estado_txt = "Atención"
+                    estado_txt = "🟠 Atención"
                     status_cls = "v74-orange"
                     action_cls = "action-orange-v74"
                     if dg < 0:
-                        action_txt = f"Atención: {abs(dg)} gestiones bajo ritmo"
+                        action_txt = f"{abs(dg)} gestiones por debajo del ritmo"
                     else:
-                        action_txt = f"Atención: {abs(dc)} compromisos bajo ritmo"
+                        action_txt = f"{abs(dc)} compromisos por debajo del ritmo"
                 elif dg >= 5 and dc >= 2:
-                    estado_txt = "Adelantado"
+                    estado_txt = "🟢 Adelantado"
                     status_cls = "v74-green"
                     action_cls = "action-green-v74"
-                    action_txt = "Buen ritmo, mantener"
+                    action_txt = "Buen avance · mantener el ritmo"
                 else:
-                    estado_txt = "En ritmo"
+                    estado_txt = "🟢 En ritmo"
                     status_cls = "v74-green"
                     action_cls = "action-green-v74"
-                    action_txt = "Dentro del ritmo esperado"
+                    action_txt = "Avance dentro de lo esperado"
 
                 horario = avance.get(
                     "horario"
@@ -8022,8 +8058,7 @@ elif menu == "✉️ Mensajes diarios":
                                         {fila['Operador']}
                                     </div>
                                     <div class="op-contact-v74">
-                                        ✉ {correo_actual or 'Sin correo'} ·
-                                        ✈ {tg_txt}
+                                        @{usuario} · ✈ {tg_txt}
                                     </div>
                                 </div>
                                 <span class="status-v74 {status_cls}">
@@ -8120,7 +8155,7 @@ elif menu == "✉️ Mensajes diarios":
                         st.markdown(
                             f"""
                             <div class="monthly-v74">
-                                <span>Mes</span>
+                                <span>ACUMULADO</span>
                                 <span>
                                     G <strong>{formato_porcentaje(pct_g_mes)}</strong>
                                     · C <strong>{formato_porcentaje(pct_c_mes)}</strong>
