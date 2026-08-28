@@ -3371,6 +3371,181 @@ def hora_envio_hoy(
 
 
 
+
+CORTES_SEGUIMIENTO = ["10:30", "13:30", "15:30", "17:30"]
+MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS = 60
+
+
+def ultimo_envio_datetime(
+    usuario,
+    tipo="seguimiento",
+):
+    registro = obtener_envio_diario(
+        usuario,
+        fecha_local_actual(),
+        tipo,
+    )
+
+    if not registro:
+        return None
+
+    valor = str(
+        registro.get(
+            "fecha_hora",
+            "",
+        )
+    ).strip()
+
+    if not valor:
+        return None
+
+    try:
+        dt = datetime.fromisoformat(
+            valor
+        )
+
+        if dt.tzinfo is None:
+            dt = dt.replace(
+                tzinfo=ZoneInfo("America/La_Paz")
+            )
+
+        return dt.astimezone(
+            ZoneInfo("America/La_Paz")
+        )
+
+    except Exception:
+        return None
+
+
+def minutos_desde_ultimo_envio(
+    usuario,
+    momento=None,
+    tipo="seguimiento",
+):
+    momento = momento or datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    ultimo = ultimo_envio_datetime(
+        usuario,
+        tipo,
+    )
+
+    if ultimo is None:
+        return None
+
+    minutos = int(
+        (momento - ultimo).total_seconds()
+        // 60
+    )
+
+    return max(
+        minutos,
+        0,
+    )
+
+
+def seguimiento_muy_reciente(
+    usuario,
+    momento=None,
+    minimo_minutos=MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS,
+):
+    minutos = minutos_desde_ultimo_envio(
+        usuario,
+        momento,
+    )
+
+    return (
+        minutos is not None
+        and minutos < minimo_minutos
+    )
+
+
+def informacion_corte_recomendado(
+    momento=None,
+):
+    """
+    Devuelve el corte recomendado más útil para la hora actual.
+    Los cortes son orientativos; nunca bloquean un envío manual.
+    """
+    momento = momento or datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    cortes_dt = []
+
+    for hora_txt in CORTES_SEGUIMIENTO:
+        cortes_dt.append(
+            (
+                hora_txt,
+                _hora_en_fecha(
+                    momento,
+                    hora_txt,
+                ),
+            )
+        )
+
+    for hora_txt, corte_dt in cortes_dt:
+        if momento <= corte_dt:
+            minutos = int(
+                (corte_dt - momento).total_seconds()
+                // 60
+            )
+            return {
+                "hora": hora_txt,
+                "estado": "proximo",
+                "minutos": max(minutos, 0),
+                "texto": (
+                    f"Próximo corte recomendado: {hora_txt}"
+                    if minutos > 0
+                    else f"Corte recomendado ahora: {hora_txt}"
+                ),
+            }
+
+    return {
+        "hora": CORTES_SEGUIMIENTO[-1],
+        "estado": "finalizado",
+        "minutos": None,
+        "texto": "Los cortes recomendados del día ya finalizaron.",
+    }
+
+
+def resumen_frecuencia_seguimiento(
+    usuarios,
+    momento=None,
+):
+    momento = momento or datetime.now(
+        ZoneInfo("America/La_Paz")
+    )
+
+    recientes = []
+    disponibles = []
+
+    for usuario in usuarios:
+        minutos = minutos_desde_ultimo_envio(
+            usuario,
+            momento,
+        )
+
+        if minutos is None:
+            disponibles.append(
+                usuario
+            )
+        elif minutos < MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS:
+            recientes.append(
+                (
+                    usuario,
+                    minutos,
+                )
+            )
+        else:
+            disponibles.append(
+                usuario
+            )
+
+    return recientes, disponibles
+
+
 def operador_en_turno(
     usuario,
     momento=None,
@@ -6307,6 +6482,107 @@ elif menu == "✉️ Mensajes diarios":
         c4.metric("Esperado a la fecha", formato_porcentaje(jornadas_info["esperado_pct"]))
 
         # -------------------------------------------------
+        # CORTES RECOMENDADOS Y FRECUENCIA DE SEGUIMIENTO
+        # -------------------------------------------------
+        ahora_seguimiento = datetime.now(
+            ZoneInfo("America/La_Paz")
+        )
+        info_corte = informacion_corte_recomendado(
+            ahora_seguimiento
+        )
+
+        usuarios_resultado = (
+            resultado["Usuario"]
+            .astype(str)
+            .tolist()
+        )
+
+        usuarios_turno_actual = [
+            usuario_ctrl
+            for usuario_ctrl in usuarios_resultado
+            if operador_en_turno(
+                usuario_ctrl,
+                ahora_seguimiento,
+            )
+        ]
+
+        recientes_ctrl, listos_ctrl = (
+            resumen_frecuencia_seguimiento(
+                usuarios_turno_actual,
+                ahora_seguimiento,
+            )
+        )
+
+        st.markdown(
+            '<span class="section-chip">SEGUIMIENTO DEL DÍA</span>',
+            unsafe_allow_html=True,
+        )
+
+        sc1, sc2, sc3, sc4 = st.columns(4)
+
+        sc1.metric(
+            "Hora actual",
+            ahora_seguimiento.strftime("%H:%M"),
+        )
+
+        sc2.metric(
+            "Próximo corte",
+            (
+                info_corte["hora"]
+                if info_corte["estado"] != "finalizado"
+                else "Finalizado"
+            ),
+        )
+
+        sc3.metric(
+            "En turno",
+            len(usuarios_turno_actual),
+        )
+
+        sc4.metric(
+            "Seguimiento reciente",
+            len(recientes_ctrl),
+        )
+
+        if info_corte["estado"] == "proximo":
+            if info_corte["minutos"] == 0:
+                st.info(
+                    f"⏰ {info_corte['texto']}. Este es un buen momento "
+                    "para actualizar CallCenter y revisar el avance."
+                )
+            else:
+                st.info(
+                    f"⏰ {info_corte['texto']} · faltan aprox. "
+                    f"{info_corte['minutos']} min."
+                )
+        else:
+            st.caption(
+                "Los cortes sugeridos son 10:30 · 13:30 · 15:30 · 17:30. "
+                "Puedes realizar seguimientos adicionales cuando sea necesario."
+            )
+
+        if recientes_ctrl:
+            nombres_recientes = []
+            for usuario_rec, minutos_rec in recientes_ctrl:
+                nombre_rec = OPERADORES.get(
+                    usuario_rec,
+                    {},
+                ).get(
+                    "nombre_mensaje",
+                    usuario_rec,
+                )
+                nombres_recientes.append(
+                    f"{nombre_rec} ({minutos_rec} min)"
+                )
+
+            st.warning(
+                "⚠️ Seguimiento reciente (<60 min): "
+                + " · ".join(nombres_recientes)
+                + ". Puedes volver a enviar si lo necesitas, pero la app "
+                "te avisa para evitar mensajes demasiado seguidos."
+            )
+
+        # -------------------------------------------------
         # AVANCE GENERAL DE RECUPERACIÓN
         # -------------------------------------------------
         meta_individual = float(st.session_state.meta_recuperacion_cfg)
@@ -6894,12 +7170,24 @@ elif menu == "✉️ Mensajes diarios":
                 f"Fuera de turno: {len(telegram_fuera_turno_top)}"
             )
 
+            recientes_masivo, _ = resumen_frecuencia_seguimiento(
+                telegram_pendientes_top,
+                momento_envio_top,
+            )
+
+            if recientes_masivo:
+                st.caption(
+                    f"⚠️ {len(recientes_masivo)} operador(es) recibieron un avance "
+                    "hace menos de 60 minutos. El botón sigue habilitado porque "
+                    "el seguimiento puede repetirse durante el turno."
+                )
+
             if st.button(
                 f"✈️ Enviar avance a operadores de turno ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
                 disabled=(len(telegram_pendientes_top) == 0),
-                key="enviar_todos_top_v59",
+                key="enviar_todos_top_v84",
             ):
                 enviados_top = []
                 errores_top = []
@@ -7538,6 +7826,10 @@ elif menu == "✉️ Mensajes diarios":
                             "seguimiento",
                         )
 
+                        minutos_ultimo_envio = minutos_desde_ultimo_envio(
+                            usuario
+                        )
+
                         en_turno_actual = operador_en_turno(
                             usuario
                         )
@@ -7551,18 +7843,37 @@ elif menu == "✉️ Mensajes diarios":
                         )
 
                         if enviado_hoy and en_turno_actual:
-                            texto_envio_estado = (
-                                "✅ Ya recibió seguimiento hoy"
-                                + (
-                                    f" · último registro {hora_envio_actual}"
-                                    if hora_envio_actual
-                                    else ""
+                            if (
+                                minutos_ultimo_envio is not None
+                                and minutos_ultimo_envio
+                                < MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS
+                            ):
+                                texto_envio_estado = (
+                                    "⚠️ Seguimiento reciente"
+                                    + (
+                                        f" · {hora_envio_actual}"
+                                        if hora_envio_actual
+                                        else ""
+                                    )
+                                    + f" · hace {minutos_ultimo_envio} min"
+                                    + " · puedes reenviar si es necesario"
                                 )
-                                + " · puede recibir otro mientras siga en turno"
-                            )
-                            st.success(
-                                texto_envio_estado
-                            )
+                                st.warning(
+                                    texto_envio_estado
+                                )
+                            else:
+                                texto_envio_estado = (
+                                    "✅ Ya recibió seguimiento hoy"
+                                    + (
+                                        f" · último registro {hora_envio_actual}"
+                                        if hora_envio_actual
+                                        else ""
+                                    )
+                                    + " · puede recibir otro mientras siga en turno"
+                                )
+                                st.success(
+                                    texto_envio_estado
+                                )
 
                         elif enviado_hoy and not en_turno_actual:
                             texto_envio_estado = (
@@ -7612,6 +7923,12 @@ elif menu == "✉️ Mensajes diarios":
                                         )
 
                                         if ok_tg:
+                                            minutos_previos_envio = (
+                                                minutos_desde_ultimo_envio(
+                                                    usuario
+                                                )
+                                            )
+
                                             registrar_envio_diario(
                                                 usuario,
                                                 fila["Operador"],
@@ -7620,9 +7937,20 @@ elif menu == "✉️ Mensajes diarios":
                                                 detalle=detalle_tg,
                                             )
 
-                                            st.success(
-                                                "Enviado con datos actuales."
-                                            )
+                                            if (
+                                                minutos_previos_envio is not None
+                                                and minutos_previos_envio
+                                                < MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS
+                                            ):
+                                                st.warning(
+                                                    "Enviado correctamente. "
+                                                    f"El seguimiento anterior había sido "
+                                                    f"hace {minutos_previos_envio} min."
+                                                )
+                                            else:
+                                                st.success(
+                                                    "Enviado con datos actuales."
+                                                )
 
                                             enviar_copia_coordinador(
                                                 fila["Operador"],
@@ -7694,10 +8022,10 @@ elif menu == "✉️ Mensajes diarios":
         st.markdown("### Envío y comunicación")
 
         st.caption(
-            "Control de turno activo: puedes enviar varios seguimientos durante "
-            "la jornada. Al terminar el turno se bloquean nuevos envíos. "
-            "Después de cada envío masivo exitoso, el grupo recibe un único "
-            "aviso breve de seguimiento, sin exponer resultados individuales."
+            "Control inteligente activo: cortes sugeridos 10:30 · 13:30 · "
+            "15:30 · 17:30. Puedes enviar varios seguimientos durante el turno; "
+            "si el último fue hace menos de 60 min, GEN Control te lo advierte "
+            "sin bloquear. Al terminar el turno se bloquean nuevos envíos."
         )
 
         coordinador_chat_id = obtener_telegram_coordinador_chat_id()
