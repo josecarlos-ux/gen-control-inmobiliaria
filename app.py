@@ -6795,14 +6795,14 @@ elif menu == "✉️ Mensajes diarios":
         )
 
         st.caption(
-            f"✅ Seguimientos enviados hoy: {enviados_hoy_total}/{len(resultado)} · "
-            "los ya enviados no se incluyen nuevamente en el envío masivo."
+            f"✅ Operadores con al menos un seguimiento enviado hoy: "
+            f"{enviados_hoy_total}/{len(resultado)}."
         )
 
         st.caption(
-            "🕒 Regla de envío: solo reciben mensajes los operadores que se "
-            "encuentran actualmente dentro de su turno. Quienes ya salieron "
-            "o todavía no ingresaron quedan excluidos."
+            "🕒 Regla de envío: durante su turno un operador puede recibir "
+            "varios avances. Al terminar su horario queda bloqueado y ya no "
+            "recibe nuevos mensajes, aunque vuelvas a cargar o enviar."
         )
 
         # -------------------------------------------------
@@ -6883,14 +6883,13 @@ elif menu == "✉️ Mensajes diarios":
                 )
             ]
 
-            telegram_pendientes_top = [
-                usuario
-                for usuario in telegram_en_turno_top
-                if not envio_ya_realizado_hoy(
-                    usuario,
-                    "seguimiento",
-                )
-            ]
+            # V82:
+            # Mientras el operador esté EN TURNO puede recibir varios
+            # seguimientos durante el día. Ya no se bloquea por haber
+            # recibido un mensaje anteriormente.
+            telegram_pendientes_top = list(
+                telegram_en_turno_top
+            )
 
             telegram_fuera_turno_top = [
                 usuario
@@ -6908,7 +6907,7 @@ elif menu == "✉️ Mensajes diarios":
             )
 
             if st.button(
-                f"✈️ Enviar a operadores de turno ({len(telegram_pendientes_top)})",
+                f"✈️ Enviar avance a operadores de turno ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
                 disabled=(len(telegram_pendientes_top) == 0),
@@ -6934,12 +6933,8 @@ elif menu == "✉️ Mensajes diarios":
                     ):
                         continue
 
-                    if envio_ya_realizado_hoy(
-                        usuario_envio,
-                        "seguimiento",
-                    ):
-                        continue
-
+                    # Puede recibir nuevamente mientras siga en turno.
+                    # El único bloqueo operativo es estar fuera de horario.
                     calculo_envio = generar_mensaje_operador_actual(
                         usuario_envio,
                         jornadas_info,
@@ -7579,20 +7574,31 @@ elif menu == "✉️ Mensajes diarios":
                             usuario
                         )
 
-                        if enviado_hoy:
+                        if enviado_hoy and en_turno_actual:
                             texto_envio_estado = (
-                                f"✅ Seguimiento enviado"
+                                "✅ Ya recibió seguimiento hoy"
                                 + (
-                                    f" · {hora_envio_actual}"
+                                    f" · último registro {hora_envio_actual}"
                                     if hora_envio_actual
                                     else ""
                                 )
+                                + " · puede recibir otro mientras siga en turno"
+                            )
+                            st.success(
+                                texto_envio_estado
                             )
 
-                            if fuera_horario:
-                                texto_envio_estado += " · Jornada finalizada"
-
-                            st.success(
+                        elif enviado_hoy and not en_turno_actual:
+                            texto_envio_estado = (
+                                "✅ Seguimiento realizado"
+                                + (
+                                    f" · último registro {hora_envio_actual}"
+                                    if hora_envio_actual
+                                    else ""
+                                )
+                                + f" · {estado_turno_actual}"
+                            )
+                            st.info(
                                 texto_envio_estado
                             )
 
@@ -7608,7 +7614,6 @@ elif menu == "✉️ Mensajes diarios":
                             if (
                                 telegram_chat_id
                                 and en_turno_actual
-                                and not enviado_hoy
                             ):
                                 if st.button(
                                     "✈️ Enviar",
@@ -7652,19 +7657,12 @@ elif menu == "✉️ Mensajes diarios":
                                             st.error(
                                                 f"No se pudo enviar: {detalle_tg}"
                                             )
-                            elif enviado_hoy:
-                                st.button(
-                                    "✅ Enviado",
-                                    disabled=True,
-                                    use_container_width=True,
-                                    key=f"ya_enviado_v81_{usuario}",
-                                )
                             elif not en_turno_actual:
                                 st.button(
                                     "🕒 Fuera de turno",
                                     disabled=True,
                                     use_container_width=True,
-                                    key=f"fuera_turno_v81_{usuario}",
+                                    key=f"fuera_turno_v82_{usuario}",
                                 )
                             else:
                                 st.button(
@@ -7720,8 +7718,8 @@ elif menu == "✉️ Mensajes diarios":
         st.markdown("### Envío y comunicación")
 
         st.caption(
-            "Control anti-duplicados activo: cada operador se registra por fecha. "
-            "Al día siguiente vuelve a quedar habilitado automáticamente."
+            "Control de turno activo: se permite reenviar avances varias veces "
+            "durante la jornada. Al salir de turno, el envío queda bloqueado."
         )
 
         coordinador_chat_id = obtener_telegram_coordinador_chat_id()
