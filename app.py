@@ -7669,63 +7669,28 @@ elif menu == "📈 Comportamiento diario":
                     # ------------------------------
                     # GRÁFICOS SEPARADOS
                     # ------------------------------
-                    st.markdown(
-                        '<div class="beh-section">Evolución diaria</div>',
-                        unsafe_allow_html=True,
-                    )
                     if bool(diario["_es_hoy"].any()):
-                        st.info(
-                            "El día de hoy se muestra como avance parcial, pero no se incluye "
-                            "en el cumplimiento, brechas, rankings ni tendencias hasta cerrar la jornada."
+                        st.caption(
+                            "● Hoy: avance parcial · no afecta cumplimiento, brechas ni tendencias hasta el cierre."
                         )
-                    st.markdown(
-                        '<div class="beh-section-sub">Compara el resultado real de cada jornada con la meta diaria. Solo se evalúan jornadas completas.</div>',
-                        unsafe_allow_html=True,
-                    )
 
                     # ==================================================
-                    # GRÁFICOS EJECUTIVOS
+                    # EVOLUCIÓN DIARIA · REDISEÑO V7
                     # ==================================================
-                    graf1, graf2 = st.columns(2)
-
-                    # Métricas útiles para lectura del gráfico
                     dias_evaluados = int(len(diario_eval))
                     dias_sobre_meta_g = int(
                         (diario_eval["Gestiones"] >= diario_eval["Meta_gestiones"]).sum()
                     )
-                    dias_bajo_meta_g = dias_evaluados - dias_sobre_meta_g
                     dias_sobre_meta_c = int(
                         (diario_eval["Compromisos"] >= diario_eval["Meta_compromisos"]).sum()
                     )
-                    dias_bajo_meta_c = dias_evaluados - dias_sobre_meta_c
-
-                    # Mayor racha consecutiva sobre/bajo meta
-                    def mayor_racha(serie_bool, valor_objetivo=True):
-                        mejor = 0
-                        actual = 0
-                        for valor in serie_bool.tolist():
-                            if bool(valor) is valor_objetivo:
-                                actual += 1
-                                mejor = max(mejor, actual)
-                            else:
-                                actual = 0
-                        return mejor
-
-                    racha_sobre_g = mayor_racha(
-                        diario_eval["Gestiones"] >= diario_eval["Meta_gestiones"],
-                        True,
+                    pct_dias_g = (
+                        dias_sobre_meta_g / dias_evaluados * 100
+                        if dias_evaluados else 0
                     )
-                    racha_bajo_g = mayor_racha(
-                        diario_eval["Gestiones"] < diario_eval["Meta_gestiones"],
-                        True,
-                    )
-                    racha_sobre_c = mayor_racha(
-                        diario_eval["Compromisos"] >= diario_eval["Meta_compromisos"],
-                        True,
-                    )
-                    racha_bajo_c = mayor_racha(
-                        diario_eval["Compromisos"] < diario_eval["Meta_compromisos"],
-                        True,
+                    pct_dias_c = (
+                        dias_sobre_meta_c / dias_evaluados * 100
+                        if dias_evaluados else 0
                     )
 
                     chart_base = diario.copy()
@@ -7741,12 +7706,11 @@ elif menu == "📈 Comportamiento diario":
                         .where(chart_base["_jornada_completa"])
                     )
 
-                    def grafico_diario_altair(
+                    def grafico_cumplimiento_limpio(
                         df_plot,
                         real_col,
                         meta_col,
                         titulo_real,
-                        promedio_real,
                     ):
                         base = alt.Chart(df_plot).encode(
                             x=alt.X(
@@ -7757,12 +7721,13 @@ elif menu == "📈 Comportamiento diario":
                                     labelAngle=0,
                                     labelOverlap=True,
                                     grid=False,
+                                    tickCount="day",
                                 ),
                             )
                         )
 
                         area = base.mark_area(
-                            opacity=0.08,
+                            opacity=0.055,
                             interpolate="monotone",
                         ).encode(
                             y=alt.Y(
@@ -7772,12 +7737,12 @@ elif menu == "📈 Comportamiento diario":
                             )
                         )
 
-                        linea_real = base.mark_line(
-                            strokeWidth=2.6,
+                        real = base.mark_line(
+                            strokeWidth=2.8,
                             interpolate="monotone",
                             point=alt.OverlayMarkDef(
-                                size=48,
                                 filled=True,
+                                size=42,
                             ),
                         ).encode(
                             y=alt.Y(
@@ -7804,10 +7769,10 @@ elif menu == "📈 Comportamiento diario":
                             ],
                         )
 
-                        linea_meta = base.mark_line(
-                            strokeDash=[7, 5],
-                            strokeWidth=1.8,
-                            opacity=0.8,
+                        meta = base.mark_line(
+                            strokeDash=[6, 5],
+                            strokeWidth=1.6,
+                            opacity=.75,
                         ).encode(
                             y=alt.Y(
                                 f"{meta_col}:Q",
@@ -7815,146 +7780,131 @@ elif menu == "📈 Comportamiento diario":
                             )
                         )
 
-                        promedio_df = pd.DataFrame(
-                            {"Promedio": [promedio_real]}
-                        )
-                        linea_prom = alt.Chart(
-                            promedio_df
-                        ).mark_rule(
-                            strokeDash=[2, 4],
-                            opacity=0.65,
-                        ).encode(
-                            y=alt.Y(
-                                "Promedio:Q",
-                                title=None,
-                            )
-                        )
-
-                        puntos_destacados = base.transform_filter(
-                            alt.datum[real_col] >= alt.datum[meta_col]
-                        ).mark_point(
-                            size=70,
-                            filled=True,
-                        ).encode(
-                            y=alt.Y(
-                                f"{real_col}:Q",
-                                title=None,
-                            )
-                        )
-
                         return (
-                            area
-                            + linea_real
-                            + linea_meta
-                            + linea_prom
-                            + puntos_destacados
+                            area + real + meta
                         ).properties(
-                            height=285
+                            height=250
                         ).configure_axis(
                             labelFontSize=10,
-                            titleFontSize=10,
-                            labelColor="#65798E",
-                            gridColor="#EDF1F5",
+                            labelColor="#71849A",
+                            gridColor="#EEF2F6",
+                            domain=False,
+                            tickColor="#D8E1EA",
                         ).configure_view(
                             strokeOpacity=0
                         )
 
-                    with graf1:
-                        with st.container(border=True):
-                            st.markdown("#### 📞 Cumplimiento diario de Gestiones")
-                            st.caption(
-                                f"Promedio {formato_entero(prom_g)} · "
-                                f"Meta promedio {formato_entero(diario['Meta_gestiones'].mean())} · "
-                                f"Cumplimiento {cumplimiento_g_prom:.0f}%"
-                            )
+                    st.markdown(
+                        '<div class="beh-section">Evolución y cumplimiento</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.caption(
+                        "Resultado diario frente a la meta. Las jornadas en curso o no laborables no afectan el cumplimiento."
+                    )
 
-                            st.markdown(
-                                f"""
-                                <div class="chart-mini-grid">
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Meta cumplida</div>
-                                        <div class="chart-mini-value">{dias_sobre_meta_g} de {dias_evaluados} días</div>
-                                    </div>
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Meta no cumplida</div>
-                                        <div class="chart-mini-value">{dias_bajo_meta_g} de {dias_evaluados} días</div>
-                                    </div>
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Mayor racha cumpliendo</div>
-                                        <div class="chart-mini-value">{racha_sobre_g} días</div>
-                                    </div>
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Mayor racha sin cumplir</div>
-                                        <div class="chart-mini-value">{racha_bajo_g} días</div>
-                                    </div>
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
+                    # Resumen compacto y entendible antes del gráfico
+                    s1, s2, s3, s4 = st.columns(4)
+                    with s1:
+                        st.metric(
+                            "Gestiones · promedio diario",
+                            formato_entero(prom_g),
+                            f"{cumplimiento_g_prom:.0f}% de cumplimiento",
+                        )
+                    with s2:
+                        st.metric(
+                            "Gestiones · días cumplidos",
+                            f"{dias_sobre_meta_g} de {dias_evaluados}",
+                            f"{pct_dias_g:.0f}% de las jornadas",
+                        )
+                    with s3:
+                        st.metric(
+                            "Compromisos · promedio diario",
+                            formato_entero(prom_c),
+                            f"{cumplimiento_c_prom:.0f}% de cumplimiento",
+                        )
+                    with s4:
+                        st.metric(
+                            "Compromisos · días cumplidos",
+                            f"{dias_sobre_meta_c} de {dias_evaluados}",
+                            f"{pct_dias_c:.0f}% de las jornadas",
+                        )
 
-                            chart_g_final = grafico_diario_altair(
+                    tab_g, tab_c = st.tabs(
+                        ["📞 Gestiones", "🎯 Compromisos"]
+                    )
+
+                    with tab_g:
+                        g_left, g_right = st.columns([3.2, 1])
+
+                        with g_left:
+                            chart_g_final = grafico_cumplimiento_limpio(
                                 chart_base,
                                 "Gestiones",
                                 "Meta_gestiones_plot",
                                 "Gestiones",
-                                prom_g,
                             )
                             st.altair_chart(
                                 chart_g_final,
                                 use_container_width=True,
                             )
-
                             st.caption(
-                                "Resultado diario vs meta. La línea punteada muestra el promedio del periodo."
+                                "Línea continua: resultado real · línea segmentada: meta diaria."
                             )
 
-                    with graf2:
-                        with st.container(border=True):
-                            st.markdown("#### 🎯 Cumplimiento diario de Compromisos")
-                            st.caption(
-                                f"Promedio {formato_entero(prom_c)} · "
-                                f"Meta promedio {formato_entero(diario['Meta_compromisos'].mean())} · "
-                                f"Cumplimiento {cumplimiento_c_prom:.0f}%"
+                        with g_right:
+                            st.markdown("##### Lectura")
+                            st.metric(
+                                "Cumplimiento",
+                                f"{cumplimiento_g_prom:.0f}%",
+                            )
+                            st.metric(
+                                "Meta cumplida",
+                                f"{dias_sobre_meta_g} de {dias_evaluados} días",
+                            )
+                            brecha_graf_g = int(
+                                diario_eval["Gestiones"].sum()
+                                - diario_eval["Meta_gestiones"].sum()
+                            )
+                            st.metric(
+                                "Brecha acumulada",
+                                f"{brecha_graf_g:+,}".replace(",", "."),
                             )
 
-                            st.markdown(
-                                f"""
-                                <div class="chart-mini-grid">
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Meta cumplida</div>
-                                        <div class="chart-mini-value">{dias_sobre_meta_c} de {dias_evaluados} días</div>
-                                    </div>
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Meta no cumplida</div>
-                                        <div class="chart-mini-value">{dias_bajo_meta_c} de {dias_evaluados} días</div>
-                                    </div>
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Mayor racha cumpliendo</div>
-                                        <div class="chart-mini-value">{racha_sobre_c} días</div>
-                                    </div>
-                                    <div class="chart-mini">
-                                        <div class="chart-mini-label">Mayor racha sin cumplir</div>
-                                        <div class="chart-mini-value">{racha_bajo_c} días</div>
-                                    </div>
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
+                    with tab_c:
+                        c_left, c_right = st.columns([3.2, 1])
 
-                            chart_c_final = grafico_diario_altair(
+                        with c_left:
+                            chart_c_final = grafico_cumplimiento_limpio(
                                 chart_base,
                                 "Compromisos",
                                 "Meta_compromisos_plot",
                                 "Compromisos",
-                                prom_c,
                             )
                             st.altair_chart(
                                 chart_c_final,
                                 use_container_width=True,
                             )
-
                             st.caption(
-                                "Resultado diario vs meta. La línea punteada muestra el promedio del periodo."
+                                "Línea continua: resultado real · línea segmentada: meta diaria."
+                            )
+
+                        with c_right:
+                            st.markdown("##### Lectura")
+                            st.metric(
+                                "Cumplimiento",
+                                f"{cumplimiento_c_prom:.0f}%",
+                            )
+                            st.metric(
+                                "Meta cumplida",
+                                f"{dias_sobre_meta_c} de {dias_evaluados} días",
+                            )
+                            brecha_graf_c = int(
+                                diario_eval["Compromisos"].sum()
+                                - diario_eval["Meta_compromisos"].sum()
+                            )
+                            st.metric(
+                                "Brecha acumulada",
+                                f"{brecha_graf_c:+,}".replace(",", "."),
                             )
 
                     # ------------------------------
