@@ -7411,22 +7411,20 @@ elif menu == "✉️ Mensajes diarios":
             "17:00 vuelve a incluir recuperación para el cierre. Fuera de turno "
             "no se envían nuevos mensajes."
         )
-        st.caption(
-            "💬 Los mensajes personalizados son manuales y quedan registrados "
-            "como 'mensaje_manual'; no modifican el conteo de seguimientos automáticos."
-        )
 
 
         # -------------------------------------------------
         # MENSAJE LIBRE POR TELEGRAM — V90
         # -------------------------------------------------
+        st.markdown("### 💬 Comunicación manual")
+        st.caption("Para avisos, instrucciones o mensajes especiales que quieras redactar tú mismo.")
+
         with st.expander(
-            "💬 Mensaje personalizado por Telegram",
-            expanded=False,
+            "💬 Enviar mensaje personalizado",
+            expanded=True,
         ):
             st.caption(
-                "Escribe un mensaje libre y envíalo por privado a uno o varios "
-                "operadores. Este envío es independiente del seguimiento automático."
+                "Mensaje libre por privado. No modifica ni cuenta como seguimiento automático."
             )
 
             opciones_manual_v90 = []
@@ -7611,6 +7609,10 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
+        st.markdown("---")
+        st.markdown("### 📊 Seguimiento operativo")
+        st.caption("Consulta el avance del día y envía seguimientos automáticos basados en las metas y el corte cargado.")
+
         f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
 
         with f1:
@@ -7722,7 +7724,7 @@ elif menu == "✉️ Mensajes diarios":
                 )
 
             if st.button(
-                f"✈️ Enviar avance a operadores de turno ({len(telegram_pendientes_top)})",
+                f"✈️ Enviar seguimiento a operadores de turno ({len(telegram_pendientes_top)})",
                 use_container_width=True,
                 type="primary",
                 disabled=(
@@ -8750,7 +8752,7 @@ elif menu == "✉️ Mensajes diarios":
 
         with col_envio:
             if st.button(
-                f"✈️ Enviar mensajes individuales ({len(telegram_configurados)}/{CANTIDAD_OPERADORES})",
+                f"✈️ Enviar seguimiento individual ({len(telegram_configurados)}/{CANTIDAD_OPERADORES})",
                 type="primary",
                 use_container_width=True,
                 disabled=(len(telegram_configurados) == 0),
