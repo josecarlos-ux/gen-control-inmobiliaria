@@ -11640,265 +11640,308 @@ elif menu == "💰 Bonos":
     # DESCARGA EXCEL · RÉPLICA OPERATIVA DEL ARCHIVO
     # -------------------------------------------------
     def generar_excel_bono_v7():
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-        from openpyxl.utils import get_column_letter
+        """
+        Genera el archivo a partir de la plantilla ORIGINAL de BONOS CC.
+        No rediseña la hoja: conserva colores, combinaciones, bordes,
+        anchos, alturas, fórmulas y las demás pestañas del archivo oficial.
+        """
+        from pathlib import Path
+        from openpyxl import load_workbook
 
-        buffer_excel = BytesIO()
+        ruta_template = Path(__file__).resolve().parent / "BONOS_TEMPLATE.xlsx"
 
-        filas_export = []
-        for fila_exp in detalle_bono:
-            ind = fila_exp["Indicador"]
-
-            if ind == "Productividad":
-                resultado_original = original_prod
-                ajuste_resultado = ajuste_result_prod
-                meta_original_exp = base["meta_productividad"]
-            elif ind == "Recuperación":
-                resultado_original = original_rec
-                ajuste_resultado = ajuste_result_rec
-                meta_original_exp = meta_rec_estandar
-            elif ind == "Promesas":
-                resultado_original = original_prom
-                ajuste_resultado = ajuste_result_prom
-                meta_original_exp = meta_prom_estandar
-            else:
-                resultado_original = fila_exp["Alcance"]
-                ajuste_resultado = 0
-                meta_original_exp = metas_base[ind]
-
-            filas_export.append(
-                {
-                    "Indicador": ind,
-                    "Meta original": meta_original_exp,
-                    "Meta válida": fila_exp["Meta válida"],
-                    "Resultado original": resultado_original,
-                    "Ajuste resultado": ajuste_resultado,
-                    "Resultado válido": fila_exp["Alcance"],
-                    "Cumplimiento real": fila_exp["Cumplimiento real"],
-                    "Cumplimiento bono": fila_exp["Cumplimiento bono"],
-                    "Peso": fila_exp["Peso"],
-                    "Aporte": fila_exp["Aporte"],
-                }
+        if not ruta_template.exists():
+            raise FileNotFoundError(
+                "Falta BONOS_TEMPLATE.xlsx en el repositorio. "
+                "Sube la plantilla original junto a app.py."
             )
 
-        export_detalle = pd.DataFrame(filas_export)
-
-        export_resumen = pd.DataFrame(
-            [
-                ["Operador", base["nombre"]],
-                ["Fuente", fuente_bono],
-                ["Tipo ajuste meta", modo_ajuste_bono],
-                ["Horas planificadas", horas_planificadas],
-                ["Horas fuera de Cobranzas", horas_fuera_cobranza],
-                ["Disponibilidad efectiva", disponibilidad],
-                ["Motivo ajuste meta", motivo],
-                ["Motivo ajuste resultados", motivo_ajuste_resultado],
-                ["Puntaje final", puntaje_total],
-                ["Bono Bs", bono_bs if bono_bs is not None else ""],
-                ["Estado", estado_bono_v6],
-            ],
-            columns=["Concepto", "Valor"],
+        wb_bonos = load_workbook(
+            ruta_template,
+            data_only=False,
         )
 
-        with pd.ExcelWriter(buffer_excel, engine="openpyxl") as writer:
-            export_resumen.to_excel(
-                writer,
-                sheet_name="BONOS",
-                index=False,
-                startrow=2,
-            )
-            export_detalle.to_excel(
-                writer,
-                sheet_name="BONOS",
-                index=False,
-                startrow=16,
+        if "BONOS CC" not in wb_bonos.sheetnames:
+            raise ValueError(
+                "La plantilla no contiene la hoja BONOS CC."
             )
 
-            ws = writer.book["BONOS"]
-            navy = "123A5A"
-            teal = "1F6B7A"
-            white = "FFFFFF"
-            light = "EAF1F7"
-            border = Border(
-                bottom=Side(style="thin", color="D9E2EC")
+        ws = wb_bonos["BONOS CC"]
+
+        # Cada operador ocupa un bloque fijo en la plantilla original:
+        # objetivo, alcance, porcentaje y aporte.
+        bloques = {
+            "cvaca": {
+                "nombre": "Carla Vaca",
+                "obj": "G",
+                "alc": "H",
+                "pct": "I",
+                "aporte": "J",
+            },
+            "arodriguez": {
+                "nombre": "Alisson Rodriguez",
+                "obj": "Q",
+                "alc": "R",
+                "pct": "S",
+                "aporte": "T",
+            },
+            "malvarez": {
+                "nombre": "Anahir Alvarez",
+                "obj": "Z",
+                "alc": "AA",
+                "pct": "AB",
+                "aporte": "AC",
+            },
+            "yrivas": {
+                "nombre": "Yessica Rivas",
+                "obj": "AI",
+                "alc": "AJ",
+                "pct": "AK",
+                "aporte": "AL",
+            },
+            "yarinez": {
+                "nombre": "Yanine Ariñez",
+                "obj": "AS",
+                "alc": "AT",
+                "pct": "AU",
+                "aporte": "AV",
+            },
+            "projas": {
+                "nombre": "Percy Rojas",
+                "obj": "BC",
+                "alc": "BD",
+                "pct": "BE",
+                "aporte": "BF",
+            },
+            "jborja": {
+                "nombre": "James Borja",
+                "obj": "BL",
+                "alc": "BM",
+                "pct": "BN",
+                "aporte": "BO",
+            },
+            "avargas": {
+                "nombre": "Aracely Peña",
+                "obj": "BU",
+                "alc": "BV",
+                "pct": "BW",
+                "aporte": "BX",
+            },
+        }
+
+        filas_indicador = {
+            "Productividad": 15,
+            "Recuperación": 17,
+            "Promesas": 19,
+            "Satisfacción": 21,
+            "PECUF": 23,
+            "PECN": 25,
+        }
+
+        pesos_excel = {
+            "Productividad": 0.20,
+            "Recuperación": 0.30,
+            "Promesas": 0.20,
+            "Satisfacción": 0.10,
+            "PECUF": 0.10,
+            "PECN": 0.10,
+        }
+
+        metas_estandar_excel = {
+            "Productividad": 2350,
+            "Recuperación": 170400,
+            "Promesas": 550,
+            "Satisfacción": 0.80,
+            "PECUF": 0.95,
+            "PECN": 0.90,
+        }
+
+        # Fecha del archivo: se conserva el formato original y solo cambia el periodo.
+        fecha_periodo = fecha_local_actual().replace(day=1)
+        for celda_fecha in [
+            "C2", "M2", "V2", "AE2",
+            "AO2", "AY2", "BH2", "BQ2",
+        ]:
+            ws[celda_fecha] = fecha_periodo
+
+        # Datos operativos actuales del sistema.
+        resultado_actual_excel = st.session_state.get(
+            "resultado_operadores"
+        )
+
+        def dato_operativo(usuario, columna, fallback):
+            if (
+                resultado_actual_excel is None
+                or resultado_actual_excel.empty
+                or "Usuario" not in resultado_actual_excel.columns
+            ):
+                return fallback
+
+            fila = resultado_actual_excel[
+                resultado_actual_excel["Usuario"].astype(str)
+                == str(usuario)
+            ]
+
+            if fila.empty:
+                return fallback
+
+            valor = fila.iloc[0].get(columna, fallback)
+
+            try:
+                return float(valor)
+            except Exception:
+                return fallback
+
+        # Cargar los 8 operadores en la misma estructura del archivo original.
+        for usuario_x, bloque_x in bloques.items():
+            obj_col = bloque_x["obj"]
+            alc_col = bloque_x["alc"]
+            pct_col = bloque_x["pct"]
+            aporte_col = bloque_x["aporte"]
+
+            datos_ref = bonos_julio.get(
+                usuario_x,
+                {},
             )
 
-            ws["A1"] = "BONOS · GEN CONTROL"
-            ws.merge_cells("A1:J1")
-            ws["A1"].font = Font(
-                bold=True,
-                size=16,
-                color=white,
+            prod_x = dato_operativo(
+                usuario_x,
+                "Gestiones",
+                datos_ref.get("productividad", 0),
             )
-            ws["A1"].fill = PatternFill(
-                "solid",
-                fgColor=navy,
+            rec_x = dato_operativo(
+                usuario_x,
+                "Recuperación acumulada",
+                datos_ref.get("recuperacion", 0),
             )
-            ws["A1"].alignment = Alignment(
-                vertical="center",
+            prom_x = dato_operativo(
+                usuario_x,
+                "Compromisos",
+                datos_ref.get("promesas", 0),
             )
-            ws.row_dimensions[1].height = 28
 
-            for cell in ws[3][:2]:
-                cell.font = Font(bold=True, color=white)
-                cell.fill = PatternFill("solid", fgColor=teal)
+            # Para el operador actualmente editado se usa el resultado válido,
+            # incluyendo cualquier regularización realizada en pantalla.
+            if usuario_x == usuario_bonus:
+                prod_x = alcance_prod
+                rec_x = alcance_rec
+                prom_x = alcance_prom
 
-            for row in range(4, 14):
-                ws.cell(row, 1).font = Font(bold=True, color=navy)
-                ws.cell(row, 1).border = border
-                ws.cell(row, 2).border = border
+            # Calidad: toma lo que se haya cargado en la pestaña Bonos.
+            # Si todavía no se cargó para un operador, queda en blanco.
+            sat_key = f"bono_sat_txt_{usuario_x}_{fuente_bono}"
+            pecuf_key = f"bono_pecuf_txt_{usuario_x}_{fuente_bono}"
+            pecn_key = f"bono_pecn_txt_{usuario_x}_{fuente_bono}"
 
-            header_row = 17
-            for cell in ws[header_row]:
-                cell.font = Font(bold=True, color=white)
-                cell.fill = PatternFill("solid", fgColor=navy)
-                cell.alignment = Alignment(
-                    horizontal="center",
-                    vertical="center",
-                    wrap_text=True,
-                )
+            sat_x = parsear_porcentaje_calidad(
+                st.session_state.get(sat_key, "")
+            )
+            pecuf_x = parsear_porcentaje_calidad(
+                st.session_state.get(pecuf_key, "")
+            )
+            pecn_x = parsear_porcentaje_calidad(
+                st.session_state.get(pecn_key, "")
+            )
 
-            headers = {
-                ws.cell(header_row, c).value: c
-                for c in range(1, ws.max_column + 1)
+            if usuario_x == usuario_bonus:
+                sat_x = satisf
+                pecuf_x = pecuf
+                pecn_x = pecn
+
+            resultados_x = {
+                "Productividad": prod_x,
+                "Recuperación": rec_x,
+                "Promesas": prom_x,
+                "Satisfacción": sat_x,
+                "PECUF": pecuf_x,
+                "PECN": pecn_x,
             }
 
-            for nombre_pct in [
-                "Cumplimiento real",
-                "Cumplimiento bono",
-                "Peso",
-                "Aporte",
-            ]:
-                col_pct = headers.get(nombre_pct)
-                if col_pct:
-                    for rr in range(header_row + 1, ws.max_row + 1):
-                        ws.cell(rr, col_pct).number_format = "0.00%"
+            metas_x = dict(metas_estandar_excel)
 
-            for rr in range(header_row + 1, ws.max_row + 1):
-                if ws.cell(rr, 1).value == "Recuperación":
-                    for cc in range(2, 7):
-                        ws.cell(rr, cc).number_format = '$ #,##0.00'
+            if usuario_x == usuario_bonus:
+                metas_x["Productividad"] = meta_prod_final
+                metas_x["Recuperación"] = meta_rec_final
+                metas_x["Promesas"] = meta_prom_final
 
-            for rr in range(header_row + 1, ws.max_row + 1):
-                if rr % 2 == 0:
-                    for cc in range(1, 11):
-                        ws.cell(rr, cc).fill = PatternFill(
-                            "solid",
-                            fgColor=light,
-                        )
+            for indicador_x, fila_x in filas_indicador.items():
+                meta_x = metas_x[indicador_x]
+                resultado_x = resultados_x[indicador_x]
 
-            widths = [24, 18, 18, 20, 18, 20, 20, 20, 12, 14]
-            for idx_w, width in enumerate(widths, start=1):
-                ws.column_dimensions[
-                    get_column_letter(idx_w)
-                ].width = width
-
-            ws.freeze_panes = "A18"
-
-            # Hoja de referencia general.
-            filas_resumen_excel = []
-
-            for usuario_x, datos_x in bonos_julio.items():
-                meta_prod_x = datos_x["meta_productividad"]
-
-                aportes_x = [
-                    cumplimiento_bono(
-                        datos_x["productividad"],
-                        meta_prod_x,
-                    ) * pesos_bono["Productividad"],
-                    cumplimiento_bono(
-                        datos_x["recuperacion"],
-                        metas_base["Recuperación"],
-                    ) * pesos_bono["Recuperación"],
-                    cumplimiento_bono(
-                        datos_x["promesas"],
-                        metas_base["Promesas"],
-                    ) * pesos_bono["Promesas"],
-                    cumplimiento_bono(
-                        datos_x["satisfaccion"],
-                        metas_base["Satisfacción"],
-                    ) * pesos_bono["Satisfacción"],
-                    cumplimiento_bono(
-                        datos_x["pecuf"],
-                        metas_base["PECUF"],
-                    ) * pesos_bono["PECUF"],
-                    cumplimiento_bono(
-                        datos_x["pecn"],
-                        metas_base["PECN"],
-                    ) * pesos_bono["PECN"],
-                ]
-
-                score_x = sum(aportes_x)
-
-                filas_resumen_excel.append(
-                    {
-                        "Operador": datos_x["nombre"],
-                        "Puntaje final %": score_x * 100,
-                        "Bono Bs": monto_bono(score_x),
-                        "Productividad": datos_x["productividad"],
-                        "Meta productividad": meta_prod_x,
-                        "Recuperación": datos_x["recuperacion"],
-                        "Promesas": datos_x["promesas"],
-                    }
+                ws[f"{obj_col}{fila_x}"] = meta_x
+                ws[f"{alc_col}{fila_x}"] = (
+                    resultado_x
+                    if resultado_x is not None
+                    else None
                 )
 
-            df_resumen_excel = pd.DataFrame(
-                filas_resumen_excel
-            ).sort_values(
-                ["Bono Bs", "Puntaje final %"],
-                ascending=[False, False],
+                # Mantener fórmulas equivalentes a las del archivo original.
+                ws[f"{pct_col}{fila_x}"] = (
+                    f'=IFERROR(MIN({alc_col}{fila_x}/'
+                    f'{obj_col}{fila_x},1),0)'
+                )
+                ws[f"{aporte_col}{fila_x}"] = (
+                    f'={pct_col}{fila_x}*'
+                    f'{pesos_excel[indicador_x]}'
+                )
+
+        # Fórmula de puntaje y bono, conservando la posición original.
+        totales = {
+            "cvaca": ("I", "J"),
+            "arodriguez": ("S", "T"),
+            "malvarez": ("AB", "AC"),
+            "yrivas": ("AK", "AL"),
+            "yarinez": ("AU", "AV"),
+            "projas": ("BE", "BF"),
+            "jborja": ("BN", "BO"),
+            "avargas": ("BW", "BX"),
+        }
+
+        for usuario_x, (col_score, col_bono) in totales.items():
+            aporte_col = bloques[usuario_x]["aporte"]
+
+            ws[f"{col_score}29"] = (
+                f"={aporte_col}15+{aporte_col}17+"
+                f"{aporte_col}19+{aporte_col}21+"
+                f"{aporte_col}23+{aporte_col}25"
             )
 
-            df_resumen_excel.to_excel(
-                writer,
-                sheet_name="RESUMEN",
-                index=False,
+            # IF anidado para máxima compatibilidad con Excel/LibreOffice.
+            ws[f"{col_bono}29"] = (
+                f'=IF({col_score}29>=95%,350,'
+                f'IF({col_score}29>=90%,200,'
+                f'IF({col_score}29>=85%,100,0)))'
             )
-            ws2 = writer.book["RESUMEN"]
-            for cell in ws2[1]:
-                cell.font = Font(bold=True, color=white)
-                cell.fill = PatternFill("solid", fgColor=navy)
-                cell.alignment = Alignment(
-                    horizontal="center",
-                    wrap_text=True,
-                )
-            ws2.freeze_panes = "A2"
+            ws[f"{col_bono}30"] = f"={col_bono}29"
 
-            # Puntaje final ya está expresado en 0–100.
-            for cell in ws2[1]:
-                if cell.value == "Puntaje final %":
-                    col_pct_res = cell.column
-                    for rr in range(2, ws2.max_row + 1):
-                        ws2.cell(
-                            rr,
-                            col_pct_res,
-                        ).number_format = '0.00"%"'
+        # Totales superiores de la hoja original.
+        ws["A2"] = (
+            "=SUM(H15,R15,AA15,AJ15,AT15,BD15,BM15,BV15)"
+        )
+        ws["A4"] = (
+            "=SUM(H19,R19,AA19,AJ19,AT19,BD19,BM19,BV19)"
+        )
+        ws["A6"] = (
+            "=SUM(H17,R17,AA17,AJ17,AT17,BD17,BM17,BV17)"
+        )
 
-            for col_cells in ws2.columns:
-                letra = get_column_letter(col_cells[0].column)
-                largo = max(
-                    len(str(c.value or ""))
-                    for c in col_cells
-                )
-                ws2.column_dimensions[letra].width = min(
-                    max(largo + 2, 12),
-                    28,
-                )
-
+        buffer_excel = BytesIO()
+        wb_bonos.save(buffer_excel)
         buffer_excel.seek(0)
         return buffer_excel.getvalue()
 
-    st.markdown("#### Descargar cálculo")
+
+    st.markdown("#### Descargar archivo oficial")
     st.caption(
-        "Descarga el cálculo en Excel conservando la lógica: Meta original → "
-        "Meta válida y Resultado original → Ajuste → Resultado válido."
+        "Genera el mismo formato de BONOS CC del archivo original, conservando "
+        "su diseño, estructura, fórmulas y las demás pestañas del libro."
     )
 
     try:
         excel_bono_v9 = generar_excel_bono_v7()
 
         st.download_button(
-            "📥 Descargar Excel de Bonos",
+            "📥 Descargar BONOS CC · formato original",
             data=excel_bono_v9,
             file_name=(
                 f"BONOS_{base['nombre'].replace(' ', '_')}_"
