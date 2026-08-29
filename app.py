@@ -921,6 +921,184 @@ st.markdown(
         box-shadow:0 4px 15px rgba(24,52,88,.035);
     }
 
+
+    /* =========================================================
+       V21 · MEJORAS VISUALES DE ALTO IMPACTO
+       ========================================================= */
+
+    .stApp{
+        background:
+            radial-gradient(circle at top right, rgba(50,115,255,.04), transparent 30%),
+            linear-gradient(180deg,#F7F9FC 0%,#FBFCFE 100%);
+    }
+
+    .block-container{
+        max-width:1480px!important;
+        padding-top:1.15rem!important;
+        padding-bottom:2rem!important;
+    }
+
+    section[data-testid="stSidebar"]{
+        background:linear-gradient(180deg,#102E4F 0%,#0C223C 100%)!important;
+        border-right:1px solid rgba(255,255,255,.05);
+    }
+
+    .stButton>button{
+        min-height:42px;
+        border-radius:11px!important;
+        font-weight:780!important;
+        border:1px solid #D8E2ED!important;
+        box-shadow:0 3px 10px rgba(20,52,88,.045);
+        transition:.15s ease;
+    }
+    .stButton>button:hover{
+        transform:translateY(-1px);
+        box-shadow:0 7px 18px rgba(20,52,88,.075);
+    }
+    .stButton>button[kind="primary"]{
+        background:linear-gradient(135deg,#1C6FF2 0%,#1657D3 100%)!important;
+        color:#fff!important;
+        border:none!important;
+    }
+
+    div[data-baseweb="input"]>div,
+    div[data-baseweb="select"]>div,
+    div[data-baseweb="base-input"]{
+        border-radius:11px!important;
+        border-color:#DCE5EF!important;
+        min-height:42px!important;
+        background:#FFFFFF!important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]{
+        border:1px solid #E0E7F0!important;
+        border-radius:14px!important;
+        background:#FFFFFF!important;
+        box-shadow:0 6px 18px rgba(23,52,88,.035)!important;
+    }
+
+    .msg-v20-title{
+        font-size:31px!important;
+        color:#132A46!important;
+        margin-bottom:4px!important;
+    }
+    .msg-v20-sub{
+        font-size:12px!important;
+        color:#748399!important;
+        margin-bottom:16px!important;
+    }
+    .msg-v20-chip{
+        border-radius:13px!important;
+        box-shadow:0 5px 16px rgba(21,58,104,.035)!important;
+    }
+    .msg-v20-protect{
+        border-radius:15px!important;
+        padding:16px 18px!important;
+        background:linear-gradient(135deg,#FFFFFF 0%,#F5F9FF 100%)!important;
+        box-shadow:0 6px 18px rgba(28,59,102,.035)!important;
+    }
+    .msg-v20-sendbar{
+        border-radius:14px!important;
+        padding:12px 15px!important;
+        background:linear-gradient(90deg,#EDF5FF 0%,#F7FBFF 100%)!important;
+    }
+
+    .v21-kpi-grid{
+        display:grid;
+        grid-template-columns:repeat(4,minmax(0,1fr));
+        gap:12px;
+        margin:4px 0 14px;
+    }
+    .v21-kpi{
+        border:1px solid #E0E7F0;
+        background:#FFFFFF;
+        border-radius:14px;
+        padding:14px 15px;
+        box-shadow:0 5px 16px rgba(25,55,90,.03);
+    }
+    .v21-kpi .k{
+        font-size:9px;
+        color:#7E8B9C;
+        font-weight:850;
+        text-transform:uppercase;
+        letter-spacing:.05em;
+    }
+    .v21-kpi .v{
+        font-size:23px;
+        font-weight:900;
+        line-height:1.05;
+        margin-top:5px;
+        color:#17314E;
+    }
+    .v21-kpi .s{
+        font-size:9px;
+        color:#8592A3;
+        margin-top:4px;
+    }
+    .v21-blue .v{color:#1E66D8;}
+    .v21-green .v{color:#13804D;}
+    .v21-purple .v{color:#7257CA;}
+    .v21-orange .v{color:#B76A00;}
+
+    .msg-v20-headrow{
+        background:#F8FAFD;
+        border:1px solid #E7EDF4;
+        border-radius:10px;
+        padding:8px 13px!important;
+        margin-bottom:7px!important;
+    }
+
+    .msg-v20-opname{
+        font-size:13px!important;
+        font-weight:880!important;
+        color:#172B4D!important;
+    }
+    .msg-v20-user{
+        color:#8794A5!important;
+        font-size:9px!important;
+    }
+
+    .msg-v20-status{
+        border-radius:999px!important;
+        padding:5px 8px!important;
+        font-size:9px!important;
+    }
+
+    .msg-v20-progress{
+        height:6px!important;
+        background:#E9EEF4!important;
+    }
+
+    .msg-v20-side-title{
+        font-size:15px!important;
+        color:#172B4D!important;
+        font-weight:880!important;
+    }
+
+    .msg-v20-side-card,
+    .msg-v20-side-ok,
+    .msg-v20-side-info{
+        border-radius:13px!important;
+        box-shadow:0 5px 16px rgba(22,49,85,.025)!important;
+    }
+
+    div[data-testid="stAlert"]{
+        border-radius:11px!important;
+        padding:.65rem .8rem!important;
+    }
+
+    details{
+        border-radius:12px!important;
+        border:1px solid #E2E8F0!important;
+        background:#FFFFFF!important;
+    }
+
+    @media(max-width:1100px){
+        .v21-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+    @media(max-width:720px){
+        .v21-kpi-grid{grid-template-columns:1fr;}
+    }
 </style>
     """,
     unsafe_allow_html=True,
@@ -9897,6 +10075,56 @@ elif menu == "✉️ Mensajes diarios":
                 unsafe_allow_html=True,
             )
 
+
+        # V21 · Resumen rápido de Mensajes diarios
+        ahora_kpi_v21 = ahora_bolivia()
+        total_ops_v21 = len(OPERADORES)
+        en_turno_v21 = sum(
+            1 for usuario_v21 in OPERADORES
+            if operador_en_turno(usuario_v21, ahora_kpi_v21)
+        )
+        telegram_ok_v21 = sum(
+            1 for usuario_v21 in OPERADORES
+            if normalizar_telegram_chat_id(
+                datos_contacto.get(usuario_v21, {}).get("telegram_chat_id", "")
+            )
+        )
+        ultimo_corte_v21 = "--:--"
+        try:
+            corte_v21 = obtener_corte_callcenter(st.session_state.callcenter_df)
+            if corte_v21 is not None:
+                ultimo_corte_v21 = corte_v21.strftime("%H:%M")
+        except Exception:
+            pass
+
+        st.markdown(
+            f"""
+            <div class="v21-kpi-grid">
+                <div class="v21-kpi v21-blue">
+                    <div class="k">Operadores en turno</div>
+                    <div class="v">{en_turno_v21} / {total_ops_v21}</div>
+                    <div class="s">Según horario actual</div>
+                </div>
+                <div class="v21-kpi v21-green">
+                    <div class="k">Telegram configurado</div>
+                    <div class="v">{telegram_ok_v21} / {total_ops_v21}</div>
+                    <div class="s">Listos para recibir seguimiento</div>
+                </div>
+                <div class="v21-kpi v21-purple">
+                    <div class="k">Resumen grupal</div>
+                    <div class="v">1</div>
+                    <div class="s">Se envía una sola vez al grupo</div>
+                </div>
+                <div class="v21-kpi v21-orange">
+                    <div class="k">Último corte CallCenter</div>
+                    <div class="v">{ultimo_corte_v21}</div>
+                    <div class="s">Base usada para el avance</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
         st.markdown(
             """
             <div class="msg-v20-protect">
@@ -10392,8 +10620,7 @@ elif menu == "✉️ Mensajes diarios":
             f"""
             <div class="msg-v20-sendbar">
                 <strong>👥 {len(elegibles_v20)} operadores listos para seguimiento</strong><br>
-                Se enviará 1 mensaje individual a cada operador habilitado y
-                1 resumen general actualizado al grupo de Telegram.
+                Se enviará un mensaje individual a cada operador habilitado y una sola actualización general al grupo.
             </div>
             """,
             unsafe_allow_html=True,
@@ -10615,9 +10842,9 @@ elif menu == "✉️ Mensajes diarios":
         with area_side_v20:
             st.markdown(
                 """
-                <div class="msg-v20-side-title">Vista previa del resumen general</div>
+                <div class="msg-v20-side-title">Resumen general del equipo</div>
                 <div class="msg-v20-side-sub">
-                    Así se verá la actualización que llegará al grupo.
+                    Vista previa de la imagen que se enviará al grupo.
                 </div>
                 """,
                 unsafe_allow_html=True,
