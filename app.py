@@ -1144,6 +1144,41 @@ def obtener_fila_operador_actual(usuario):
     return coincidencia.iloc[0].copy()
 
 
+
+def enviar_resumen_grupo_actualizado(callcenter_df):
+    """Envía al grupo el resumen general actualizado del equipo."""
+    try:
+        if callcenter_df is None or callcenter_df.empty:
+            return False, "No hay reporte CallCenter cargado."
+
+        chat_grupo = obtener_telegram_group_chat_id()
+        if not chat_grupo:
+            return False, "Falta TELEGRAM_GROUP_CHAT_ID."
+
+        mensaje_grupo = generar_mensaje_resumen_gestiones_grupo(callcenter_df)
+        imagen_grupo = generar_imagen_resumen_gestiones_grupo(callcenter_df)
+
+        ok_txt, det_txt = enviar_mensaje_telegram(
+            chat_grupo,
+            mensaje_grupo,
+        )
+        if not ok_txt:
+            return False, det_txt
+
+        ok_img, det_img = enviar_foto_telegram(
+            chat_grupo,
+            imagen_grupo,
+            "📊 Gestiones y compromisos por operador",
+        )
+        if not ok_img:
+            return False, det_img
+
+        return True, "Resumen general enviado al grupo."
+    except Exception as e:
+        return False, str(e)
+
+
+
 def generar_mensaje_operador_actual(
     usuario,
     jornadas_info,
@@ -1285,24 +1320,15 @@ def generar_mensaje_diario(fila, jornadas_info):
         usuario,
         "seguimiento",
     )
-    mostrar_recuperacion_v87 = (
-        not ya_recibio_seguimiento_v87
-        or ahora_mensaje_v87.hour >= 17
+    # V19 · En seguimiento privado solo se muestran Gestiones y Compromisos.
+    # Recuperación permanece disponible en Resumen/reportes, pero no se envía
+    # en el mensaje individual.
+    mostrar_recuperacion_v87 = False
+    bloque_mes_v87 = (
+        f"📊 Acumulado del mes\n"
+        f"{linea_g}\n"
+        f"{linea_c}"
     )
-
-    if mostrar_recuperacion_v87:
-        bloque_mes_v87 = (
-            f"📊 Acumulado del mes\n"
-            f"{linea_g}\n"
-            f"{linea_c}\n"
-            f"{linea_r}"
-        )
-    else:
-        bloque_mes_v87 = (
-            f"📊 Acumulado del mes\n"
-            f"{linea_g}\n"
-            f"{linea_c}"
-        )
 
     # En los seguimientos intermedios el cierre se enfoca en lo que el
     # operador puede corregir durante la jornada: gestiones y compromisos.
@@ -9912,20 +9938,19 @@ elif menu == "✉️ Mensajes diarios":
                     )
 
                     ok_aviso_grupo, detalle_aviso_grupo = (
-                        enviar_aviso_grupo_post_envio(
-                            enviados_top,
+                        enviar_resumen_grupo_actualizado(
+                            st.session_state.callcenter_df
                         )
                     )
 
                     if ok_aviso_grupo:
                         st.info(
-                            "📣 Se informó al grupo que se realizó el "
-                            "seguimiento individual a los operadores de turno."
+                            "📊 Resumen general actualizado enviado al grupo."
                         )
                     else:
                         st.warning(
-                            "Los mensajes individuales se enviaron, pero no "
-                            f"se pudo informar al grupo: {detalle_aviso_grupo}"
+                            "Los mensajes individuales se enviaron, pero el "
+                            f"resumen del grupo no pudo actualizarse: {detalle_aviso_grupo}"
                         )
 
                 if errores_top:
@@ -10657,6 +10682,21 @@ elif menu == "✉️ Mensajes diarios":
                                                 calculo_actual["mensaje"],
                                                 detalle_tg,
                                             )
+
+                                            ok_resumen_auto, det_resumen_auto = (
+                                                enviar_resumen_grupo_actualizado(
+                                                    st.session_state.callcenter_df
+                                                )
+                                            )
+                                            if ok_resumen_auto:
+                                                st.info(
+                                                    "📊 Resumen general actualizado enviado al grupo."
+                                                )
+                                            else:
+                                                st.warning(
+                                                    "El mensaje individual se envió, pero el resumen "
+                                                    f"del grupo no pudo actualizarse: {det_resumen_auto}"
+                                                )
                                         else:
                                             st.error(
                                                 f"No se pudo enviar: {detalle_tg}"
