@@ -1356,6 +1356,19 @@ st.markdown(
             padding-right:1.1rem!important;
         }
     }
+
+    /* V24 · Corrección del espacio vacío en Mensajes diarios */
+    div[data-testid="stVerticalBlockBorderWrapper"]{
+        min-height:0!important;
+        height:auto!important;
+    }
+    .msg-v20-sendbar{
+        margin-top:6px!important;
+        margin-bottom:8px!important;
+    }
+    .msg-v20-headrow{
+        margin-top:2px!important;
+    }
 </style>
     """,
     unsafe_allow_html=True,
@@ -3704,10 +3717,7 @@ def preparar_resumen_gestiones_grupo(callcenter_df):
 
 
 def generar_imagen_resumen_gestiones_grupo(callcenter_df):
-    """
-    Genera una sola imagen tipo infografía para Telegram:
-    encabezado, 4 KPIs, dos gráficos por operador y recordatorio final.
-    """
+    """Resumen visual del equipo sin monto comprometido."""
     import io
     import matplotlib.pyplot as plt
     import numpy as np
@@ -3719,178 +3729,72 @@ def generar_imagen_resumen_gestiones_grupo(callcenter_df):
 
     nombres = tabla["Operador"].astype(str).tolist()
     x = np.arange(len(nombres))
-
     total_g = int(tabla["Total gestión"].sum())
     total_c = int(tabla["Compromisos"].sum())
-    total_m = float(tabla["Monto comprometido"].sum())
     activos = int((tabla["Total gestión"] > 0).sum())
 
     corte = obtener_corte_callcenter(callcenter_df)
     corte_txt = corte.strftime("%H:%M") if corte is not None else ahora_bolivia().strftime("%H:%M")
     fecha_txt = fecha_local_actual().strftime("%d/%m/%Y")
 
-    fig = plt.figure(figsize=(18, 11), dpi=150, facecolor="white")
-    gs = fig.add_gridspec(
-        4, 2,
-        height_ratios=[0.9, 1.25, 4.6, 0.8],
-        hspace=0.35,
-        wspace=0.18,
-    )
+    fig = plt.figure(figsize=(18, 10.5), dpi=150, facecolor="white")
+    gs = fig.add_gridspec(4, 2, height_ratios=[0.85, 1.15, 4.8, 0.72], hspace=0.32, wspace=0.18)
 
-    ax_header = fig.add_subplot(gs[0, :])
-    ax_header.axis("off")
-    ax_header.text(
-        0.5, 0.72,
-        "GEN Control · Avance del Equipo",
-        ha="center", va="center",
-        fontsize=24, fontweight="bold",
-    )
-    ax_header.text(
-        0.5, 0.22,
-        f"Corte: {fecha_txt} · {corte_txt}",
-        ha="center", va="center",
-        fontsize=14,
-    )
+    ax_header = fig.add_subplot(gs[0, :]); ax_header.axis("off")
+    ax_header.text(0.5, 0.70, "GEN Control · Avance del Equipo", ha="center", va="center", fontsize=24, fontweight="bold")
+    ax_header.text(0.5, 0.20, f"Corte: {fecha_txt} · {corte_txt}", ha="center", va="center", fontsize=13)
 
-    ax_kpi = fig.add_subplot(gs[1, :])
-    ax_kpi.axis("off")
-
-    kpis = [
-        ("GESTIONES TOTALES", formato_entero(total_g), "📞"),
-        ("COMPROMISOS", formato_entero(total_c), "🤝"),
-        ("MONTO COMPROMETIDO", formato_usd(total_m), "💵"),
-        ("OPERADORES CON ACTIVIDAD", f"{activos} / {CANTIDAD_OPERADORES}", "👥"),
-    ]
-
-    for i, (titulo, valor, icono) in enumerate(kpis):
-        x0 = 0.015 + i * 0.245
-        card = FancyBboxPatch(
-            (x0, 0.08), 0.225, 0.82,
-            boxstyle="round,pad=0.012,rounding_size=0.025",
-            linewidth=1.0,
-            edgecolor="#D7DEE8",
-            facecolor="#FFFFFF",
-            transform=ax_kpi.transAxes,
-        )
+    ax_kpi = fig.add_subplot(gs[1, :]); ax_kpi.axis("off")
+    kpis = [("GESTIONES TOTALES", formato_entero(total_g)), ("COMPROMISOS", formato_entero(total_c)), ("OPERADORES CON ACTIVIDAD", f"{activos} / {CANTIDAD_OPERADORES}")]
+    card_w, gap = 0.295, 0.025
+    x_start = (1 - (3*card_w + 2*gap))/2
+    for i,(titulo,valor) in enumerate(kpis):
+        x0=x_start+i*(card_w+gap)
+        card=FancyBboxPatch((x0,0.10),card_w,0.78,boxstyle="round,pad=0.012,rounding_size=0.022",linewidth=1.0,edgecolor="#D7DEE8",facecolor="#FFFFFF",transform=ax_kpi.transAxes)
         ax_kpi.add_patch(card)
-        ax_kpi.text(
-            x0 + 0.03, 0.52, icono,
-            fontsize=26, va="center", ha="left",
-            transform=ax_kpi.transAxes,
-        )
-        ax_kpi.text(
-            x0 + 0.085, 0.66, titulo,
-            fontsize=10.5, fontweight="bold",
-            va="center", ha="left",
-            transform=ax_kpi.transAxes,
-        )
-        ax_kpi.text(
-            x0 + 0.085, 0.39, valor,
-            fontsize=18, fontweight="bold",
-            va="center", ha="left",
-            transform=ax_kpi.transAxes,
-        )
+        ax_kpi.text(x0+0.025,0.64,titulo,fontsize=10.5,fontweight="bold",va="center",ha="left",transform=ax_kpi.transAxes)
+        ax_kpi.text(x0+0.025,0.35,valor,fontsize=20,fontweight="bold",va="center",ha="left",transform=ax_kpi.transAxes)
 
-    ax1 = fig.add_subplot(gs[2, 0])
-    width = 0.25
-    b1 = ax1.bar(x - width, tabla["Contactado"], width, label="Contactado")
-    b2 = ax1.bar(x, tabla["Sin contacto"], width, label="Sin contacto")
-    b3 = ax1.bar(x + width, tabla["Total gestión"], width, label="Total gestión")
-    ax1.set_title("Total gestión por agente", fontsize=15, fontweight="bold", loc="left", pad=14)
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(nombres, rotation=0, fontsize=9)
-    ax1.grid(axis="y", alpha=0.22)
-    ax1.set_axisbelow(True)
-    for bars in (b1, b2, b3):
-        ax1.bar_label(bars, padding=3, fontsize=8.5)
-    ax1.legend(
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.11),
-        ncol=3,
-        frameon=False,
-        fontsize=9,
-    )
+    ax1=fig.add_subplot(gs[2,0]); width=.25
+    b1=ax1.bar(x-width,tabla["Contactado"],width,label="Contactado")
+    b2=ax1.bar(x,tabla["Sin contacto"],width,label="Sin contacto")
+    b3=ax1.bar(x+width,tabla["Total gestión"],width,label="Total gestión")
+    ax1.set_title("Total gestión por agente",fontsize=15,fontweight="bold",loc="left",pad=14)
+    ax1.set_xticks(x); ax1.set_xticklabels(nombres,fontsize=9); ax1.grid(axis="y",alpha=.20); ax1.set_axisbelow(True)
+    for bars in (b1,b2,b3): ax1.bar_label(bars,padding=3,fontsize=8.5)
+    ax1.legend(loc="upper center",bbox_to_anchor=(.5,-.10),ncol=3,frameon=False,fontsize=9)
 
-    ax2 = fig.add_subplot(gs[2, 1])
-    bw = 0.36
-    c1 = ax2.bar(x - bw/2, tabla["Compromisos"], bw, label="Compromisos de pago")
-    monto_miles = tabla["Monto comprometido"] / 1000.0
-    c2 = ax2.bar(x + bw/2, monto_miles, bw, label="Monto comprometido (miles USD)")
-    ax2.set_title("Compromiso de pago por agente", fontsize=15, fontweight="bold", loc="left", pad=14)
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(nombres, rotation=0, fontsize=9)
-    ax2.grid(axis="y", alpha=0.22)
-    ax2.set_axisbelow(True)
-    ax2.bar_label(c1, padding=3, fontsize=8.5)
-    ax2.bar_label(c2, padding=3, fontsize=8.5, fmt="%.2f")
-    ax2.legend(
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.11),
-        ncol=2,
-        frameon=False,
-        fontsize=9,
-    )
+    ax2=fig.add_subplot(gs[2,1])
+    c1=ax2.bar(x,tabla["Compromisos"],width=.52,label="Compromisos de pago")
+    ax2.set_title("Compromisos de pago por agente",fontsize=15,fontweight="bold",loc="left",pad=14)
+    ax2.set_xticks(x); ax2.set_xticklabels(nombres,fontsize=9); ax2.grid(axis="y",alpha=.20); ax2.set_axisbelow(True)
+    ax2.bar_label(c1,padding=3,fontsize=9)
+    ax2.legend(loc="upper center",bbox_to_anchor=(.5,-.10),ncol=1,frameon=False,fontsize=9)
 
-    ax_footer = fig.add_subplot(gs[3, :])
-    ax_footer.axis("off")
-    footer = FancyBboxPatch(
-        (0.015, 0.14), 0.97, 0.68,
-        boxstyle="round,pad=0.012,rounding_size=0.025",
-        linewidth=0,
-        facecolor="#EEF5FF",
-        transform=ax_footer.transAxes,
-    )
+    ax_footer=fig.add_subplot(gs[3,:]); ax_footer.axis("off")
+    footer=FancyBboxPatch((.015,.14),.97,.68,boxstyle="round,pad=0.012,rounding_size=0.025",linewidth=0,facecolor="#EEF5FF",transform=ax_footer.transAxes)
     ax_footer.add_patch(footer)
-    ax_footer.text(
-        0.035, 0.48,
-        "Recordatorio:",
-        fontsize=11.5,
-        fontweight="bold",
-        va="center",
-        ha="left",
-        transform=ax_footer.transAxes,
-    )
-    ax_footer.text(
-        0.145, 0.48,
-        "Mantengamos el ritmo de gestiones y la generación de compromisos para alcanzar las metas del día y del mes.",
-        fontsize=11.5,
-        va="center",
-        ha="left",
-        transform=ax_footer.transAxes,
-    )
+    ax_footer.text(.035,.48,"Recordatorio:",fontsize=11.5,fontweight="bold",va="center",ha="left",transform=ax_footer.transAxes)
+    ax_footer.text(.145,.48,"Mantengamos el ritmo de gestiones y la generación de compromisos para alcanzar las metas del día y del mes.",fontsize=11.5,va="center",ha="left",transform=ax_footer.transAxes)
 
-    fig.tight_layout(rect=[0.02, 0.02, 0.98, 0.98])
-
-    out = io.BytesIO()
-    fig.savefig(out, format="png", bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    out.seek(0)
+    fig.tight_layout(rect=[.02,.02,.98,.98])
+    out=io.BytesIO(); fig.savefig(out,format="png",bbox_inches="tight",facecolor="white"); plt.close(fig); out.seek(0)
     return out
-
 
 
 def generar_mensaje_resumen_gestiones_grupo(callcenter_df):
     tabla = preparar_resumen_gestiones_grupo(callcenter_df)
     if tabla.empty:
         return "📊 No hay datos del día disponibles para generar el resumen."
-
     total_g = int(tabla["Total gestión"].sum())
     total_c = int(tabla["Compromisos"].sum())
-    total_m = float(tabla["Monto comprometido"].sum())
-    activos = int((tabla["Total gestión"] > 0).sum())
-
-    corte = obtener_corte_callcenter(callcenter_df)
-    corte_txt = corte.strftime("%H:%M") if corte is not None else ahora_bolivia().strftime("%H:%M")
-
     return (
         f"📊 AVANCE DE GESTIONES Y COMPROMISOS | {fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
         f"📞 Gestiones del equipo: {formato_entero(total_g)}\n"
-        f"🤝 Compromisos: {formato_entero(total_c)}\n"
-        f"💵 Monto comprometido: {formato_usd(total_m)}\n\n"
+        f"🤝 Compromisos: {formato_entero(total_c)}\n\n"
         "Adjunto el detalle actualizado por operador.\n"
         "Sigamos avanzando con enfoque para cumplir las metas del día. 💪"
     )
-
 
 def generar_imagen_recuperacion_telegram(
     tabla_general,
@@ -10415,13 +10319,21 @@ elif menu == "✉️ Mensajes diarios":
             else:
                 st.success("Protección activa", icon="🔒")
 
+        # -------------------------------------------------
+        # V24 · FILTROS + ENVÍO MASIVO COMPACTO
+        # -------------------------------------------------
         with st.container(border=True):
             st.markdown(
-                "<div style='font-size:12px;font-weight:850;color:#172B4D;margin-bottom:2px;'>Filtros y selección</div>",
+                """
+                <div style="margin-bottom:4px;">
+                    <div style="font-size:13px;font-weight:850;color:#172B4D;">Filtros y selección</div>
+                    <div style="font-size:9px;color:#7A8EA5;">Busca, filtra y ordena sin ocupar espacio innecesario.</div>
+                </div>
+                """,
                 unsafe_allow_html=True,
             )
 
-            f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
+            f1, f2, f3, f4 = st.columns([2.0, 1.0, 1.1, 1.1])
 
             with f1:
                 buscar_operador = st.text_input(
@@ -10470,167 +10382,183 @@ elif menu == "✉️ Mensajes diarios":
                     key="orden_mensajes_v63",
                 )
 
-            with f5:
-                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        # Preparar destinatarios fuera del panel de filtros para evitar
+        # que los avisos y resultados estiren toda la tarjeta.
+        telegram_configurados_top = [
+            usuario
+            for usuario in resultado["Usuario"].tolist()
+            if normalizar_telegram_chat_id(
+                datos_contacto.get(usuario, {}).get("telegram_chat_id", "")
+            )
+        ]
 
-                telegram_configurados_top = [
-                    usuario
-                    for usuario in resultado["Usuario"].tolist()
-                    if normalizar_telegram_chat_id(
-                        datos_contacto.get(
-                            usuario, {}
-                        ).get("telegram_chat_id", "")
-                    )
-                ]
+        momento_envio_top = datetime.now(
+            ZoneInfo("America/La_Paz")
+        )
 
-                momento_envio_top = datetime.now(
-                    ZoneInfo("America/La_Paz")
+        telegram_en_turno_top = [
+            usuario
+            for usuario in telegram_configurados_top
+            if operador_en_turno(usuario, momento_envio_top)
+        ]
+
+        telegram_pendientes_top = [
+            usuario
+            for usuario in telegram_configurados_top
+            if operador_habilitado_para_envio(
+                usuario,
+                momento_envio_top,
+            )
+        ]
+
+        telegram_fuera_turno_top = [
+            usuario
+            for usuario in telegram_configurados_top
+            if not operador_en_turno(
+                usuario,
+                momento_envio_top,
+            )
+        ]
+
+        recientes_masivo, _ = resumen_frecuencia_seguimiento(
+            telegram_pendientes_top,
+            momento_envio_top,
+        )
+
+        info_envio_col, boton_envio_col = st.columns(
+            [4.2, 1.45],
+            vertical_alignment="center",
+        )
+
+        with info_envio_col:
+            aviso_reciente_v24 = (
+                f" · ⚠️ {len(recientes_masivo)} con seguimiento hace menos de 60 min"
+                if recientes_masivo
+                else ""
+            )
+            st.markdown(
+                f"""
+                <div style="
+                    border:1px solid #D9E7FB;
+                    background:linear-gradient(90deg,#F1F6FF,#F8FBFF);
+                    border-radius:12px;
+                    padding:10px 13px;
+                    min-height:42px;
+                ">
+                    <div style="font-size:12px;font-weight:850;color:#23466F;">
+                        👥 {len(telegram_pendientes_top)} operadores listos para seguimiento
+                    </div>
+                    <div style="font-size:9px;color:#71839A;margin-top:2px;">
+                        En turno: {len(telegram_en_turno_top)} ·
+                        Fuera de turno: {len(telegram_fuera_turno_top)}
+                        {aviso_reciente_v24}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with boton_envio_col:
+            enviar_masivo_v24 = st.button(
+                f"✈️ Enviar seleccionados ({len(telegram_pendientes_top)})",
+                use_container_width=True,
+                type="primary",
+                disabled=(
+                    len(telegram_pendientes_top) == 0
+                    or validacion_v86["bloquear_envio"]
+                ),
+                key="enviar_todos_top_v86",
+            )
+
+        if enviar_masivo_v24:
+            enviados_top = []
+            errores_top = []
+
+            for _, fila_envio in resultado.iterrows():
+                usuario_envio = fila_envio["Usuario"]
+
+                chat_id_envio = normalizar_telegram_chat_id(
+                    datos_contacto.get(
+                        usuario_envio, {}
+                    ).get("telegram_chat_id", "")
                 )
 
-                telegram_en_turno_top = [
-                    usuario
-                    for usuario in telegram_configurados_top
-                    if operador_en_turno(
-                        usuario,
-                        momento_envio_top,
-                    )
-                ]
+                if not chat_id_envio:
+                    continue
 
-                # V100: lista real usada por contador, botón y envío.
-                telegram_pendientes_top = [
-                    usuario
-                    for usuario in telegram_configurados_top
-                    if operador_habilitado_para_envio(
-                        usuario,
-                        momento_envio_top,
-                    )
-                ]
-
-                telegram_fuera_turno_top = [
-                    usuario
-                    for usuario in telegram_configurados_top
-                    if not operador_en_turno(
-                        usuario,
-                        momento_envio_top,
-                    )
-                ]
-
-                st.caption(
-                    f"En turno ahora: {len(telegram_en_turno_top)} · "
-                    f"Seleccionados para envío: {len(telegram_pendientes_top)} · "
-                    f"Fuera de turno: {len(telegram_fuera_turno_top)}"
-                )
-
-                recientes_masivo, _ = resumen_frecuencia_seguimiento(
-                    telegram_pendientes_top,
+                if not operador_habilitado_para_envio(
+                    usuario_envio,
                     momento_envio_top,
+                ):
+                    continue
+
+                calculo_envio = generar_mensaje_operador_actual(
+                    usuario_envio,
+                    jornadas_info,
                 )
 
-                if recientes_masivo:
-                    st.caption(
-                        f"⚠️ {len(recientes_masivo)} operador(es) recibieron un avance "
-                        "hace menos de 60 minutos. El botón sigue habilitado porque "
-                        "el seguimiento puede repetirse durante el turno."
+                if calculo_envio is None:
+                    errores_top.append(
+                        f"{fila_envio['Operador']}: sin datos actuales."
+                    )
+                    continue
+
+                ok_envio, detalle_envio = enviar_mensaje_telegram(
+                    chat_id_envio,
+                    calculo_envio["mensaje"],
+                )
+
+                if ok_envio:
+                    enviados_top.append(
+                        fila_envio["Operador"]
                     )
 
-                if st.button(
-                    f"✈️ Enviar seguimiento seleccionado ({len(telegram_pendientes_top)})",
-                    use_container_width=True,
-                    type="primary",
-                    disabled=(
-                        len(telegram_pendientes_top) == 0
-                        or validacion_v86["bloquear_envio"]
-                    ),
-                    key="enviar_todos_top_v86",
-                ):
-                    enviados_top = []
-                    errores_top = []
+                    registrar_envio_diario(
+                        usuario_envio,
+                        fila_envio["Operador"],
+                        canal="telegram",
+                        tipo="seguimiento",
+                        detalle=detalle_envio,
+                    )
 
-                    for _, fila_envio in resultado.iterrows():
-                        usuario_envio = fila_envio["Usuario"]
+                    enviar_copia_coordinador(
+                        fila_envio["Operador"],
+                        calculo_envio["mensaje"],
+                        detalle_envio,
+                    )
+                else:
+                    errores_top.append(
+                        f"{fila_envio['Operador']}: {detalle_envio}"
+                    )
 
-                        chat_id_envio = normalizar_telegram_chat_id(
-                            datos_contacto.get(
-                                usuario_envio, {}
-                            ).get("telegram_chat_id", "")
+            if enviados_top:
+                ok_aviso_grupo, detalle_aviso_grupo = (
+                    enviar_resumen_grupo_actualizado(
+                        st.session_state.callcenter_df
+                    )
+                )
+
+                r1, r2 = st.columns(2)
+                with r1:
+                    st.success(
+                        f"✅ {len(enviados_top)} mensajes individuales enviados."
+                    )
+                with r2:
+                    if ok_aviso_grupo:
+                        st.info(
+                            "📊 Resumen general actualizado enviado al grupo."
                         )
-
-                        if not chat_id_envio:
-                            continue
-
-                        if not operador_habilitado_para_envio(
-                            usuario_envio,
-                            momento_envio_top,
-                        ):
-                            continue
-
-                        # Puede recibir nuevamente mientras siga en turno.
-                        # Fuera de horario se bloquea por defecto, salvo habilitación excepcional.
-                        calculo_envio = generar_mensaje_operador_actual(
-                            usuario_envio,
-                            jornadas_info,
-                        )
-
-                        if calculo_envio is None:
-                            errores_top.append(
-                                f"{fila_envio['Operador']}: sin datos actuales."
-                            )
-                            continue
-
-                        ok_envio, detalle_envio = enviar_mensaje_telegram(
-                            chat_id_envio,
-                            calculo_envio["mensaje"],
-                        )
-
-                        if ok_envio:
-                            enviados_top.append(
-                                fila_envio["Operador"]
-                            )
-
-                            registrar_envio_diario(
-                                usuario_envio,
-                                fila_envio["Operador"],
-                                canal="telegram",
-                                tipo="seguimiento",
-                                detalle=detalle_envio,
-                            )
-
-                            enviar_copia_coordinador(
-                                fila_envio["Operador"],
-                                calculo_envio["mensaje"],
-                                detalle_envio,
-                            )
-                        else:
-                            errores_top.append(
-                                f"{fila_envio['Operador']}: {detalle_envio}"
-                            )
-
-                    if enviados_top:
-                        st.success(
-                            f"Se enviaron {len(enviados_top)} mensajes individuales."
-                        )
-
-                        ok_aviso_grupo, detalle_aviso_grupo = (
-                            enviar_resumen_grupo_actualizado(
-                                st.session_state.callcenter_df
-                            )
-                        )
-
-                        if ok_aviso_grupo:
-                            st.info(
-                                "📊 Resumen general actualizado enviado al grupo."
-                            )
-                        else:
-                            st.warning(
-                                "Los mensajes individuales se enviaron, pero el "
-                                f"resumen del grupo no pudo actualizarse: {detalle_aviso_grupo}"
-                            )
-
-                    if errores_top:
+                    else:
                         st.warning(
-                            "No se pudieron enviar:\n\n- "
-                            + "\n- ".join(errores_top)
+                            "Resumen grupal pendiente."
                         )
+
+            if errores_top:
+                with st.expander(
+                    f"⚠️ Ver {len(errores_top)} envío(s) con problema",
+                    expanded=False,
+                ):
+                    st.write("\n".join(f"• {e}" for e in errores_top))
 
         # -------------------------------------------------
         # FILTRAR Y ORDENAR
