@@ -11635,29 +11635,6 @@ elif menu == "💰 Bonos":
             "no debe enviarse como bono definitivo."
         )
 
-    b1, b2, b3, b4 = st.columns(4)
-    with b1:
-        st.metric(
-            "Puntaje final" if calidad_completa else "Puntaje parcial",
-            f"{puntaje_total*100:.2f}%",
-        )
-    with b2:
-        st.metric(
-            "Bono proyectado",
-            f"Bs {bono_bs}" if bono_bs is not None else "Pendiente Calidad",
-        )
-    with b3:
-        st.metric(
-            "Meta original productividad",
-            formato_entero(base["meta_productividad"]),
-        )
-    with b4:
-        st.metric(
-            "Meta definitiva productividad",
-            formato_entero(meta_prod_final),
-            f"{meta_prod_final - int(base['meta_productividad']):+d}",
-        )
-
 
     # -------------------------------------------------
     # DESCARGA EXCEL · RÉPLICA OPERATIVA DEL ARCHIVO
@@ -11819,7 +11796,60 @@ elif menu == "💰 Bonos":
             ws.freeze_panes = "A18"
 
             # Hoja de referencia general.
-            df_resumen_bonos.to_excel(
+            filas_resumen_excel = []
+
+            for usuario_x, datos_x in bonos_julio.items():
+                meta_prod_x = datos_x["meta_productividad"]
+
+                aportes_x = [
+                    cumplimiento_bono(
+                        datos_x["productividad"],
+                        meta_prod_x,
+                    ) * pesos_bono["Productividad"],
+                    cumplimiento_bono(
+                        datos_x["recuperacion"],
+                        metas_base["Recuperación"],
+                    ) * pesos_bono["Recuperación"],
+                    cumplimiento_bono(
+                        datos_x["promesas"],
+                        metas_base["Promesas"],
+                    ) * pesos_bono["Promesas"],
+                    cumplimiento_bono(
+                        datos_x["satisfaccion"],
+                        metas_base["Satisfacción"],
+                    ) * pesos_bono["Satisfacción"],
+                    cumplimiento_bono(
+                        datos_x["pecuf"],
+                        metas_base["PECUF"],
+                    ) * pesos_bono["PECUF"],
+                    cumplimiento_bono(
+                        datos_x["pecn"],
+                        metas_base["PECN"],
+                    ) * pesos_bono["PECN"],
+                ]
+
+                score_x = sum(aportes_x)
+
+                filas_resumen_excel.append(
+                    {
+                        "Operador": datos_x["nombre"],
+                        "Puntaje final %": score_x * 100,
+                        "Bono Bs": monto_bono(score_x),
+                        "Productividad": datos_x["productividad"],
+                        "Meta productividad": meta_prod_x,
+                        "Recuperación": datos_x["recuperacion"],
+                        "Promesas": datos_x["promesas"],
+                    }
+                )
+
+            df_resumen_excel = pd.DataFrame(
+                filas_resumen_excel
+            ).sort_values(
+                ["Bono Bs", "Puntaje final %"],
+                ascending=[False, False],
+            )
+
+            df_resumen_excel.to_excel(
                 writer,
                 sheet_name="RESUMEN",
                 index=False,
@@ -11833,6 +11863,17 @@ elif menu == "💰 Bonos":
                     wrap_text=True,
                 )
             ws2.freeze_panes = "A2"
+
+            # Puntaje final ya está expresado en 0–100.
+            for cell in ws2[1]:
+                if cell.value == "Puntaje final %":
+                    col_pct_res = cell.column
+                    for rr in range(2, ws2.max_row + 1):
+                        ws2.cell(
+                            rr,
+                            col_pct_res,
+                        ).number_format = '0.00"%"'
+
             for col_cells in ws2.columns:
                 letra = get_column_letter(col_cells[0].column)
                 largo = max(
@@ -11853,17 +11894,26 @@ elif menu == "💰 Bonos":
         "Meta válida y Resultado original → Ajuste → Resultado válido."
     )
 
-    st.download_button(
-        "📥 Descargar Excel de Bonos",
-        data=generar_excel_bono_v7(),
-        file_name=(
-            f"BONOS_{base['nombre'].replace(' ', '_')}_"
-            f"{fecha_local_actual().strftime('%Y_%m')}.xlsx"
-        ),
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-        key=f"descargar_excel_bono_v7_{usuario_bonus}",
-    )
+    try:
+        excel_bono_v9 = generar_excel_bono_v7()
+
+        st.download_button(
+            "📥 Descargar Excel de Bonos",
+            data=excel_bono_v9,
+            file_name=(
+                f"BONOS_{base['nombre'].replace(' ', '_')}_"
+                f"{fecha_local_actual().strftime('%Y_%m')}.xlsx"
+            ),
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            key=f"descargar_excel_bono_v9_{usuario_bonus}",
+        )
+
+    except Exception as error_excel_bono:
+        st.error(
+            "No se pudo preparar el Excel de Bonos. "
+            f"Detalle técnico: {error_excel_bono}"
+        )
 
     # -------------------------------------------------
     # 4. MENSAJE INDIVIDUAL DEL BONO
