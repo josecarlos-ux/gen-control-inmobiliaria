@@ -6505,6 +6505,7 @@ with st.sidebar:
             "✉️ Mensajes diarios",
             "📥 Cargar reportes",
             "🗂️ Histórico",
+            "💰 Bonos CC",
             "👥 Equipo",
             "⚙️ Configuración",
         ],
@@ -10791,6 +10792,602 @@ elif menu == "🗂️ Histórico":
 # =========================================================
 # EQUIPO
 # =========================================================
+
+
+# =========================================================
+# BONOS CC · PROTOTIPO DE PRUEBA
+# =========================================================
+elif menu == "💰 Bonos CC":
+
+    st.markdown(
+        """
+        <style>
+        .bonus-hero{
+            background:linear-gradient(120deg,#102A43,#1B5B76);
+            border-radius:18px;
+            padding:20px 22px;
+            margin-bottom:14px;
+            color:white;
+            box-shadow:0 14px 30px rgba(16,42,67,.12);
+        }
+        .bonus-hero h2{color:white!important;margin:0!important}
+        .bonus-sub{color:#C5D7E5;font-size:10px;margin-top:4px}
+        .bonus-card{
+            border:1px solid #E4EBF3;
+            border-radius:15px;
+            background:#fff;
+            padding:13px 14px;
+            box-shadow:0 7px 20px rgba(16,42,67,.035);
+        }
+        .bonus-small{
+            color:#71849A;font-size:9px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="bonus-hero">
+            <h2>💰 Bonos CC</h2>
+            <div class="bonus-sub">
+                Simulación mensual con metas ajustables, prorrateo y cálculo ponderado del bono.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.info(
+        "Modo prueba: se cargaron los valores de JULIO 2026 del archivo de Bonos CC "
+        "para validar la lógica antes de automatizarlo con los reportes de GEN Control."
+    )
+
+    # -------------------------------------------------
+    # Datos de prueba tomados del archivo BONOS CC JULIO 2026
+    # -------------------------------------------------
+    bonos_julio = {
+        "cvaca": {
+            "nombre": "Carla Vaca",
+            "productividad": 2474,
+            "recuperacion": 195048.67,
+            "promesas": 591,
+            "satisfaccion": 1.00,
+            "pecuf": 1.00,
+            "pecn": 1.00,
+            "meta_productividad": 2350,
+        },
+        "arodriguez": {
+            "nombre": "Alisson Rodriguez",
+            "productividad": 2239,
+            "recuperacion": 231251.10,
+            "promesas": 538,
+            "satisfaccion": 1.00,
+            "pecuf": 1.00,
+            "pecn": 1.00,
+            "meta_productividad": 2350,
+        },
+        "malvarez": {
+            "nombre": "Anahir Alvarez",
+            "productividad": 2404,
+            "recuperacion": 236393.93,
+            "promesas": 553,
+            "satisfaccion": 1.00,
+            "pecuf": 1.00,
+            "pecn": 0.80,
+            "meta_productividad": 2350,
+        },
+        "yrivas": {
+            "nombre": "Yessica Rivas",
+            "productividad": 1375,
+            "recuperacion": 265245.54,
+            "promesas": 478,
+            "satisfaccion": 1.00,
+            "pecuf": 0.95,
+            "pecn": 1.00,
+            "meta_productividad": 1375,
+        },
+        "yarinez": {
+            "nombre": "Yanine Ariñez",
+            "productividad": 2402,
+            "recuperacion": 202458.85,
+            "promesas": 561,
+            "satisfaccion": 1.00,
+            "pecuf": 1.00,
+            "pecn": 0.80,
+            "meta_productividad": 2350,
+        },
+        "projas": {
+            "nombre": "Percy Rojas",
+            "productividad": 2492,
+            "recuperacion": 183702.80,
+            "promesas": 553,
+            "satisfaccion": 1.00,
+            "pecuf": 1.00,
+            "pecn": 1.00,
+            "meta_productividad": 2350,
+        },
+        "jborja": {
+            "nombre": "James Borja",
+            "productividad": 2416,
+            "recuperacion": 237951.05,
+            "promesas": 555,
+            "satisfaccion": 1.00,
+            "pecuf": 1.00,
+            "pecn": 1.00,
+            "meta_productividad": 2350,
+        },
+        "avargas": {
+            "nombre": "Aracely Peña",
+            "productividad": 2405,
+            "recuperacion": 243309.74,
+            "promesas": 615,
+            "satisfaccion": 1.00,
+            "pecuf": 1.00,
+            "pecn": 0.80,
+            "meta_productividad": 2350,
+        },
+    }
+
+    pesos_bono = {
+        "Productividad": 0.20,
+        "Recuperación": 0.30,
+        "Promesas": 0.20,
+        "Satisfacción": 0.10,
+        "PECUF": 0.10,
+        "PECN": 0.10,
+    }
+
+    metas_base = {
+        "Recuperación": 170400.0,
+        "Promesas": 550.0,
+        "Satisfacción": 0.80,
+        "PECUF": 0.95,
+        "PECN": 0.90,
+    }
+
+    def cumplimiento_bono(alcance, objetivo):
+        if objetivo is None or objetivo <= 0:
+            return 0.0
+        return min(max(float(alcance) / float(objetivo), 0.0), 1.0)
+
+    def monto_bono(puntaje):
+        if puntaje >= 0.95:
+            return 350
+        if puntaje >= 0.90:
+            return 200
+        if puntaje >= 0.85:
+            return 100
+        return 0
+
+    # -------------------------------------------------
+    # Parámetros de prueba
+    # -------------------------------------------------
+    cperiodo, cmodo = st.columns([1.5, 1])
+
+    with cperiodo:
+        st.selectbox(
+            "Periodo",
+            ["Julio 2026 · prueba con archivo real"],
+            key="bonos_periodo_prueba",
+        )
+
+    with cmodo:
+        st.selectbox(
+            "Modo de metas",
+            ["Meta individual ajustable", "Solo meta estándar"],
+            key="bonos_modo_meta",
+        )
+
+    st.markdown("### Configuración general del bono")
+
+    cg1, cg2, cg3 = st.columns(3)
+    with cg1:
+        meta_prod_estandar = st.number_input(
+            "Meta estándar · Productividad",
+            min_value=0,
+            value=2350,
+            step=50,
+            key="bono_meta_prod_estandar",
+        )
+    with cg2:
+        meta_rec_estandar = st.number_input(
+            "Meta estándar · Recuperación (USD)",
+            min_value=0.0,
+            value=170400.0,
+            step=1000.0,
+            key="bono_meta_rec_estandar",
+        )
+    with cg3:
+        meta_prom_estandar = st.number_input(
+            "Meta estándar · Promesas",
+            min_value=0,
+            value=550,
+            step=10,
+            key="bono_meta_prom_estandar",
+        )
+
+    st.caption(
+        "Pesos del archivo: Productividad 20% · Recuperación 30% · Promesas 20% · "
+        "Satisfacción 10% · PECUF 10% · PECN 10%."
+    )
+
+    st.divider()
+
+    usuario_bonus = st.selectbox(
+        "Operador para simular",
+        list(bonos_julio.keys()),
+        format_func=lambda u: bonos_julio[u]["nombre"],
+        key="bono_operador_prueba",
+    )
+
+    base = bonos_julio[usuario_bonus]
+
+    st.markdown(f"### {base['nombre']}")
+
+    # -------------------------------------------------
+    # Ajuste/prorrateo
+    # -------------------------------------------------
+    st.markdown("#### 1. Meta válida para el bono")
+
+    p1, p2, p3, p4 = st.columns(4)
+
+    with p1:
+        horas_planificadas = st.number_input(
+            "Horas planificadas del mes",
+            min_value=1.0,
+            value=168.0,
+            step=1.0,
+            key=f"bono_horas_plan_{usuario_bonus}",
+        )
+
+    with p2:
+        horas_fuera_cobranza = st.number_input(
+            "Horas fuera de Cobranzas",
+            min_value=0.0,
+            value=0.0,
+            step=1.0,
+            key=f"bono_horas_fuera_{usuario_bonus}",
+            help="Ej.: apoyo en Atención al Cliente, capacitación u otra función autorizada.",
+        )
+
+    disponibilidad = max(
+        min(
+            (horas_planificadas - horas_fuera_cobranza)
+            / horas_planificadas,
+            1.0,
+        ),
+        0.0,
+    )
+
+    meta_prod_prorrateada = round(
+        meta_prod_estandar * disponibilidad
+    )
+    meta_rec_prorrateada = round(
+        meta_rec_estandar * disponibilidad,
+        2,
+    )
+    meta_prom_prorrateada = round(
+        meta_prom_estandar * disponibilidad
+    )
+
+    with p3:
+        aplicar_prorrateo = st.toggle(
+            "Aplicar prorrateo automático",
+            value=False,
+            key=f"bono_prorrateo_{usuario_bonus}",
+        )
+
+    with p4:
+        st.metric(
+            "Disponibilidad en Cobranzas",
+            f"{disponibilidad*100:.1f}%",
+        )
+
+    motivo = st.text_input(
+        "Motivo del ajuste",
+        value="",
+        placeholder="Ej.: apoyo en Atención al Cliente · 2 jornadas",
+        key=f"bono_motivo_{usuario_bonus}",
+    )
+
+    ma1, ma2, ma3 = st.columns(3)
+
+    meta_prod_default = (
+        meta_prod_prorrateada
+        if aplicar_prorrateo
+        else int(base["meta_productividad"])
+    )
+    meta_rec_default = (
+        meta_rec_prorrateada
+        if aplicar_prorrateo
+        else meta_rec_estandar
+    )
+    meta_prom_default = (
+        meta_prom_prorrateada
+        if aplicar_prorrateo
+        else meta_prom_estandar
+    )
+
+    with ma1:
+        meta_prod_final = st.number_input(
+            "Meta definitiva · Productividad",
+            min_value=0,
+            value=int(meta_prod_default),
+            step=1,
+            key=f"bono_meta_prod_final_{usuario_bonus}_{int(aplicar_prorrateo)}",
+        )
+
+    with ma2:
+        meta_rec_final = st.number_input(
+            "Meta definitiva · Recuperación",
+            min_value=0.0,
+            value=float(meta_rec_default),
+            step=100.0,
+            key=f"bono_meta_rec_final_{usuario_bonus}_{int(aplicar_prorrateo)}",
+        )
+
+    with ma3:
+        meta_prom_final = st.number_input(
+            "Meta definitiva · Promesas",
+            min_value=0,
+            value=int(meta_prom_default),
+            step=1,
+            key=f"bono_meta_prom_final_{usuario_bonus}_{int(aplicar_prorrateo)}",
+        )
+
+    # -------------------------------------------------
+    # Resultados / manuales
+    # -------------------------------------------------
+    st.markdown("#### 2. Resultados del mes")
+
+    r1, r2, r3 = st.columns(3)
+    with r1:
+        alcance_prod = st.number_input(
+            "Alcance · Productividad",
+            min_value=0,
+            value=int(base["productividad"]),
+            step=1,
+            key=f"bono_alc_prod_{usuario_bonus}",
+        )
+    with r2:
+        alcance_rec = st.number_input(
+            "Alcance · Recuperación",
+            min_value=0.0,
+            value=float(base["recuperacion"]),
+            step=100.0,
+            key=f"bono_alc_rec_{usuario_bonus}",
+        )
+    with r3:
+        alcance_prom = st.number_input(
+            "Alcance · Promesas",
+            min_value=0,
+            value=int(base["promesas"]),
+            step=1,
+            key=f"bono_alc_prom_{usuario_bonus}",
+        )
+
+    st.caption(
+        "En la versión definitiva, Productividad, Recuperación y Promesas podrán "
+        "venir automáticamente de los reportes cargados en GEN Control."
+    )
+
+    q1, q2, q3 = st.columns(3)
+    with q1:
+        satisf = st.number_input(
+            "Satisfacción",
+            min_value=0.0,
+            max_value=1.0,
+            value=float(base["satisfaccion"]),
+            step=0.01,
+            format="%.2f",
+            key=f"bono_sat_{usuario_bonus}",
+        )
+    with q2:
+        pecuf = st.number_input(
+            "PECUF",
+            min_value=0.0,
+            max_value=1.0,
+            value=float(base["pecuf"]),
+            step=0.01,
+            format="%.2f",
+            key=f"bono_pecuf_{usuario_bonus}",
+        )
+    with q3:
+        pecn = st.number_input(
+            "PECN",
+            min_value=0.0,
+            max_value=1.0,
+            value=float(base["pecn"]),
+            step=0.01,
+            format="%.2f",
+            key=f"bono_pecn_{usuario_bonus}",
+        )
+
+    indicadores = [
+        ("Productividad", alcance_prod, meta_prod_final),
+        ("Recuperación", alcance_rec, meta_rec_final),
+        ("Promesas", alcance_prom, meta_prom_final),
+        ("Satisfacción", satisf, metas_base["Satisfacción"]),
+        ("PECUF", pecuf, metas_base["PECUF"]),
+        ("PECN", pecn, metas_base["PECN"]),
+    ]
+
+    detalle_bono = []
+    puntaje_total = 0.0
+
+    for indicador, alcance, meta in indicadores:
+        cumplimiento = cumplimiento_bono(
+            alcance,
+            meta,
+        )
+        peso = pesos_bono[indicador]
+        aporte = cumplimiento * peso
+        puntaje_total += aporte
+
+        detalle_bono.append(
+            {
+                "Indicador": indicador,
+                "Meta válida": meta,
+                "Alcance": alcance,
+                "Cumplimiento": cumplimiento,
+                "Peso": peso,
+                "Aporte": aporte,
+            }
+        )
+
+    bono_bs = monto_bono(puntaje_total)
+
+    st.markdown("#### 3. Resultado proyectado")
+
+    b1, b2, b3, b4 = st.columns(4)
+    with b1:
+        st.metric(
+            "Puntaje final",
+            f"{puntaje_total*100:.2f}%",
+        )
+    with b2:
+        st.metric(
+            "Bono proyectado",
+            f"Bs {bono_bs}",
+        )
+    with b3:
+        st.metric(
+            "Meta original productividad",
+            formato_entero(base["meta_productividad"]),
+        )
+    with b4:
+        st.metric(
+            "Meta definitiva productividad",
+            formato_entero(meta_prod_final),
+            f"{meta_prod_final - int(base['meta_productividad']):+d}",
+        )
+
+    df_detalle_bono = pd.DataFrame(
+        detalle_bono
+    )
+
+    st.dataframe(
+        df_detalle_bono,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Meta válida": st.column_config.NumberColumn(
+                "Meta válida",
+                format="%.2f",
+            ),
+            "Alcance": st.column_config.NumberColumn(
+                "Alcance",
+                format="%.2f",
+            ),
+            "Cumplimiento": st.column_config.ProgressColumn(
+                "Cumplimiento",
+                min_value=0,
+                max_value=1,
+                format="%.1f%%",
+            ),
+            "Peso": st.column_config.NumberColumn(
+                "Peso",
+                format="%.0f%%",
+            ),
+            "Aporte": st.column_config.NumberColumn(
+                "Aporte al puntaje",
+                format="%.2f%%",
+            ),
+        },
+    )
+
+    if aplicar_prorrateo:
+        st.success(
+            f"Prorrateo aplicado: {disponibilidad*100:.1f}% de disponibilidad efectiva "
+            f"en Cobranzas. Productividad pasa de {formato_entero(meta_prod_estandar)} "
+            f"a {formato_entero(meta_prod_final)}."
+        )
+
+    if motivo.strip():
+        st.caption(
+            f"📝 Motivo registrado para la simulación: {motivo.strip()}"
+        )
+
+    st.divider()
+    st.markdown("### Vista general · Julio 2026")
+
+    filas_resumen = []
+
+    for usuario_r, datos_r in bonos_julio.items():
+        mprod_r = datos_r["meta_productividad"]
+        comps_r = [
+            cumplimiento_bono(
+                datos_r["productividad"],
+                mprod_r,
+            ) * pesos_bono["Productividad"],
+            cumplimiento_bono(
+                datos_r["recuperacion"],
+                metas_base["Recuperación"],
+            ) * pesos_bono["Recuperación"],
+            cumplimiento_bono(
+                datos_r["promesas"],
+                metas_base["Promesas"],
+            ) * pesos_bono["Promesas"],
+            cumplimiento_bono(
+                datos_r["satisfaccion"],
+                metas_base["Satisfacción"],
+            ) * pesos_bono["Satisfacción"],
+            cumplimiento_bono(
+                datos_r["pecuf"],
+                metas_base["PECUF"],
+            ) * pesos_bono["PECUF"],
+            cumplimiento_bono(
+                datos_r["pecn"],
+                metas_base["PECN"],
+            ) * pesos_bono["PECN"],
+        ]
+        score_r = sum(comps_r)
+        filas_resumen.append(
+            {
+                "Operador": datos_r["nombre"],
+                "Puntaje": score_r,
+                "Bono Bs": monto_bono(score_r),
+                "Productividad": datos_r["productividad"],
+                "Meta productividad": mprod_r,
+                "Recuperación": datos_r["recuperacion"],
+                "Promesas": datos_r["promesas"],
+            }
+        )
+
+    df_resumen_bonos = pd.DataFrame(
+        filas_resumen
+    ).sort_values(
+        ["Bono Bs", "Puntaje"],
+        ascending=[False, False],
+    )
+
+    st.dataframe(
+        df_resumen_bonos,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Puntaje": st.column_config.ProgressColumn(
+                "Puntaje final",
+                min_value=0,
+                max_value=1,
+                format="%.2f%%",
+            ),
+            "Bono Bs": st.column_config.NumberColumn(
+                "Bono Bs",
+                format="Bs %d",
+            ),
+            "Recuperación": st.column_config.NumberColumn(
+                "Recuperación",
+                format="USD %.2f",
+            ),
+        },
+    )
+
+    st.caption(
+        "Esta es una prueba funcional. Todavía no guarda ajustes ni bonos en Supabase."
+    )
 
 elif menu == "👥 Equipo":
 
