@@ -2983,6 +2983,180 @@ def _fuente_reporte(size, bold=False):
             return ImageFont.load_default()
 
 
+
+def preparar_resumen_gestiones_grupo(callcenter_df):
+    """
+    Resume el CallCenter del día por los 8 operadores:
+    Contactado, Sin contacto, Total gestión, Compromisos y Monto comprometido.
+    """
+    if callcenter_df is None or callcenter_df.empty:
+        return pd.DataFrame()
+
+    df = callcenter_df.copy()
+    col_fecha = buscar_columna(df, ["fecha"])
+    col_usuario = buscar_columna(df, ["usuario"])
+    col_contacto = buscar_columna(df, ["contacto"])
+    col_compromiso = buscar_columna(df, ["compromiso"])
+    col_monto = buscar_columna(df, ["monto($us)", "monto", "monto us", "monto($)"])
+
+    if col_fecha is None or col_usuario is None:
+        return pd.DataFrame()
+
+    df["_fecha_dt"] = pd.to_datetime(df[col_fecha], dayfirst=True, errors="coerce")
+    df = df.dropna(subset=["_fecha_dt"]).copy()
+
+    hoy = fecha_local_actual()
+    df = df[df["_fecha_dt"].dt.date == hoy].copy()
+
+    df["_usuario_norm"] = df[col_usuario].astype(str).apply(normalizar_texto)
+    df = df[df["_usuario_norm"].isin(OPERADORES.keys())].copy()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    if col_contacto:
+        contacto = df[col_contacto].fillna("").astype(str).str.strip().str.lower()
+        # Se consideran contacto los registros que no estén vacíos ni marcados explícitamente como no contacto.
+        no_contacto_tokens = (
+            contacto.eq("")
+            | contacto.eq("nan")
+            | contacto.str.contains("sin contacto", regex=False)
+            | contacto.str.contains("no contact", regex=False)
+            | contacto.str.contains("no contesta", regex=False)
+        )
+        df["_contactado"] = ~no_contacto_tokens
+    else:
+        df["_contactado"] = False
+
+    df["_sin_contacto"] = ~df["_contactado"]
+
+    if col_compromiso:
+        compromiso = df[col_compromiso].fillna("").astype(str).str.strip()
+        df["_compromiso"] = (
+            compromiso.ne("")
+            & compromiso.str.lower().ne("nan")
+        )
+    else:
+        df["_compromiso"] = False
+
+    if col_monto:
+        monto_txt = (
+            df[col_monto]
+            .fillna(0)
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.replace("$", "", regex=False)
+            .str.replace("us", "", regex=False)
+            .str.strip()
+        )
+        df["_monto"] = pd.to_numeric(monto_txt, errors="coerce").fillna(0.0)
+    else:
+        df["_monto"] = 0.0
+
+    filas = []
+    for usuario, datos in OPERADORES.items():
+        op = df[df["_usuario_norm"] == usuario]
+        filas.append({
+            "Usuario": usuario,
+            "Operador": datos.get("nombre_mensaje", datos.get("nombre", usuario)),
+            "Contactado": int(op["_contactado"].sum()) if not op.empty else 0,
+            "Sin contacto": int(op["_sin_contacto"].sum()) if not op.empty else 0,
+            "Total gestión": int(len(op)),
+            "Compromisos": int(op["_compromiso"].sum()) if not op.empty else 0,
+            "Monto comprometido": float(op.loc[op["_compromiso"], "_monto"].sum()) if not op.empty else 0.0,
+        })
+
+    return pd.DataFrame(filas)
+
+
+def generar_imagen_resumen_gestiones_grupo(callcenter_df):
+    """
+    Imagen horizontal inspirada en el reporte anterior:
+    izquierda gestiones por agente; derecha compromisos por agente.
+    """
+    import io
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    tabla = preparar_resumen_gestiones_grupo(callcenter_df)
+    if tabla.empty:
+        raise ValueError("No hay datos del día para generar el resumen.")
+
+    nombres = tabla["Operador"].astype(str).tolist()
+    x = np.arange(len(nombres))
+    width = 0.25
+
+    fig, axes = plt.subplots(1, 2, figsize=(18, 7), dpi=150)
+
+    # Gestiones
+    ax = axes[0]
+    b1 = ax.bar(x - width, tabla["Contactado"], width, label="Contactado")
+    b2 = ax.bar(x, tabla["Sin contacto"], width, label="Sin contacto")
+    b3 = ax.bar(x + width, tabla["Total gestión"], width, label="Total gestión")
+    ax.set_title("Total gestión por agente", fontsize=14, fontweight="bold")
+    ax.set_xticks(x)
+    ax.set_xticklabels(nombres, rotation=35, ha="right", fontsize=9)
+    ax.grid(axis="y", alpha=0.22)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=3, frameon=False)
+    for bars in (b1, b2, b3):
+        ax.bar_label(bars, padding=2, fontsize=8)
+
+    # Compromisos
+    ax2 = axes[1]
+    bw = 0.34
+    c1 = ax2.bar(x - bw/2, tabla["Compromisos"], bw, label="Compromisos de pago")
+    # El monto se expresa en miles para mantener la escala legible, igual a la referencia.
+    monto_miles = tabla["Monto comprometido"] / 1000.0
+    c2 = ax2.bar(x + bw/2, monto_miles, bw, label="Monto comprometido (miles $us)")
+    ax2.set_title("Compromiso de pago por agente", fontsize=14, fontweight="bold")
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(nombres, rotation=35, ha="right", fontsize=9)
+    ax2.grid(axis="y", alpha=0.22)
+    ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
+    ax2.bar_label(c1, padding=2, fontsize=8)
+    ax2.bar_label(c2, padding=2, fontsize=8, fmt="%.1f")
+
+    corte = obtener_corte_callcenter(callcenter_df)
+    corte_txt = corte.strftime("%H:%M") if corte is not None else ahora_bolivia().strftime("%H:%M")
+    fig.suptitle(
+        f"GEN Control · Resumen del equipo · {fecha_local_actual().strftime('%d/%m/%Y')} · corte {corte_txt}",
+        fontsize=16,
+        fontweight="bold",
+        y=0.99,
+    )
+    fig.tight_layout(rect=[0, 0.06, 1, 0.95])
+
+    out = io.BytesIO()
+    fig.savefig(out, format="png", bbox_inches="tight")
+    plt.close(fig)
+    out.seek(0)
+    return out
+
+
+def generar_mensaje_resumen_gestiones_grupo(callcenter_df):
+    tabla = preparar_resumen_gestiones_grupo(callcenter_df)
+    if tabla.empty:
+        return "📊 No hay datos del día disponibles para generar el resumen."
+
+    total_g = int(tabla["Total gestión"].sum())
+    total_c = int(tabla["Compromisos"].sum())
+    total_m = float(tabla["Monto comprometido"].sum())
+    activos = int((tabla["Total gestión"] > 0).sum())
+
+    corte = obtener_corte_callcenter(callcenter_df)
+    corte_txt = corte.strftime("%H:%M") if corte is not None else ahora_bolivia().strftime("%H:%M")
+
+    return (
+        f"📊 RESUMEN DE AVANCE DEL EQUIPO · {corte_txt}\n\n"
+        f"📞 Gestiones: {formato_entero(total_g)}\n"
+        f"🤝 Compromisos: {formato_entero(total_c)}\n"
+        f"💵 Monto comprometido: {formato_usd(total_m)}\n"
+        f"👥 Operadores con actividad: {activos}/{CANTIDAD_OPERADORES}\n\n"
+        "Adjunto el detalle visual por operador.\n"
+        "Mantengamos el ritmo para continuar avanzando con las metas del día. 💪"
+    )
+
+
 def generar_imagen_recuperacion_telegram(
     tabla_general,
     meta_individual,
@@ -8846,6 +9020,93 @@ elif menu == "✉️ Mensajes diarios":
         )
 
         with st.expander("📣 Grupo y recuperación", expanded=False):
+            # -------------------------------------------------
+            # V12 · RESUMEN GRUPAL DE GESTIONES Y COMPROMISOS
+            # -------------------------------------------------
+            st.markdown(
+                '<span class="section-chip">RESUMEN OPERATIVO DEL EQUIPO</span>',
+                unsafe_allow_html=True,
+            )
+            st.markdown("### Gestiones y compromisos")
+            st.caption(
+                "Resumen visual del corte actual para enviar al grupo, separado del seguimiento individual."
+            )
+
+            call_resumen_v12 = st.session_state.get("callcenter_df")
+            tabla_resumen_v12 = preparar_resumen_gestiones_grupo(call_resumen_v12)
+
+            if tabla_resumen_v12.empty:
+                st.info("Carga el GEN CallCenter del día para generar el resumen grupal.")
+            else:
+                total_g_v12 = int(tabla_resumen_v12["Total gestión"].sum())
+                total_c_v12 = int(tabla_resumen_v12["Compromisos"].sum())
+                total_m_v12 = float(tabla_resumen_v12["Monto comprometido"].sum())
+
+                rg1, rg2, rg3 = st.columns(3)
+                rg1.metric("Gestiones del equipo", formato_entero(total_g_v12))
+                rg2.metric("Compromisos", formato_entero(total_c_v12))
+                rg3.metric("Monto comprometido", formato_usd(total_m_v12))
+
+                mensaje_resumen_v12 = generar_mensaje_resumen_gestiones_grupo(call_resumen_v12)
+
+                try:
+                    imagen_resumen_v12 = generar_imagen_resumen_gestiones_grupo(call_resumen_v12)
+                    st.image(imagen_resumen_v12, use_container_width=True)
+
+                    with st.expander("👁️ Ver mensaje que acompañará la imagen", expanded=False):
+                        st.text_area(
+                            "Mensaje resumen",
+                            value=mensaje_resumen_v12,
+                            height=180,
+                            disabled=True,
+                            label_visibility="collapsed",
+                            key="preview_resumen_gestiones_grupo_v12",
+                        )
+
+                    rb1, rb2 = st.columns(2)
+                    with rb1:
+                        st.download_button(
+                            "🖼️ Descargar resumen",
+                            data=imagen_resumen_v12.getvalue(),
+                            file_name=f"resumen_gestiones_compromisos_{fecha_local_actual().isoformat()}.png",
+                            mime="image/png",
+                            use_container_width=True,
+                            key="descargar_resumen_gestiones_v12",
+                        )
+                    with rb2:
+                        chat_grupo_v12 = obtener_telegram_group_chat_id()
+                        if st.button(
+                            "📊 Enviar resumen grupal",
+                            type="primary",
+                            use_container_width=True,
+                            disabled=not bool(chat_grupo_v12),
+                            key="enviar_resumen_gestiones_compromisos_v12",
+                        ):
+                            ok_txt_v12, det_txt_v12 = enviar_mensaje_telegram(
+                                chat_grupo_v12,
+                                mensaje_resumen_v12,
+                            )
+                            if ok_txt_v12:
+                                ok_img_v12, det_img_v12 = enviar_foto_telegram(
+                                    chat_grupo_v12,
+                                    imagen_resumen_v12,
+                                    "📊 Gestiones y compromisos por operador",
+                                )
+                                if ok_img_v12:
+                                    st.success("Resumen de gestiones y compromisos enviado al grupo.")
+                                else:
+                                    st.error(f"El texto se envió, pero la imagen falló: {det_img_v12}")
+                            else:
+                                st.error(f"No se pudo enviar el resumen: {det_txt_v12}")
+
+                    if not obtener_telegram_group_chat_id():
+                        st.info("Configura TELEGRAM_GROUP_CHAT_ID para habilitar el envío al grupo.")
+
+                except Exception as e:
+                    st.error(f"No se pudo generar el resumen visual: {e}")
+
+            st.divider()
+
             # -------------------------------------------------
             # AVANCE GENERAL DE RECUPERACIÓN
             # -------------------------------------------------
