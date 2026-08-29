@@ -1155,6 +1155,15 @@ def generar_mensaje_operador_actual(
     if fila_actual is None:
         return None
 
+    # Primero se genera el mensaje con los datos actuales del operador.
+    mensaje = generar_mensaje_diario(
+        fila_actual,
+        jornadas_info,
+    )
+
+    if not mensaje:
+        return mensaje
+
     # Enlace humano de contacto directo con coordinación.
     # Se agrega solo al seguimiento privado del operador.
     mensaje = (
@@ -1163,10 +1172,7 @@ def generar_mensaje_operador_actual(
         + "[Escríbeme directamente](https://t.me/josecarlos_27)"
     )
 
-    return generar_mensaje_diario(
-        fila_actual,
-        jornadas_info,
-    )
+    return mensaje
 
 
 def generar_mensaje_diario(fila, jornadas_info):
