@@ -6505,7 +6505,7 @@ with st.sidebar:
             "✉️ Mensajes diarios",
             "📥 Cargar reportes",
             "🗂️ Histórico",
-            "💰 Bonos CC",
+            "💰 Bonos",
             "👥 Equipo",
             "⚙️ Configuración",
         ],
@@ -10795,9 +10795,9 @@ elif menu == "🗂️ Histórico":
 
 
 # =========================================================
-# BONOS CC · PROTOTIPO DE PRUEBA
+# BONOS · PROTOTIPO DE PRUEBA
 # =========================================================
-elif menu == "💰 Bonos CC":
+elif menu == "💰 Bonos":
 
     st.markdown(
         """
@@ -10830,7 +10830,7 @@ elif menu == "💰 Bonos CC":
     st.markdown(
         """
         <div class="bonus-hero">
-            <h2>💰 Bonos CC</h2>
+            <h2>💰 Bonos</h2>
             <div class="bonus-sub">
                 Simulación mensual con metas ajustables, prorrateo y cálculo ponderado del bono.
             </div>
@@ -10840,7 +10840,7 @@ elif menu == "💰 Bonos CC":
     )
 
     st.info(
-        "Modo prueba: se cargaron los valores de JULIO 2026 del archivo de Bonos CC "
+        "Modo prueba: se cargaron los valores de JULIO 2026 del archivo de Bonos "
         "para validar la lógica antes de automatizarlo con los reportes de GEN Control."
     )
 
@@ -11268,8 +11268,28 @@ elif menu == "💰 Bonos CC":
         detalle_bono
     )
 
+    # Columnas visuales en porcentaje real (0–100).
+    df_detalle_bono["Cumplimiento %"] = (
+        df_detalle_bono["Cumplimiento"] * 100
+    )
+    df_detalle_bono["Peso %"] = (
+        df_detalle_bono["Peso"] * 100
+    )
+    df_detalle_bono["Aporte %"] = (
+        df_detalle_bono["Aporte"] * 100
+    )
+
     st.dataframe(
-        df_detalle_bono,
+        df_detalle_bono[
+            [
+                "Indicador",
+                "Meta válida",
+                "Alcance",
+                "Cumplimiento %",
+                "Peso %",
+                "Aporte %",
+            ]
+        ],
         use_container_width=True,
         hide_index=True,
         column_config={
@@ -11281,17 +11301,17 @@ elif menu == "💰 Bonos CC":
                 "Alcance",
                 format="%.2f",
             ),
-            "Cumplimiento": st.column_config.ProgressColumn(
+            "Cumplimiento %": st.column_config.ProgressColumn(
                 "Cumplimiento",
                 min_value=0,
-                max_value=1,
+                max_value=100,
                 format="%.1f%%",
             ),
-            "Peso": st.column_config.NumberColumn(
+            "Peso %": st.column_config.NumberColumn(
                 "Peso",
                 format="%.0f%%",
             ),
-            "Aporte": st.column_config.NumberColumn(
+            "Aporte %": st.column_config.NumberColumn(
                 "Aporte al puntaje",
                 format="%.2f%%",
             ),
@@ -11358,20 +11378,34 @@ elif menu == "💰 Bonos CC":
 
     df_resumen_bonos = pd.DataFrame(
         filas_resumen
-    ).sort_values(
+    )
+    df_resumen_bonos["Puntaje final %"] = (
+        df_resumen_bonos["Puntaje"] * 100
+    )
+    df_resumen_bonos = df_resumen_bonos.sort_values(
         ["Bono Bs", "Puntaje"],
         ascending=[False, False],
     )
 
     st.dataframe(
-        df_resumen_bonos,
+        df_resumen_bonos[
+            [
+                "Operador",
+                "Puntaje final %",
+                "Bono Bs",
+                "Productividad",
+                "Meta productividad",
+                "Recuperación",
+                "Promesas",
+            ]
+        ],
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Puntaje": st.column_config.ProgressColumn(
+            "Puntaje final %": st.column_config.ProgressColumn(
                 "Puntaje final",
                 min_value=0,
-                max_value=1,
+                max_value=100,
                 format="%.2f%%",
             ),
             "Bono Bs": st.column_config.NumberColumn(
