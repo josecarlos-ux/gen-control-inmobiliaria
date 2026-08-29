@@ -1155,24 +1155,39 @@ def generar_mensaje_operador_actual(
     if fila_actual is None:
         return None
 
-    # Primero se genera el mensaje con los datos actuales del operador.
-    mensaje = generar_mensaje_diario(
+    # generar_mensaje_diario devuelve un diccionario con el texto y
+    # los datos auxiliares usados por las tarjetas/controles.
+    resultado = generar_mensaje_diario(
         fila_actual,
         jornadas_info,
     )
 
-    if not mensaje:
-        return mensaje
+    if not resultado:
+        return resultado
 
-    # Enlace humano de contacto directo con coordinación.
-    # Se agrega solo al seguimiento privado del operador.
-    mensaje = (
-        mensaje.rstrip()
-        + "\n\n💬 ¿Necesitas comentarme algo? "
-        + "[Escríbeme directamente](https://t.me/josecarlos_27)"
-    )
+    # Mantener intacta la estructura esperada por el resto de la app.
+    if isinstance(resultado, dict):
+        texto = str(resultado.get("mensaje", "") or "")
+        if texto:
+            resultado["mensaje"] = (
+                texto.rstrip()
+                + "\n\n💬 ¿Necesitas comentarme algo? "
+                + "[Escríbeme directamente](https://t.me/josecarlos_27)"
+            )
+        return resultado
 
-    return mensaje
+    # Fallback defensivo por compatibilidad con versiones antiguas.
+    texto = str(resultado or "")
+    if not texto:
+        return resultado
+
+    return {
+        "mensaje": (
+            texto.rstrip()
+            + "\n\n💬 ¿Necesitas comentarme algo? "
+            + "[Escríbeme directamente](https://t.me/josecarlos_27)"
+        )
+    }
 
 
 def generar_mensaje_diario(fila, jornadas_info):
