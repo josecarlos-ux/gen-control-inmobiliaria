@@ -11664,6 +11664,7 @@ elif menu == "💰 Bonos":
     # -------------------------------------------------
     def generar_excel_bono_v7():
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
 
         buffer_excel = BytesIO()
 
@@ -11812,7 +11813,7 @@ elif menu == "💰 Bonos":
             widths = [24, 18, 18, 20, 18, 20, 20, 20, 12, 14]
             for idx_w, width in enumerate(widths, start=1):
                 ws.column_dimensions[
-                    ws.cell(1, idx_w).column_letter
+                    get_column_letter(idx_w)
                 ].width = width
 
             ws.freeze_panes = "A18"
@@ -11833,7 +11834,7 @@ elif menu == "💰 Bonos":
                 )
             ws2.freeze_panes = "A2"
             for col_cells in ws2.columns:
-                letra = col_cells[0].column_letter
+                letra = get_column_letter(col_cells[0].column)
                 largo = max(
                     len(str(c.value or ""))
                     for c in col_cells
