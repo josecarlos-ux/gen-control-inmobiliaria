@@ -1369,6 +1369,116 @@ st.markdown(
     .msg-v20-headrow{
         margin-top:2px!important;
     }
+
+    /* =========================================================
+       V25 FINAL · PULIDO VISUAL Y UX GLOBAL
+       ========================================================= */
+
+    /* Mejor densidad visual */
+    .block-container{
+        max-width:1440px!important;
+        padding-top:.85rem!important;
+        padding-bottom:1.8rem!important;
+    }
+
+    /* Labels más claros */
+    label[data-testid="stWidgetLabel"] p{
+        font-size:10px!important;
+        font-weight:760!important;
+        color:#53657A!important;
+    }
+
+    /* Separación consistente entre secciones */
+    .section-head-v22{
+        margin-top:12px!important;
+        margin-bottom:7px!important;
+    }
+
+    /* Hero compacto */
+    .page-head-v22{
+        padding:15px 18px!important;
+        margin-bottom:12px!important;
+        border-radius:16px!important;
+    }
+    .page-head-title-v22{
+        font-size:22px!important;
+    }
+
+    /* Tarjetas KPI menos altas */
+    .v21-kpi{
+        min-height:82px!important;
+        padding:12px 14px!important;
+    }
+    .v21-kpi .v{
+        font-size:21px!important;
+    }
+
+    /* Mensajes diarios */
+    .msg-v20-title{
+        font-size:27px!important;
+    }
+    .msg-v20-protect{
+        padding:12px 15px!important;
+        margin:6px 0 10px!important;
+    }
+    .msg-v20-chip{
+        min-width:112px!important;
+        padding:8px 11px!important;
+    }
+    .msg-v20-chip .v{
+        font-size:13px!important;
+    }
+    .msg-v20-headrow{
+        font-size:8.5px!important;
+    }
+
+    /* Evitar tarjetas innecesariamente grandes */
+    div[data-testid="stVerticalBlockBorderWrapper"]{
+        min-height:unset!important;
+    }
+
+    /* Tablas: mejor lectura */
+    div[data-testid="stDataFrame"]{
+        font-size:12px!important;
+    }
+
+    /* Estado de sidebar más compacto */
+    .sidebar-status-card{
+        padding:11px 12px!important;
+        margin-top:8px!important;
+    }
+
+    /* Popovers */
+    div[data-baseweb="popover"]{
+        border-radius:12px!important;
+    }
+
+    /* Toggle */
+    div[data-testid="stToggle"]{
+        margin-top:0!important;
+        margin-bottom:0!important;
+    }
+
+    /* Ocultar decoración Streamlit inferior cuando no aporta */
+    footer{visibility:hidden;}
+
+    /* Responsive real para laptops */
+    @media(max-width:1280px){
+        .block-container{
+            padding-left:1rem!important;
+            padding-right:1rem!important;
+        }
+        .msg-v20-headrow{
+            grid-template-columns:2.1fr .85fr 1.15fr 1.45fr 1.55fr 1fr!important;
+        }
+    }
+
+    @media(max-width:900px){
+        .page-head-v22{padding:13px 14px!important;}
+        .page-head-title-v22{font-size:20px!important;}
+        .msg-v20-title{font-size:24px!important;}
+        .msg-v20-top{justify-content:flex-start!important;}
+    }
 </style>
     """,
     unsafe_allow_html=True,
@@ -10302,7 +10412,7 @@ elif menu == "✉️ Mensajes diarios":
         pcol1, pcol2 = st.columns([3.8, 1.2], vertical_alignment="center")
         with pcol1:
             permitir_fuera_v98 = st.toggle(
-                "Habilitar excepción para operadores fuera de turno",
+                "Permitir envío fuera de turno",
                 value=bool(
                     st.session_state.get(
                         "permitir_envio_fuera_turno",
@@ -10327,7 +10437,7 @@ elif menu == "✉️ Mensajes diarios":
                 """
                 <div style="margin-bottom:4px;">
                     <div style="font-size:13px;font-weight:850;color:#172B4D;">Filtros y selección</div>
-                    <div style="font-size:9px;color:#7A8EA5;">Busca, filtra y ordena sin ocupar espacio innecesario.</div>
+                    <div style="font-size:9px;color:#7A8EA5;">Filtra operadores y define a quién dar seguimiento.</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -10546,7 +10656,7 @@ elif menu == "✉️ Mensajes diarios":
                 with r2:
                     if ok_aviso_grupo:
                         st.info(
-                            "📊 Resumen general actualizado enviado al grupo."
+                            "📊 Resumen enviado al grupo."
                         )
                     else:
                         st.warning(
