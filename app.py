@@ -1099,6 +1099,263 @@ st.markdown(
     @media(max-width:720px){
         .v21-kpi-grid{grid-template-columns:1fr;}
     }
+
+    /* =========================================================
+       V22 · SISTEMA VISUAL GLOBAL GEN CONTROL
+       ========================================================= */
+
+    :root{
+        --gen-navy:#0F2B46;
+        --gen-blue:#1E6DEB;
+        --gen-cyan:#2D9CDB;
+        --gen-green:#15965C;
+        --gen-orange:#C97900;
+        --gen-red:#C63D4D;
+        --gen-purple:#7257C9;
+        --gen-text:#172B4D;
+        --gen-muted:#738297;
+        --gen-border:#E0E7F0;
+        --gen-bg:#F7F9FC;
+        --gen-card:#FFFFFF;
+    }
+
+    /* Oculta el encabezado genérico duplicado. Cada módulo tendrá su propio header. */
+    .gen-header{display:none!important;}
+
+    /* Estructura general */
+    .stApp{
+        background:
+            radial-gradient(circle at 92% 2%, rgba(36,105,220,.045), transparent 28%),
+            linear-gradient(180deg,#F7F9FC 0%,#FBFCFE 100%)!important;
+    }
+    .block-container{
+        max-width:1460px!important;
+        padding-top:1.0rem!important;
+        padding-left:1.65rem!important;
+        padding-right:1.65rem!important;
+        padding-bottom:2.2rem!important;
+    }
+
+    /* Tipografía */
+    h1,h2,h3,h4{
+        letter-spacing:-.025em!important;
+        color:var(--gen-text)!important;
+    }
+    p,span,label{
+        -webkit-font-smoothing:antialiased;
+    }
+
+    /* Header universal de página */
+    .page-head-v22{
+        position:relative;
+        overflow:hidden;
+        border-radius:18px;
+        padding:18px 20px;
+        margin:0 0 14px 0;
+        background:linear-gradient(120deg,#102A43 0%,#173B5F 64%,#1B5D78 100%);
+        box-shadow:0 12px 30px rgba(16,42,67,.10);
+        color:white;
+    }
+    .page-head-v22:after{
+        content:"";
+        position:absolute;
+        width:170px;
+        height:170px;
+        border-radius:50%;
+        right:-52px;
+        top:-86px;
+        background:rgba(79,190,220,.11);
+    }
+    .page-head-kicker-v22{
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        padding:4px 8px;
+        border-radius:999px;
+        background:rgba(255,255,255,.10);
+        color:#CFE2F0;
+        font-size:8px;
+        font-weight:850;
+        letter-spacing:.06em;
+        text-transform:uppercase;
+        margin-bottom:7px;
+    }
+    .page-head-title-v22{
+        position:relative;
+        z-index:1;
+        font-size:24px;
+        line-height:1.08;
+        font-weight:900;
+        color:#FFFFFF!important;
+        letter-spacing:-.03em;
+    }
+    .page-head-sub-v22{
+        position:relative;
+        z-index:1;
+        margin-top:5px;
+        color:#C8D8E5;
+        font-size:10px;
+        line-height:1.45;
+    }
+
+    /* Títulos de sección */
+    .section-head-v22{
+        margin:15px 0 8px;
+        display:flex;
+        align-items:end;
+        justify-content:space-between;
+        gap:10px;
+    }
+    .section-title-v22{
+        font-size:16px;
+        font-weight:880;
+        color:var(--gen-text);
+    }
+    .section-sub-v22{
+        font-size:9px;
+        color:var(--gen-muted);
+        margin-top:2px;
+    }
+
+    /* Cards */
+    div[data-testid="stVerticalBlockBorderWrapper"]{
+        border:1px solid var(--gen-border)!important;
+        border-radius:14px!important;
+        background:#FFFFFF!important;
+        box-shadow:0 5px 16px rgba(23,52,88,.03)!important;
+    }
+
+    /* Métricas nativas */
+    div[data-testid="stMetric"]{
+        background:#FFFFFF!important;
+        border:1px solid var(--gen-border)!important;
+        border-radius:13px!important;
+        padding:11px 12px!important;
+        box-shadow:0 4px 13px rgba(23,52,88,.025)!important;
+    }
+    div[data-testid="stMetric"] label{
+        color:#78879A!important;
+        font-size:10px!important;
+        font-weight:750!important;
+    }
+    div[data-testid="stMetricValue"]{
+        color:#172B4D!important;
+        font-size:22px!important;
+        font-weight:880!important;
+        letter-spacing:-.025em!important;
+    }
+
+    /* Inputs */
+    div[data-baseweb="input"]>div,
+    div[data-baseweb="select"]>div,
+    div[data-baseweb="base-input"]{
+        background:#FFFFFF!important;
+        border-color:#DDE6EF!important;
+        border-radius:10px!important;
+        min-height:40px!important;
+    }
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextInput"] input{
+        font-size:13px!important;
+    }
+
+    /* Botones */
+    .stButton>button,
+    .stDownloadButton>button{
+        min-height:40px;
+        border-radius:10px!important;
+        font-weight:780!important;
+        border:1px solid #D8E2ED!important;
+        box-shadow:0 3px 9px rgba(20,52,88,.035);
+        transition:all .14s ease;
+    }
+    .stButton>button:hover,
+    .stDownloadButton>button:hover{
+        transform:translateY(-1px);
+        border-color:#BFD0E2!important;
+        box-shadow:0 6px 15px rgba(20,52,88,.07);
+    }
+    .stButton>button[kind="primary"]{
+        background:linear-gradient(135deg,#1D6EF0,#1659D3)!important;
+        color:#FFFFFF!important;
+        border:none!important;
+    }
+
+    /* Expander */
+    details{
+        border:1px solid #E1E8F0!important;
+        border-radius:12px!important;
+        background:#FFFFFF!important;
+        overflow:hidden;
+        box-shadow:0 3px 10px rgba(23,52,88,.02);
+    }
+    details summary{
+        font-weight:760!important;
+        color:#2A415C!important;
+        padding:.8rem .9rem!important;
+    }
+
+    /* Tabs */
+    button[data-baseweb="tab"]{
+        font-weight:760!important;
+        color:#65768B!important;
+        padding:.7rem .9rem!important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"]{
+        color:#1E63D6!important;
+    }
+
+    /* Tablas */
+    div[data-testid="stDataFrame"]{
+        border:1px solid #E2E8F0!important;
+        border-radius:13px!important;
+        overflow:hidden!important;
+        box-shadow:0 4px 14px rgba(23,52,88,.025);
+    }
+
+    /* Uploader */
+    section[data-testid="stFileUploaderDropzone"]{
+        border:1.5px dashed #BDD0E4!important;
+        border-radius:14px!important;
+        background:linear-gradient(180deg,#FFFFFF,#F8FBFF)!important;
+        padding:1.25rem!important;
+    }
+
+    /* Alertas */
+    div[data-testid="stAlert"]{
+        border-radius:11px!important;
+        padding:.68rem .82rem!important;
+        box-shadow:none!important;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"]{
+        background:linear-gradient(180deg,#102E4F 0%,#0C223C 100%)!important;
+        border-right:1px solid rgba(255,255,255,.05)!important;
+    }
+    .sidebar-brand{margin-bottom:15px!important;}
+    .sidebar-section-label{opacity:.72!important;}
+    .sidebar-status-card{
+        border-radius:13px!important;
+        background:rgba(31,129,174,.18)!important;
+        border-color:rgba(111,204,238,.18)!important;
+    }
+    .sidebar-profile{padding-top:4px!important;}
+    section[data-testid="stSidebar"] hr{
+        border-color:rgba(255,255,255,.08)!important;
+        margin:.85rem 0!important;
+    }
+
+    /* Reduce aire excesivo */
+    .element-container{margin-bottom:.15rem;}
+    [data-testid="stVerticalBlock"]{gap:.65rem;}
+
+    @media(max-width:1100px){
+        .block-container{
+            padding-left:1.1rem!important;
+            padding-right:1.1rem!important;
+        }
+    }
 </style>
     """,
     unsafe_allow_html=True,
@@ -7334,7 +7591,7 @@ if menu == "🏠 Resumen":
 
     st.markdown(
         f"""
-        <div class="hero-card">
+        <div class="hero-card page-head-v22">
             <div style="
                 position:relative;z-index:1;
                 display:inline-flex;align-items:center;gap:6px;
@@ -11085,10 +11342,32 @@ elif menu == "✉️ Mensajes diarios":
 
 elif menu == "📥 Cargar reportes":
 
-    st.subheader("📥 Cargar reportes")
-    st.caption(
-        "Esta sección se usa únicamente para ingresar y validar "
-        "los archivos del CRM. Los análisis se muestran en las demás pestañas."
+    st.markdown(
+        """
+        <div class="page-head-v22">
+            <div class="page-head-kicker-v22">📥 DATOS · ACTUALIZACIÓN</div>
+            <div class="page-head-title-v22">Cargar reportes</div>
+            <div class="page-head-sub-v22">
+                Ingresa Promesas de Pago y GEN CallCenter. El sistema detecta,
+                valida y actualiza automáticamente los datos operativos.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="section-head-v22">
+            <div>
+                <div class="section-title-v22">Archivos del día</div>
+                <div class="section-sub-v22">
+                    Puedes cargar uno o ambos reportes; GEN Control identificará cada archivo.
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     archivos = st.file_uploader(
@@ -11224,9 +11503,18 @@ elif menu == "📥 Cargar reportes":
 
 elif menu == "🗂️ Histórico":
 
-    st.subheader("🗂️ Histórico")
-    st.caption(
-        "Consulta los cierres guardados en Supabase y compara fechas."
+    st.markdown(
+        """
+        <div class="page-head-v22">
+            <div class="page-head-kicker-v22">🗂️ HISTÓRICO · SUPABASE</div>
+            <div class="page-head-title-v22">Histórico</div>
+            <div class="page-head-sub-v22">
+                Consulta cierres anteriores, filtra por operador y compara la
+                evolución de gestiones, compromisos y recuperación.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     if not supabase_disponible():
@@ -12805,9 +13093,17 @@ elif menu == "💰 Bonos":
 
 elif menu == "👥 Equipo":
 
-    st.subheader("👥 Equipo")
-    st.caption(
-        "Gestión de operadores, correos y accesos de contacto."
+    st.markdown(
+        """
+        <div class="page-head-v22">
+            <div class="page-head-kicker-v22">👥 EQUIPO · OPERADORES</div>
+            <div class="page-head-title-v22">Equipo</div>
+            <div class="page-head-sub-v22">
+                Administra operadores, correos, Telegram, estado y horarios de trabajo.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     if st.session_state.operador_guardado_ok:
@@ -12874,7 +13170,17 @@ elif menu == "👥 Equipo":
             hide_index=True,
         )
 
-        st.markdown("### 🕒 Horarios operativos")
+        st.markdown(
+            """
+            <div class="section-head-v22">
+                <div>
+                    <div class="section-title-v22">🕒 Horarios operativos</div>
+                    <div class="section-sub-v22">Jornadas configuradas por operador y día.</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         horarios_v70 = []
         nombres_dias_v94 = {
@@ -13100,9 +13406,17 @@ elif menu == "👥 Equipo":
 
 elif menu == "⚙️ Configuración":
 
-    st.subheader("⚙️ Configuración y metas")
-    st.caption(
-        "Administración de metas y calendario operativo."
+    st.markdown(
+        """
+        <div class="page-head-v22">
+            <div class="page-head-kicker-v22">⚙️ ADMINISTRACIÓN</div>
+            <div class="page-head-title-v22">Configuración y metas</div>
+            <div class="page-head-sub-v22">
+                Define metas, calendario, parámetros operativos y conexión de persistencia.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     supa_ok, supa_msg = diagnostico_supabase()
