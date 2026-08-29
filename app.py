@@ -11097,6 +11097,12 @@ elif menu == "💰 Bonos":
                 )
             )
 
+            # Calidad proviene de otra fuente.
+            # No reutilizar valores de Julio ni asumir 100%.
+            base["satisfaccion"] = None
+            base["pecuf"] = None
+            base["pecn"] = None
+
     st.markdown(f"### {base['nombre']}")
 
     if fuente_bono == "Datos actuales de GEN Control":
@@ -11256,46 +11262,89 @@ elif menu == "💰 Bonos":
         "venir automáticamente de los reportes cargados en GEN Control."
     )
 
+    st.markdown("##### Indicadores de Calidad")
+    st.caption(
+        "Satisfacción, PECUF y PECN se cargan manualmente desde el reporte/fuente de Calidad. "
+        "No se asume 100% cuando aún no están disponibles."
+    )
+
+    def parsear_porcentaje_calidad(valor):
+        txt = str(valor or "").strip().replace("%", "").replace(",", ".")
+        if not txt:
+            return None
+        try:
+            numero = float(txt)
+            # Permite escribir 95 o 0.95.
+            if numero > 1:
+                numero = numero / 100
+            return min(max(numero, 0.0), 1.0)
+        except Exception:
+            return None
+
     q1, q2, q3 = st.columns(3)
+
+    sat_default = (
+        f"{float(base['satisfaccion']) * 100:.0f}"
+        if base.get("satisfaccion") is not None
+        else ""
+    )
+    pecuf_default = (
+        f"{float(base['pecuf']) * 100:.0f}"
+        if base.get("pecuf") is not None
+        else ""
+    )
+    pecn_default = (
+        f"{float(base['pecn']) * 100:.0f}"
+        if base.get("pecn") is not None
+        else ""
+    )
+
     with q1:
-        satisf = st.number_input(
-            "Satisfacción",
-            min_value=0.0,
-            max_value=1.0,
-            value=float(base["satisfaccion"]),
-            step=0.01,
-            format="%.2f",
-            key=f"bono_sat_{usuario_bonus}",
+        satisf_txt = st.text_input(
+            "Satisfacción (%)",
+            value=sat_default,
+            placeholder="Ej.: 92",
+            key=f"bono_sat_txt_{usuario_bonus}_{fuente_bono}",
         )
+        satisf = parsear_porcentaje_calidad(satisf_txt)
+
     with q2:
-        pecuf = st.number_input(
-            "PECUF",
-            min_value=0.0,
-            max_value=1.0,
-            value=float(base["pecuf"]),
-            step=0.01,
-            format="%.2f",
-            key=f"bono_pecuf_{usuario_bonus}",
+        pecuf_txt = st.text_input(
+            "PECUF (%)",
+            value=pecuf_default,
+            placeholder="Ej.: 96",
+            key=f"bono_pecuf_txt_{usuario_bonus}_{fuente_bono}",
         )
+        pecuf = parsear_porcentaje_calidad(pecuf_txt)
+
     with q3:
-        pecn = st.number_input(
-            "PECN",
-            min_value=0.0,
-            max_value=1.0,
-            value=float(base["pecn"]),
-            step=0.01,
-            format="%.2f",
-            key=f"bono_pecn_{usuario_bonus}",
+        pecn_txt = st.text_input(
+            "PECN (%)",
+            value=pecn_default,
+            placeholder="Ej.: 91",
+            key=f"bono_pecn_txt_{usuario_bonus}_{fuente_bono}",
         )
+        pecn = parsear_porcentaje_calidad(pecn_txt)
+
+    calidad_completa = all(
+        valor is not None
+        for valor in [satisf, pecuf, pecn]
+    )
 
     indicadores = [
         ("Productividad", alcance_prod, meta_prod_final),
         ("Recuperación", alcance_rec, meta_rec_final),
         ("Promesas", alcance_prom, meta_prom_final),
-        ("Satisfacción", satisf, metas_base["Satisfacción"]),
-        ("PECUF", pecuf, metas_base["PECUF"]),
-        ("PECN", pecn, metas_base["PECN"]),
     ]
+
+    if calidad_completa:
+        indicadores.extend(
+            [
+                ("Satisfacción", satisf, metas_base["Satisfacción"]),
+                ("PECUF", pecuf, metas_base["PECUF"]),
+                ("PECN", pecn, metas_base["PECN"]),
+            ]
+        )
 
     detalle_bono = []
     puntaje_total = 0.0
@@ -11325,24 +11374,35 @@ elif menu == "💰 Bonos":
             }
         )
 
-    bono_bs = monto_bono(puntaje_total)
+    bono_bs = (
+        monto_bono(puntaje_total)
+        if calidad_completa
+        else None
+    )
 
     st.markdown("#### 3. Resultado proyectado")
-    st.caption(
-        "El cumplimiento real puede superar 100%. Para calcular el bono, "
-        "cada indicador aporta como máximo el 100% de su peso."
-    )
+
+    if calidad_completa:
+        st.caption(
+            "El cumplimiento real puede superar 100%. Para calcular el bono, "
+            "cada indicador aporta como máximo el 100% de su peso."
+        )
+    else:
+        st.warning(
+            "Faltan indicadores de Calidad. El resultado todavía es parcial y "
+            "no debe enviarse como bono definitivo."
+        )
 
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         st.metric(
-            "Puntaje final",
+            "Puntaje final" if calidad_completa else "Puntaje parcial",
             f"{puntaje_total*100:.2f}%",
         )
     with b2:
         st.metric(
             "Bono proyectado",
-            f"Bs {bono_bs}",
+            f"Bs {bono_bs}" if bono_bs is not None else "Pendiente Calidad",
         )
     with b3:
         st.metric(
@@ -11392,8 +11452,19 @@ elif menu == "💰 Bonos":
         f"📞 Productividad: {prod_pct_msg:.1f}%\n"
         f"💵 Recuperación: {rec_pct_msg:.1f}%\n"
         f"🎯 Promesas: {prom_pct_msg:.1f}%\n"
-        f"📊 Puntaje final: *{puntaje_total*100:.2f}%*\n"
-        f"🏅 Bono correspondiente: *Bs {bono_bs}*\n"
+        + (
+            f"⭐ Satisfacción: {satisf*100:.1f}%\n"
+            f"✅ PECUF: {pecuf*100:.1f}%\n"
+            f"✅ PECN: {pecn*100:.1f}%\n"
+            if calidad_completa
+            else "⭐ Calidad: pendiente de cargar\n"
+        )
+        + (
+            f"📊 Puntaje final: *{puntaje_total*100:.2f}%*\n"
+            f"🏅 Bono correspondiente: *Bs {bono_bs}*\n"
+            if calidad_completa
+            else f"📊 Puntaje parcial: *{puntaje_total*100:.2f}%*\n"
+        )
     )
 
     if aplicar_prorrateo:
@@ -11471,7 +11542,10 @@ elif menu == "💰 Bonos":
                 f"✈️ Enviar resultado a {nombre_mensaje_bono}",
                 use_container_width=True,
                 type="primary",
-                disabled=not bool(chat_id_bono),
+                disabled=(
+                    not bool(chat_id_bono)
+                    or not calidad_completa
+                ),
                 key=f"enviar_bono_{usuario_bonus}",
             ):
                 ok_bono, detalle_envio_bono = enviar_mensaje_telegram(
@@ -11489,13 +11563,17 @@ elif menu == "💰 Bonos":
                     )
 
         with col_send_2:
-            if chat_id_bono:
-                st.success(
-                    "Telegram configurado para este operador."
-                )
-            else:
+            if not chat_id_bono:
                 st.warning(
                     "Este operador todavía no tiene Telegram configurado."
+                )
+            elif not calidad_completa:
+                st.warning(
+                    "Telegram configurado · falta completar Calidad para habilitar el envío."
+                )
+            else:
+                st.success(
+                    "Telegram configurado · resultado completo listo para enviar."
                 )
 
 
