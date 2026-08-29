@@ -11264,6 +11264,145 @@ elif menu == "💰 Bonos":
             f"{meta_prod_final - int(base['meta_productividad']):+d}",
         )
 
+
+    # -------------------------------------------------
+    # 4. MENSAJE INDIVIDUAL DEL BONO
+    # -------------------------------------------------
+    st.markdown("#### 4. Mensaje individual")
+
+    nombre_mensaje_bono = OPERADORES.get(
+        usuario_bonus,
+        {},
+    ).get(
+        "nombre_mensaje",
+        base["nombre"].split()[0],
+    )
+
+    # Resumen breve de los indicadores principales.
+    detalle_msg_bono = {
+        fila["Indicador"]: fila
+        for fila in detalle_bono
+    }
+
+    prod_pct_msg = (
+        detalle_msg_bono["Productividad"]["Cumplimiento"] * 100
+    )
+    rec_pct_msg = (
+        detalle_msg_bono["Recuperación"]["Cumplimiento"] * 100
+    )
+    prom_pct_msg = (
+        detalle_msg_bono["Promesas"]["Cumplimiento"] * 100
+    )
+
+    mensaje_bono = (
+        f"💰 *Resultado de bono · {nombre_mensaje_bono}*\n\n"
+        f"Tu evaluación mensual quedó de la siguiente manera:\n\n"
+        f"📞 Productividad: {prod_pct_msg:.1f}%\n"
+        f"💵 Recuperación: {rec_pct_msg:.1f}%\n"
+        f"🎯 Promesas: {prom_pct_msg:.1f}%\n"
+        f"📊 Puntaje final: *{puntaje_total*100:.2f}%*\n"
+        f"🏅 Bono correspondiente: *Bs {bono_bs}*\n"
+    )
+
+    if aplicar_prorrateo:
+        mensaje_bono += (
+            f"\nLa meta fue ajustada considerando "
+            f"{disponibilidad*100:.1f}% de disponibilidad efectiva en Cobranzas."
+        )
+
+    if motivo.strip():
+        mensaje_bono += (
+            f"\nMotivo del ajuste: {motivo.strip()}."
+        )
+
+    mensaje_bono += (
+        "\n\nAnte cualquier consulta, puedes escribirme directamente."
+        "\n👉 [José Carlos](https://t.me/josecarlos_27)"
+    )
+
+    with st.container(border=True):
+        st.markdown("**Vista previa del mensaje**")
+        st.code(
+            mensaje_bono,
+            language=None,
+        )
+
+        col_send_1, col_send_2 = st.columns([1, 1])
+
+        with col_send_1:
+            chat_id_bono = normalizar_telegram_chat_id(
+                (
+                    st.session_state.get(
+                        "datos_contacto_operadores",
+                        {}
+                    ).get(
+                        usuario_bonus,
+                        {}
+                    ).get(
+                        "telegram_chat_id",
+                        ""
+                    )
+                    if isinstance(
+                        st.session_state.get(
+                            "datos_contacto_operadores",
+                            {}
+                        ),
+                        dict,
+                    )
+                    else ""
+                )
+            )
+
+            # Fallback al mismo origen usado en otras pantallas.
+            if not chat_id_bono:
+                try:
+                    datos_contacto_bono = (
+                        cargar_contactos_operadores_supabase()
+                    )
+                    chat_id_bono = normalizar_telegram_chat_id(
+                        datos_contacto_bono.get(
+                            usuario_bonus,
+                            {}
+                        ).get(
+                            "telegram_chat_id",
+                            ""
+                        )
+                    )
+                except Exception:
+                    chat_id_bono = ""
+
+            if st.button(
+                f"✈️ Enviar resultado a {nombre_mensaje_bono}",
+                use_container_width=True,
+                type="primary",
+                disabled=not bool(chat_id_bono),
+                key=f"enviar_bono_{usuario_bonus}",
+            ):
+                ok_bono, detalle_envio_bono = enviar_mensaje_telegram(
+                    chat_id_bono,
+                    mensaje_bono,
+                )
+
+                if ok_bono:
+                    st.success(
+                        f"✅ Resultado del bono enviado a {nombre_mensaje_bono}."
+                    )
+                else:
+                    st.error(
+                        f"No se pudo enviar: {detalle_envio_bono}"
+                    )
+
+        with col_send_2:
+            if chat_id_bono:
+                st.success(
+                    "Telegram configurado para este operador."
+                )
+            else:
+                st.warning(
+                    "Este operador todavía no tiene Telegram configurado."
+                )
+
+
     df_detalle_bono = pd.DataFrame(
         detalle_bono
     )
@@ -11332,6 +11471,9 @@ elif menu == "💰 Bonos":
 
     st.divider()
     st.markdown("### Vista general · Julio 2026")
+    st.caption(
+        "El envío del resultado se realiza de forma individual desde la ficha de cada operador."
+    )
 
     filas_resumen = []
 
