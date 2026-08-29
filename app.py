@@ -3065,12 +3065,13 @@ def preparar_resumen_gestiones_grupo(callcenter_df):
 
 def generar_imagen_resumen_gestiones_grupo(callcenter_df):
     """
-    Imagen horizontal inspirada en el reporte anterior:
-    izquierda gestiones por agente; derecha compromisos por agente.
+    Genera una sola imagen tipo infografía para Telegram:
+    encabezado, 4 KPIs, dos gráficos por operador y recordatorio final.
     """
     import io
     import matplotlib.pyplot as plt
     import numpy as np
+    from matplotlib.patches import FancyBboxPatch
 
     tabla = preparar_resumen_gestiones_grupo(callcenter_df)
     if tabla.empty:
@@ -3078,53 +3079,154 @@ def generar_imagen_resumen_gestiones_grupo(callcenter_df):
 
     nombres = tabla["Operador"].astype(str).tolist()
     x = np.arange(len(nombres))
-    width = 0.25
 
-    fig, axes = plt.subplots(1, 2, figsize=(18, 7), dpi=150)
-
-    # Gestiones
-    ax = axes[0]
-    b1 = ax.bar(x - width, tabla["Contactado"], width, label="Contactado")
-    b2 = ax.bar(x, tabla["Sin contacto"], width, label="Sin contacto")
-    b3 = ax.bar(x + width, tabla["Total gestión"], width, label="Total gestión")
-    ax.set_title("Total gestión por agente", fontsize=14, fontweight="bold")
-    ax.set_xticks(x)
-    ax.set_xticklabels(nombres, rotation=35, ha="right", fontsize=9)
-    ax.grid(axis="y", alpha=0.22)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=3, frameon=False)
-    for bars in (b1, b2, b3):
-        ax.bar_label(bars, padding=2, fontsize=8)
-
-    # Compromisos
-    ax2 = axes[1]
-    bw = 0.34
-    c1 = ax2.bar(x - bw/2, tabla["Compromisos"], bw, label="Compromisos de pago")
-    # El monto se expresa en miles para mantener la escala legible, igual a la referencia.
-    monto_miles = tabla["Monto comprometido"] / 1000.0
-    c2 = ax2.bar(x + bw/2, monto_miles, bw, label="Monto comprometido (miles $us)")
-    ax2.set_title("Compromiso de pago por agente", fontsize=14, fontweight="bold")
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(nombres, rotation=35, ha="right", fontsize=9)
-    ax2.grid(axis="y", alpha=0.22)
-    ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
-    ax2.bar_label(c1, padding=2, fontsize=8)
-    ax2.bar_label(c2, padding=2, fontsize=8, fmt="%.1f")
+    total_g = int(tabla["Total gestión"].sum())
+    total_c = int(tabla["Compromisos"].sum())
+    total_m = float(tabla["Monto comprometido"].sum())
+    activos = int((tabla["Total gestión"] > 0).sum())
 
     corte = obtener_corte_callcenter(callcenter_df)
     corte_txt = corte.strftime("%H:%M") if corte is not None else ahora_bolivia().strftime("%H:%M")
-    fig.suptitle(
-        f"GEN Control · Resumen del equipo · {fecha_local_actual().strftime('%d/%m/%Y')} · corte {corte_txt}",
-        fontsize=16,
-        fontweight="bold",
-        y=0.99,
+    fecha_txt = fecha_local_actual().strftime("%d/%m/%Y")
+
+    fig = plt.figure(figsize=(18, 11), dpi=150, facecolor="white")
+    gs = fig.add_gridspec(
+        4, 2,
+        height_ratios=[0.9, 1.25, 4.6, 0.8],
+        hspace=0.35,
+        wspace=0.18,
     )
-    fig.tight_layout(rect=[0, 0.06, 1, 0.95])
+
+    ax_header = fig.add_subplot(gs[0, :])
+    ax_header.axis("off")
+    ax_header.text(
+        0.5, 0.72,
+        "GEN Control · Avance del Equipo",
+        ha="center", va="center",
+        fontsize=24, fontweight="bold",
+    )
+    ax_header.text(
+        0.5, 0.22,
+        f"Corte: {fecha_txt} · {corte_txt}",
+        ha="center", va="center",
+        fontsize=14,
+    )
+
+    ax_kpi = fig.add_subplot(gs[1, :])
+    ax_kpi.axis("off")
+
+    kpis = [
+        ("GESTIONES TOTALES", formato_entero(total_g), "📞"),
+        ("COMPROMISOS", formato_entero(total_c), "🤝"),
+        ("MONTO COMPROMETIDO", formato_usd(total_m), "💵"),
+        ("OPERADORES CON ACTIVIDAD", f"{activos} / {CANTIDAD_OPERADORES}", "👥"),
+    ]
+
+    for i, (titulo, valor, icono) in enumerate(kpis):
+        x0 = 0.015 + i * 0.245
+        card = FancyBboxPatch(
+            (x0, 0.08), 0.225, 0.82,
+            boxstyle="round,pad=0.012,rounding_size=0.025",
+            linewidth=1.0,
+            edgecolor="#D7DEE8",
+            facecolor="#FFFFFF",
+            transform=ax_kpi.transAxes,
+        )
+        ax_kpi.add_patch(card)
+        ax_kpi.text(
+            x0 + 0.03, 0.52, icono,
+            fontsize=26, va="center", ha="left",
+            transform=ax_kpi.transAxes,
+        )
+        ax_kpi.text(
+            x0 + 0.085, 0.66, titulo,
+            fontsize=10.5, fontweight="bold",
+            va="center", ha="left",
+            transform=ax_kpi.transAxes,
+        )
+        ax_kpi.text(
+            x0 + 0.085, 0.39, valor,
+            fontsize=18, fontweight="bold",
+            va="center", ha="left",
+            transform=ax_kpi.transAxes,
+        )
+
+    ax1 = fig.add_subplot(gs[2, 0])
+    width = 0.25
+    b1 = ax1.bar(x - width, tabla["Contactado"], width, label="Contactado")
+    b2 = ax1.bar(x, tabla["Sin contacto"], width, label="Sin contacto")
+    b3 = ax1.bar(x + width, tabla["Total gestión"], width, label="Total gestión")
+    ax1.set_title("Total gestión por agente", fontsize=15, fontweight="bold", loc="left", pad=14)
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(nombres, rotation=0, fontsize=9)
+    ax1.grid(axis="y", alpha=0.22)
+    ax1.set_axisbelow(True)
+    for bars in (b1, b2, b3):
+        ax1.bar_label(bars, padding=3, fontsize=8.5)
+    ax1.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.11),
+        ncol=3,
+        frameon=False,
+        fontsize=9,
+    )
+
+    ax2 = fig.add_subplot(gs[2, 1])
+    bw = 0.36
+    c1 = ax2.bar(x - bw/2, tabla["Compromisos"], bw, label="Compromisos de pago")
+    monto_miles = tabla["Monto comprometido"] / 1000.0
+    c2 = ax2.bar(x + bw/2, monto_miles, bw, label="Monto comprometido (miles USD)")
+    ax2.set_title("Compromiso de pago por agente", fontsize=15, fontweight="bold", loc="left", pad=14)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(nombres, rotation=0, fontsize=9)
+    ax2.grid(axis="y", alpha=0.22)
+    ax2.set_axisbelow(True)
+    ax2.bar_label(c1, padding=3, fontsize=8.5)
+    ax2.bar_label(c2, padding=3, fontsize=8.5, fmt="%.2f")
+    ax2.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.11),
+        ncol=2,
+        frameon=False,
+        fontsize=9,
+    )
+
+    ax_footer = fig.add_subplot(gs[3, :])
+    ax_footer.axis("off")
+    footer = FancyBboxPatch(
+        (0.015, 0.14), 0.97, 0.68,
+        boxstyle="round,pad=0.012,rounding_size=0.025",
+        linewidth=0,
+        facecolor="#EEF5FF",
+        transform=ax_footer.transAxes,
+    )
+    ax_footer.add_patch(footer)
+    ax_footer.text(
+        0.035, 0.48,
+        "Recordatorio:",
+        fontsize=11.5,
+        fontweight="bold",
+        va="center",
+        ha="left",
+        transform=ax_footer.transAxes,
+    )
+    ax_footer.text(
+        0.145, 0.48,
+        "Mantengamos el ritmo de gestiones y la generación de compromisos para alcanzar las metas del día y del mes.",
+        fontsize=11.5,
+        va="center",
+        ha="left",
+        transform=ax_footer.transAxes,
+    )
+
+    fig.tight_layout(rect=[0.02, 0.02, 0.98, 0.98])
 
     out = io.BytesIO()
-    fig.savefig(out, format="png", bbox_inches="tight")
+    fig.savefig(out, format="png", bbox_inches="tight", facecolor="white")
     plt.close(fig)
     out.seek(0)
     return out
+
 
 
 def generar_mensaje_resumen_gestiones_grupo(callcenter_df):
@@ -9022,7 +9124,7 @@ elif menu == "✉️ Mensajes diarios":
             )
             st.markdown("### Gestiones y compromisos")
             st.caption(
-                "Resumen visual del corte actual para enviar al grupo, separado del seguimiento individual."
+                "Infografía del corte actual para el grupo, independiente del seguimiento individual."
             )
 
             call_resumen_v12 = st.session_state.get("callcenter_df")
