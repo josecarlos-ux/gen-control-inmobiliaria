@@ -11354,36 +11354,72 @@ elif menu == "💰 Bonos":
     # -------------------------------------------------
     st.markdown("#### 2. Resultados del mes")
 
-    r1, r2, r3 = st.columns(3)
-    with r1:
-        alcance_prod = st.number_input(
-            "Alcance · Productividad",
-            min_value=0,
-            value=int(base["productividad"]),
-            step=1,
-            key=f"bono_alc_prod_{usuario_bonus}",
-        )
-    with r2:
-        alcance_rec = st.number_input(
-            "Alcance · Recuperación",
-            min_value=0.0,
-            value=float(base["recuperacion"]),
-            step=100.0,
-            key=f"bono_alc_rec_{usuario_bonus}",
-        )
-    with r3:
-        alcance_prom = st.number_input(
-            "Alcance · Promesas",
-            min_value=0,
-            value=int(base["promesas"]),
-            step=1,
-            key=f"bono_alc_prom_{usuario_bonus}",
-        )
-
     st.caption(
-        "En la versión definitiva, Productividad, Recuperación y Promesas podrán "
-        "venir automáticamente de los reportes cargados en GEN Control."
+        "El resultado original se conserva. Si existe una regularización, registra "
+        "el ajuste y el sistema calculará el resultado válido para el bono."
     )
+
+    original_prod = int(base["productividad"])
+    original_rec = float(base["recuperacion"])
+    original_prom = int(base["promesas"])
+
+    r1, r2, r3 = st.columns(3)
+
+    with r1:
+        st.metric("Original · Productividad", formato_entero(original_prod))
+        ajuste_result_prod = st.number_input(
+            "Ajuste · Productividad",
+            value=0,
+            step=1,
+            key=f"bono_ajres_prod_{usuario_bonus}_{fuente_bono}",
+        )
+        alcance_prod = max(original_prod + int(ajuste_result_prod), 0)
+        st.metric("Válido para bono", formato_entero(alcance_prod))
+
+    with r2:
+        st.metric("Original · Recuperación", formato_usd(original_rec))
+        ajuste_result_rec = st.number_input(
+            "Ajuste · Recuperación",
+            value=0.0,
+            step=100.0,
+            key=f"bono_ajres_rec_{usuario_bonus}_{fuente_bono}",
+        )
+        alcance_rec = max(original_rec + float(ajuste_result_rec), 0.0)
+        st.metric("Válido para bono", formato_usd(alcance_rec))
+
+    with r3:
+        st.metric("Original · Promesas", formato_entero(original_prom))
+        ajuste_result_prom = st.number_input(
+            "Ajuste · Promesas",
+            value=0,
+            step=1,
+            key=f"bono_ajres_prom_{usuario_bonus}_{fuente_bono}",
+        )
+        alcance_prom = max(original_prom + int(ajuste_result_prom), 0)
+        st.metric("Válido para bono", formato_entero(alcance_prom))
+
+    hay_ajuste_resultado = (
+        int(ajuste_result_prod) != 0
+        or abs(float(ajuste_result_rec)) > 0.0001
+        or int(ajuste_result_prom) != 0
+    )
+
+    motivo_ajuste_resultado = st.text_input(
+        "Motivo del ajuste de resultados",
+        value="",
+        placeholder="Ej.: regularización aprobada / corrección de cierre",
+        key=f"bono_motivo_ajres_{usuario_bonus}_{fuente_bono}",
+    )
+
+    ajuste_resultado_valido = (
+        not hay_ajuste_resultado
+        or bool(motivo_ajuste_resultado.strip())
+    )
+
+    if hay_ajuste_resultado and not motivo_ajuste_resultado.strip():
+        st.warning(
+            "Para aplicar el ajuste al bono debes registrar el motivo."
+        )
 
     st.markdown("#### 2. Calidad")
     st.caption(
@@ -11518,14 +11554,17 @@ elif menu == "💰 Bonos":
 
     st.markdown("#### 3. Resultado proyectado")
 
-    estado_bono_v6 = (
-        "Listo para enviar"
-        if calidad_completa
-        else "Pendiente Calidad"
-    )
+    calculo_completo_v7 = calidad_completa and ajuste_resultado_valido
+
+    if not calidad_completa:
+        estado_bono_v6 = "Pendiente Calidad"
+    elif not ajuste_resultado_valido:
+        estado_bono_v6 = "Pendiente justificar ajuste"
+    else:
+        estado_bono_v6 = "Listo para enviar"
     estado_cls_v6 = (
         "bonus-status-ok"
-        if calidad_completa
+        if calculo_completo_v7
         else "bonus-status-warn"
     )
 
@@ -11621,6 +11660,211 @@ elif menu == "💰 Bonos":
 
 
     # -------------------------------------------------
+    # DESCARGA EXCEL · RÉPLICA OPERATIVA DEL ARCHIVO
+    # -------------------------------------------------
+    def generar_excel_bono_v7():
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        buffer_excel = BytesIO()
+
+        filas_export = []
+        for fila_exp in detalle_bono:
+            ind = fila_exp["Indicador"]
+
+            if ind == "Productividad":
+                resultado_original = original_prod
+                ajuste_resultado = ajuste_result_prod
+                meta_original_exp = base["meta_productividad"]
+            elif ind == "Recuperación":
+                resultado_original = original_rec
+                ajuste_resultado = ajuste_result_rec
+                meta_original_exp = meta_rec_estandar
+            elif ind == "Promesas":
+                resultado_original = original_prom
+                ajuste_resultado = ajuste_result_prom
+                meta_original_exp = meta_prom_estandar
+            else:
+                resultado_original = fila_exp["Alcance"]
+                ajuste_resultado = 0
+                meta_original_exp = metas_base[ind]
+
+            filas_export.append(
+                {
+                    "Indicador": ind,
+                    "Meta original": meta_original_exp,
+                    "Meta válida": fila_exp["Meta válida"],
+                    "Resultado original": resultado_original,
+                    "Ajuste resultado": ajuste_resultado,
+                    "Resultado válido": fila_exp["Alcance"],
+                    "Cumplimiento real": fila_exp["Cumplimiento real"],
+                    "Cumplimiento bono": fila_exp["Cumplimiento bono"],
+                    "Peso": fila_exp["Peso"],
+                    "Aporte": fila_exp["Aporte"],
+                }
+            )
+
+        export_detalle = pd.DataFrame(filas_export)
+
+        export_resumen = pd.DataFrame(
+            [
+                ["Operador", base["nombre"]],
+                ["Fuente", fuente_bono],
+                ["Tipo ajuste meta", modo_ajuste_bono],
+                ["Horas planificadas", horas_planificadas],
+                ["Horas fuera de Cobranzas", horas_fuera_cobranza],
+                ["Disponibilidad efectiva", disponibilidad],
+                ["Motivo ajuste meta", motivo],
+                ["Motivo ajuste resultados", motivo_ajuste_resultado],
+                ["Puntaje final", puntaje_total],
+                ["Bono Bs", bono_bs if bono_bs is not None else ""],
+                ["Estado", estado_bono_v6],
+            ],
+            columns=["Concepto", "Valor"],
+        )
+
+        with pd.ExcelWriter(buffer_excel, engine="openpyxl") as writer:
+            export_resumen.to_excel(
+                writer,
+                sheet_name="BONOS",
+                index=False,
+                startrow=2,
+            )
+            export_detalle.to_excel(
+                writer,
+                sheet_name="BONOS",
+                index=False,
+                startrow=16,
+            )
+
+            ws = writer.book["BONOS"]
+            navy = "123A5A"
+            teal = "1F6B7A"
+            white = "FFFFFF"
+            light = "EAF1F7"
+            border = Border(
+                bottom=Side(style="thin", color="D9E2EC")
+            )
+
+            ws["A1"] = "BONOS · GEN CONTROL"
+            ws.merge_cells("A1:J1")
+            ws["A1"].font = Font(
+                bold=True,
+                size=16,
+                color=white,
+            )
+            ws["A1"].fill = PatternFill(
+                "solid",
+                fgColor=navy,
+            )
+            ws["A1"].alignment = Alignment(
+                vertical="center",
+            )
+            ws.row_dimensions[1].height = 28
+
+            for cell in ws[3][:2]:
+                cell.font = Font(bold=True, color=white)
+                cell.fill = PatternFill("solid", fgColor=teal)
+
+            for row in range(4, 14):
+                ws.cell(row, 1).font = Font(bold=True, color=navy)
+                ws.cell(row, 1).border = border
+                ws.cell(row, 2).border = border
+
+            header_row = 17
+            for cell in ws[header_row]:
+                cell.font = Font(bold=True, color=white)
+                cell.fill = PatternFill("solid", fgColor=navy)
+                cell.alignment = Alignment(
+                    horizontal="center",
+                    vertical="center",
+                    wrap_text=True,
+                )
+
+            headers = {
+                ws.cell(header_row, c).value: c
+                for c in range(1, ws.max_column + 1)
+            }
+
+            for nombre_pct in [
+                "Cumplimiento real",
+                "Cumplimiento bono",
+                "Peso",
+                "Aporte",
+            ]:
+                col_pct = headers.get(nombre_pct)
+                if col_pct:
+                    for rr in range(header_row + 1, ws.max_row + 1):
+                        ws.cell(rr, col_pct).number_format = "0.00%"
+
+            for rr in range(header_row + 1, ws.max_row + 1):
+                if ws.cell(rr, 1).value == "Recuperación":
+                    for cc in range(2, 7):
+                        ws.cell(rr, cc).number_format = '$ #,##0.00'
+
+            for rr in range(header_row + 1, ws.max_row + 1):
+                if rr % 2 == 0:
+                    for cc in range(1, 11):
+                        ws.cell(rr, cc).fill = PatternFill(
+                            "solid",
+                            fgColor=light,
+                        )
+
+            widths = [24, 18, 18, 20, 18, 20, 20, 20, 12, 14]
+            for idx_w, width in enumerate(widths, start=1):
+                ws.column_dimensions[
+                    ws.cell(1, idx_w).column_letter
+                ].width = width
+
+            ws.freeze_panes = "A18"
+
+            # Hoja de referencia general.
+            df_resumen_bonos.to_excel(
+                writer,
+                sheet_name="RESUMEN",
+                index=False,
+            )
+            ws2 = writer.book["RESUMEN"]
+            for cell in ws2[1]:
+                cell.font = Font(bold=True, color=white)
+                cell.fill = PatternFill("solid", fgColor=navy)
+                cell.alignment = Alignment(
+                    horizontal="center",
+                    wrap_text=True,
+                )
+            ws2.freeze_panes = "A2"
+            for col_cells in ws2.columns:
+                letra = col_cells[0].column_letter
+                largo = max(
+                    len(str(c.value or ""))
+                    for c in col_cells
+                )
+                ws2.column_dimensions[letra].width = min(
+                    max(largo + 2, 12),
+                    28,
+                )
+
+        buffer_excel.seek(0)
+        return buffer_excel.getvalue()
+
+    st.markdown("#### Descargar cálculo")
+    st.caption(
+        "Descarga el cálculo en Excel conservando la lógica: Meta original → "
+        "Meta válida y Resultado original → Ajuste → Resultado válido."
+    )
+
+    st.download_button(
+        "📥 Descargar Excel de Bonos",
+        data=generar_excel_bono_v7(),
+        file_name=(
+            f"BONOS_{base['nombre'].replace(' ', '_')}_"
+            f"{fecha_local_actual().strftime('%Y_%m')}.xlsx"
+        ),
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+        key=f"descargar_excel_bono_v7_{usuario_bonus}",
+    )
+
+    # -------------------------------------------------
     # 4. MENSAJE INDIVIDUAL DEL BONO
     # -------------------------------------------------
     st.markdown("#### 4. Envío individual")
@@ -11679,6 +11923,10 @@ elif menu == "💰 Bonos":
     if motivo.strip():
         mensaje_bono += (
             f"\nMotivo del ajuste: {motivo.strip()}."
+        )
+    if hay_ajuste_resultado:
+        mensaje_bono += (
+            f"\nRegularización de resultados: {motivo_ajuste_resultado.strip()}."
         )
 
     mensaje_bono += (
@@ -11748,6 +11996,7 @@ elif menu == "💰 Bonos":
                 disabled=(
                     not bool(chat_id_bono)
                     or not calidad_completa
+                    or not ajuste_resultado_valido
                 ),
                 key=f"enviar_bono_{usuario_bonus}",
             ):
