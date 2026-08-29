@@ -1479,6 +1479,212 @@ st.markdown(
         .msg-v20-title{font-size:24px!important;}
         .msg-v20-top{justify-content:flex-start!important;}
     }
+
+    /* =========================================================
+       V26 · RANKING EJECUTIVO
+       ========================================================= */
+    .rank-head-v26{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        margin:14px 0 8px;
+    }
+    .rank-title-v26{
+        font-size:19px;
+        font-weight:900;
+        color:#172B4D;
+        letter-spacing:-.025em;
+    }
+    .rank-sub-v26{
+        font-size:9px;
+        color:#7C899A;
+        margin-top:2px;
+    }
+
+    .rank-kpis-v26{
+        display:grid;
+        grid-template-columns:repeat(6,minmax(0,1fr));
+        gap:9px;
+        margin:10px 0 12px;
+    }
+    .rank-kpi-v26{
+        border:1px solid #E0E7F0;
+        background:#FFFFFF;
+        border-radius:13px;
+        padding:11px 12px;
+        box-shadow:0 4px 14px rgba(23,52,88,.025);
+        min-height:78px;
+    }
+    .rank-kpi-v26 .k{
+        color:#7C899A;
+        font-size:8px;
+        font-weight:850;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+    }
+    .rank-kpi-v26 .v{
+        color:#172B4D;
+        font-size:19px;
+        font-weight:900;
+        margin-top:5px;
+        line-height:1.05;
+    }
+    .rank-kpi-v26 .s{
+        color:#8592A3;
+        font-size:8px;
+        margin-top:4px;
+    }
+    .rank-kpi-v26.green .v{color:#13804D;}
+    .rank-kpi-v26.orange .v{color:#B66A00;}
+    .rank-kpi-v26.blue .v{color:#1E66D8;}
+    .rank-kpi-v26.purple .v{color:#7257C9;}
+
+    .rank-wrap-v26{
+        border:1px solid #DFE7F0;
+        border-radius:14px;
+        overflow:hidden;
+        background:#FFFFFF;
+        box-shadow:0 5px 16px rgba(23,52,88,.028);
+        margin-top:8px;
+    }
+    .rank-row-v26{
+        display:grid;
+        grid-template-columns:44px 2.1fr 1.55fr 1.55fr 1.8fr 1fr;
+        align-items:center;
+        gap:10px;
+        padding:9px 12px;
+        border-bottom:1px solid #EDF1F5;
+        font-size:10px;
+    }
+    .rank-row-v26:last-child{border-bottom:none;}
+    .rank-row-v26:hover{background:#FAFCFF;}
+    .rank-row-v26.header{
+        background:#F8FAFD;
+        color:#65768A;
+        font-size:8px;
+        font-weight:850;
+        text-transform:uppercase;
+        letter-spacing:.035em;
+        padding-top:8px;
+        padding-bottom:8px;
+    }
+    .rank-row-v26.first{
+        background:linear-gradient(90deg,#F0FBF5 0%,#FFFFFF 42%);
+    }
+    .rank-pos-v26{
+        font-size:12px;
+        font-weight:900;
+        color:#173B72;
+    }
+    .rank-name-v26{
+        font-size:10px;
+        font-weight:850;
+        color:#172B4D;
+        line-height:1.25;
+    }
+    .rank-metric-v26{
+        color:#172B4D;
+        font-weight:800;
+        font-size:10px;
+    }
+    .rank-metric-sub-v26{
+        color:#7C899A;
+        font-size:8px;
+        margin-top:2px;
+    }
+    .rank-bar-v26{
+        height:5px;
+        border-radius:999px;
+        background:#E9EEF4;
+        overflow:hidden;
+        margin-top:4px;
+    }
+    .rank-bar-v26 span{
+        display:block;
+        height:100%;
+        border-radius:999px;
+    }
+    .rank-bar-v26 .g{background:#2877E8;}
+    .rank-bar-v26 .c{background:#7555D9;}
+    .rank-bar-v26 .r{background:#1D9B62;}
+
+    .rank-pill-v26{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:999px;
+        padding:5px 8px;
+        font-size:8px;
+        font-weight:850;
+        white-space:nowrap;
+    }
+    .rank-pill-v26.ok{background:#E8F8EF;color:#12814B;}
+    .rank-pill-v26.warn{background:#FFF1E0;color:#B76800;}
+    .rank-pill-v26.bad{background:#FFE9EC;color:#C53B4B;}
+
+    .rank-strip-grid-v26{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+        margin:10px 0 12px;
+    }
+    .rank-strip-v26{
+        border-radius:12px;
+        padding:10px 12px;
+        font-size:9px;
+        line-height:1.45;
+    }
+    .rank-strip-v26 strong{font-size:10px;}
+    .rank-strip-v26.good{
+        background:#EEFBF4;
+        border:1px solid #CDEDDC;
+        color:#137C4A;
+    }
+    .rank-strip-v26.warn{
+        background:#FFF7ED;
+        border:1px solid #F4D7AF;
+        color:#A75C00;
+    }
+
+    .alerts-grid-v26{
+        display:grid;
+        grid-template-columns:1.2fr .9fr;
+        gap:12px;
+        margin-top:8px;
+    }
+    .alerts-card-v26{
+        border:1px solid #E2E8F0;
+        border-radius:13px;
+        background:#FFFFFF;
+        padding:12px 13px;
+    }
+    .alerts-card-v26 h4{
+        margin:0 0 4px;
+        font-size:12px;
+        color:#172B4D;
+    }
+    .alerts-card-v26 p{
+        margin:0 0 8px;
+        font-size:8px;
+        color:#7C899A;
+    }
+    .alert-line-v26{
+        display:flex;
+        justify-content:space-between;
+        gap:10px;
+        padding:6px 0;
+        border-bottom:1px solid #EEF2F6;
+        font-size:9px;
+    }
+    .alert-line-v26:last-child{border-bottom:none;}
+    .alert-line-v26 .name{font-weight:800;color:#263D5B;}
+    .alert-line-v26 .val{font-weight:850;color:#B65F00;}
+
+    @media(max-width:1100px){
+        .rank-kpis-v26{grid-template-columns:repeat(3,minmax(0,1fr));}
+        .rank-row-v26{grid-template-columns:40px 1.8fr 1.35fr 1.35fr 1.55fr .9fr;}
+    }
 </style>
     """,
     unsafe_allow_html=True,
@@ -7841,19 +8047,28 @@ if menu == "🏠 Resumen":
         st.write("")
 
         # -------------------------------------------------
-        # RANKING SIMPLIFICADO
+        # RANKING EJECUTIVO · V26
         # -------------------------------------------------
 
-        st.markdown("### Ranking de operadores")
-        st.caption(
-            "El orden y el estado corresponden al indicador seleccionado."
+        st.markdown(
+            """
+            <div class="rank-head-v26">
+                <div>
+                    <div class="rank-title-v26">Ranking de operadores</div>
+                    <div class="rank-sub-v26">
+                        Compara desempeño, identifica líderes y prioriza seguimiento.
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
         ranking = resultado.copy()
 
-        c1, c2 = st.columns([3, 1])
+        rf1, rf2 = st.columns([4.2, 1.1], vertical_alignment="bottom")
 
-        with c1:
+        with rf1:
             criterio = st.selectbox(
                 "Ranking por",
                 [
@@ -7864,7 +8079,7 @@ if menu == "🏠 Resumen":
                 key="ranking_simple_v76",
             )
 
-        with c2:
+        with rf2:
             menor_primero = st.checkbox(
                 "Menor primero",
                 value=False,
@@ -7876,7 +8091,6 @@ if menu == "🏠 Resumen":
             "Gestiones": "% Gestiones",
             "Compromisos": "% Compromisos",
         }
-
         columna_orden = mapa_criterio[criterio]
 
         ranking["Estado"] = ranking[columna_orden].apply(
@@ -7894,139 +8108,227 @@ if menu == "🏠 Resumen":
 
         ranking["Posición"] = ranking.index + 1
 
-        vista = pd.DataFrame(
-            {
-                "#": ranking["Posición"],
-                "Operador": ranking["Operador"],
-                "Gestiones": ranking.apply(
-                    lambda r: (
-                        f"{formato_entero(r['Gestiones'])} · "
-                        f"{formato_porcentaje(r['% Gestiones'])}"
-                    ),
-                    axis=1,
-                ),
-                "Compromisos": ranking.apply(
-                    lambda r: (
-                        f"{formato_entero(r['Compromisos'])} · "
-                        f"{formato_porcentaje(r['% Compromisos'])}"
-                    ),
-                    axis=1,
-                ),
-                "Recuperación": ranking.apply(
-                    lambda r: (
-                        f"{formato_usd(r['Recuperación acumulada'])} · "
-                        f"{formato_porcentaje(r['% Recuperación'])}"
-                    ),
-                    axis=1,
-                ),
-                "Estado": ranking["Estado"],
-            }
+        # KPIs específicos del ranking
+        total_ops_rank_v26 = len(ranking)
+        lider_rank_v26 = ranking.iloc[0] if not ranking.empty else None
+        ultimo_rank_v26 = ranking.iloc[-1] if not ranking.empty else None
+        promedio_rank_v26 = float(ranking[columna_orden].mean()) if not ranking.empty else 0.0
+        reforzar_rank_v26 = int(
+            (ranking[columna_orden].astype(float) < esperado - 10).sum()
+        ) if not ranking.empty else 0
+
+        st.markdown(
+            f"""
+            <div class="rank-kpis-v26">
+                <div class="rank-kpi-v26 blue">
+                    <div class="k">Operadores</div>
+                    <div class="v">{total_ops_rank_v26}</div>
+                    <div class="s">Activos en el ranking</div>
+                </div>
+                <div class="rank-kpi-v26">
+                    <div class="k">Gestiones equipo</div>
+                    <div class="v">{formato_entero(total_gestiones)}</div>
+                    <div class="s">Acumulado actual</div>
+                </div>
+                <div class="rank-kpi-v26 purple">
+                    <div class="k">Compromisos equipo</div>
+                    <div class="v">{formato_entero(total_compromisos)}</div>
+                    <div class="s">Acumulado actual</div>
+                </div>
+                <div class="rank-kpi-v26 green">
+                    <div class="k">Recuperación equipo</div>
+                    <div class="v">{formato_usd(total_recuperacion)}</div>
+                    <div class="s">Acumulado actual</div>
+                </div>
+                <div class="rank-kpi-v26 blue">
+                    <div class="k">Promedio {criterio.lower()}</div>
+                    <div class="v">{formato_porcentaje(promedio_rank_v26)}</div>
+                    <div class="s">Promedio del equipo</div>
+                </div>
+                <div class="rank-kpi-v26 orange">
+                    <div class="k">A reforzar</div>
+                    <div class="v">{reforzar_rank_v26}</div>
+                    <div class="s">Brecha mayor a 10 p.p.</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        st.dataframe(
-            vista,
-            use_container_width=True,
-            hide_index=True,
+        # Tabla visual
+        filas_rank_v26 = []
+
+        for _, rr in ranking.iterrows():
+            pos = int(rr["Posición"])
+            pct_g = float(rr["% Gestiones"])
+            pct_c = float(rr["% Compromisos"])
+            pct_r = float(rr["% Recuperación"])
+            pct_estado = float(rr[columna_orden])
+
+            # Barras visuales: topadas para lectura, no para cálculo.
+            bar_g = min(max(pct_g, 0), 100)
+            bar_c = min(max(pct_c, 0), 100)
+            bar_r = min(max(pct_r, 0), 100)
+
+            if pct_estado >= esperado - 3:
+                estado_cls = "ok"
+            elif pct_estado >= esperado - 10:
+                estado_cls = "warn"
+            else:
+                estado_cls = "bad"
+
+            medalla = "🥇" if pos == 1 else ("🥈" if pos == 2 else ("🥉" if pos == 3 else ""))
+
+            filas_rank_v26.append(
+                f"""
+                <div class="rank-row-v26 {'first' if pos == 1 else ''}">
+                    <div class="rank-pos-v26">{pos} {medalla}</div>
+                    <div class="rank-name-v26">{rr['Operador']}</div>
+
+                    <div>
+                        <div class="rank-metric-v26">{formato_entero(rr['Gestiones'])}</div>
+                        <div class="rank-metric-sub-v26">{formato_porcentaje(pct_g)}</div>
+                        <div class="rank-bar-v26"><span class="g" style="width:{bar_g:.1f}%"></span></div>
+                    </div>
+
+                    <div>
+                        <div class="rank-metric-v26">{formato_entero(rr['Compromisos'])}</div>
+                        <div class="rank-metric-sub-v26">{formato_porcentaje(pct_c)}</div>
+                        <div class="rank-bar-v26"><span class="c" style="width:{bar_c:.1f}%"></span></div>
+                    </div>
+
+                    <div>
+                        <div class="rank-metric-v26">{formato_usd(rr['Recuperación acumulada'])}</div>
+                        <div class="rank-metric-sub-v26">{formato_porcentaje(pct_r)}</div>
+                        <div class="rank-bar-v26"><span class="r" style="width:{bar_r:.1f}%"></span></div>
+                    </div>
+
+                    <div>
+                        <span class="rank-pill-v26 {estado_cls}">{rr['Estado']}</span>
+                    </div>
+                </div>
+                """
+            )
+
+        html_rank_v26 = (
+            """
+            <div class="rank-wrap-v26">
+                <div class="rank-row-v26 header">
+                    <div>#</div>
+                    <div>Operador</div>
+                    <div>Gestiones</div>
+                    <div>Compromisos</div>
+                    <div>Recuperación</div>
+                    <div>Estado</div>
+                </div>
+            """
+            + "".join(
+                parte.strip().replace("\n", " ")
+                for parte in filas_rank_v26
+            )
+            + "</div>"
+        )
+
+        st.markdown(
+            html_rank_v26,
+            unsafe_allow_html=True,
         )
 
         if not ranking.empty:
             lider = ranking.iloc[0]
             seguimiento = ranking.iloc[-1]
 
-            r1, r2 = st.columns(2)
-
-            with r1:
-                st.markdown(
-                    f"""
-                    <div class="leader-strip-v77 leader-green-v77">
-                        🏆 <strong>Líder en {criterio.lower()}:</strong>&nbsp;
-                        {lider['Operador']} ·
-                        {formato_porcentaje(lider[columna_orden])}
+            st.markdown(
+                f"""
+                <div class="rank-strip-grid-v26">
+                    <div class="rank-strip-v26 good">
+                        🏆 <strong>Líder en {criterio.lower()}</strong><br>
+                        {lider['Operador']} · {formato_porcentaje(lider[columna_orden])}
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-            with r2:
-                st.markdown(
-                    f"""
-                    <div class="leader-strip-v77 leader-orange-v77">
-                        🎯 <strong>Mayor seguimiento en {criterio.lower()}:</strong>&nbsp;
-                        {seguimiento['Operador']} ·
-                        {formato_porcentaje(seguimiento[columna_orden])}
+                    <div class="rank-strip-v26 warn">
+                        🎯 <strong>Mayor oportunidad de mejora</strong><br>
+                        {seguimiento['Operador']} · {formato_porcentaje(seguimiento[columna_orden])}
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-        st.write("")
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         # -------------------------------------------------
-        # ALERTAS COMPACTAS — V77
-        # Responden al indicador seleccionado en el ranking
+        # ALERTAS Y RECOMENDACIONES · V26
         # -------------------------------------------------
-
-        st.markdown("### Alertas")
-
         alertas_df = ranking[
-            ranking[columna_orden].astype(float)
-            < esperado - 10
+            ranking[columna_orden].astype(float) < esperado - 10
         ].copy()
+
+        st.markdown(
+            """
+            <div class="rank-head-v26" style="margin-top:8px;">
+                <div>
+                    <div class="rank-title-v26">Alertas y recomendaciones</div>
+                    <div class="rank-sub-v26">
+                        Prioridades del equipo según el indicador seleccionado.
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         if alertas_df.empty:
             st.success(
                 f"✅ No hay brechas críticas en {criterio.lower()}."
             )
-
         else:
-            # Ordenar del más rezagado al menos rezagado.
             alertas_df = alertas_df.sort_values(
                 columna_orden,
                 ascending=True,
                 kind="stable",
             )
 
-            filas_html = []
+            lineas_alerta_v26 = []
+            for _, ar in alertas_df.iterrows():
+                valor_ar = float(ar[columna_orden])
+                brecha_ar = max(esperado - valor_ar, 0)
 
-            for _, fila_alerta in alertas_df.iterrows():
-                valor_alerta = float(
-                    fila_alerta[columna_orden]
-                )
-
-                brecha_alerta = max(
-                    esperado - valor_alerta,
-                    0,
-                )
-
-                filas_html.append(
+                lineas_alerta_v26.append(
                     f"""
-                    <div class="alert-row-v77">
-                        <span class="alert-name-v77">
-                            {fila_alerta['Operador']}
-                        </span>
-                        <span class="alert-value-v77">
-                            {formato_porcentaje(valor_alerta)}
-                            · brecha {formato_porcentaje(brecha_alerta)}
+                    <div class="alert-line-v26">
+                        <span class="name">{ar['Operador']}</span>
+                        <span class="val">
+                            {formato_porcentaje(valor_ar)} ·
+                            brecha {formato_porcentaje(brecha_ar)}
                         </span>
                     </div>
                     """
                 )
 
-            html_alertas = (
-                '<div class="alert-summary-v77">'
-                f'<div class="alert-summary-title-v77">⚠️ {len(alertas_df)} operador(es) requieren reforzar {criterio.lower()}</div>'
-                '<div class="alert-summary-sub-v77">Ordenados desde la mayor brecha hasta la menor.</div>'
-                + "".join(
-                    parte.strip().replace("\n", " ")
-                    for parte in filas_html
-                )
-                + '</div>'
-            )
+            recomendaciones_v26 = [
+                "Priorizar seguimiento a quienes tengan la mayor brecha.",
+                "Mantener el ritmo de gestiones aunque una meta mensual ya esté cumplida.",
+                "Revisar compromisos y recuperación antes del cierre del día.",
+            ]
 
             st.markdown(
-                html_alertas,
+                f"""
+                <div class="alerts-grid-v26">
+                    <div class="alerts-card-v26">
+                        <h4>⚠️ {len(alertas_df)} operador(es) requieren atención</h4>
+                        <p>Ordenados desde la mayor brecha hasta la menor.</p>
+                        {''.join(x.strip().replace(chr(10),' ') for x in lineas_alerta_v26)}
+                    </div>
+                    <div class="alerts-card-v26" style="background:#F3F7FF;border-color:#D8E5F7;">
+                        <h4>💡 Recomendaciones</h4>
+                        <p>Acciones rápidas para el seguimiento de hoy.</p>
+                        <div class="alert-line-v26"><span class="name">✓ {recomendaciones_v26[0]}</span></div>
+                        <div class="alert-line-v26"><span class="name">✓ {recomendaciones_v26[1]}</span></div>
+                        <div class="alert-line-v26"><span class="name">✓ {recomendaciones_v26[2]}</span></div>
+                    </div>
+                </div>
+                """,
                 unsafe_allow_html=True,
             )
+
 
 # =========================================================
 # COMPORTAMIENTO DIARIO
