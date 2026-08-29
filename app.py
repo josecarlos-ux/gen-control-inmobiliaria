@@ -11671,62 +11671,14 @@ elif menu == "💰 Bonos":
         # Cada operador ocupa un bloque fijo en la plantilla original:
         # objetivo, alcance, porcentaje y aporte.
         bloques = {
-            "cvaca": {
-                "nombre": "Carla Vaca",
-                "obj": "G",
-                "alc": "H",
-                "pct": "I",
-                "aporte": "J",
-            },
-            "arodriguez": {
-                "nombre": "Alisson Rodriguez",
-                "obj": "Q",
-                "alc": "R",
-                "pct": "S",
-                "aporte": "T",
-            },
-            "malvarez": {
-                "nombre": "Anahir Alvarez",
-                "obj": "Z",
-                "alc": "AA",
-                "pct": "AB",
-                "aporte": "AC",
-            },
-            "yrivas": {
-                "nombre": "Yessica Rivas",
-                "obj": "AI",
-                "alc": "AJ",
-                "pct": "AK",
-                "aporte": "AL",
-            },
-            "yarinez": {
-                "nombre": "Yanine Ariñez",
-                "obj": "AS",
-                "alc": "AT",
-                "pct": "AU",
-                "aporte": "AV",
-            },
-            "projas": {
-                "nombre": "Percy Rojas",
-                "obj": "BC",
-                "alc": "BD",
-                "pct": "BE",
-                "aporte": "BF",
-            },
-            "jborja": {
-                "nombre": "James Borja",
-                "obj": "BL",
-                "alc": "BM",
-                "pct": "BN",
-                "aporte": "BO",
-            },
-            "avargas": {
-                "nombre": "Aracely Peña",
-                "obj": "BU",
-                "alc": "BV",
-                "pct": "BW",
-                "aporte": "BX",
-            },
+            "cvaca": {"numero": 1, "num_col": "C", "nombre": "Carla Vaca", "obj": "G", "alc": "H", "pct": "I", "aporte": "J"},
+            "arodriguez": {"numero": 2, "num_col": "M", "nombre": "Alisson Rodriguez", "obj": "Q", "alc": "R", "pct": "S", "aporte": "T"},
+            "malvarez": {"numero": 3, "num_col": "V", "nombre": "Anahir Alvarez", "obj": "Z", "alc": "AA", "pct": "AB", "aporte": "AC"},
+            "yrivas": {"numero": 4, "num_col": "AE", "nombre": "Yessica Rivas", "obj": "AI", "alc": "AJ", "pct": "AK", "aporte": "AL"},
+            "yarinez": {"numero": 5, "num_col": "AO", "nombre": "Yanine Ariñez", "obj": "AS", "alc": "AT", "pct": "AU", "aporte": "AV"},
+            "projas": {"numero": 6, "num_col": "AY", "nombre": "Percy Rojas", "obj": "BC", "alc": "BD", "pct": "BE", "aporte": "BF"},
+            "jborja": {"numero": 7, "num_col": "BH", "nombre": "James Borja", "obj": "BL", "alc": "BM", "pct": "BN", "aporte": "BO"},
+            "avargas": {"numero": 8, "num_col": "BQ", "nombre": "Aracely Peña", "obj": "BU", "alc": "BV", "pct": "BW", "aporte": "BX"},
         }
 
         filas_indicador = {
@@ -11798,6 +11750,12 @@ elif menu == "💰 Bonos":
             alc_col = bloque_x["alc"]
             pct_col = bloque_x["pct"]
             aporte_col = bloque_x["aporte"]
+            num_col = bloque_x["num_col"]
+            numero_operador = bloque_x["numero"]
+
+            # Corregir numeración original en todos los bloques.
+            for fila_num in (15, 17, 19, 21, 23, 25, 29):
+                ws[f"{num_col}{fila_num}"] = numero_operador
 
             datos_ref = bonos_julio.get(
                 usuario_x,
@@ -12197,102 +12155,59 @@ elif menu == "💰 Bonos":
         )
 
     st.divider()
-    st.markdown("### Vista general · referencia Julio 2026")
+    st.markdown("### Control general del mes")
     st.caption(
-        "El envío del resultado se realiza de forma individual desde la ficha de cada operador."
+        "Seguimiento de los 8 operadores antes del cierre definitivo de BONOS CC."
     )
 
-    filas_resumen = []
+    filas_control_mes = []
+    completos_mes = 0
 
-    for usuario_r, datos_r in bonos_julio.items():
-        mprod_r = datos_r["meta_productividad"]
-        comps_r = [
-            cumplimiento_bono(
-                datos_r["productividad"],
-                mprod_r,
-            ) * pesos_bono["Productividad"],
-            cumplimiento_bono(
-                datos_r["recuperacion"],
-                metas_base["Recuperación"],
-            ) * pesos_bono["Recuperación"],
-            cumplimiento_bono(
-                datos_r["promesas"],
-                metas_base["Promesas"],
-            ) * pesos_bono["Promesas"],
-            cumplimiento_bono(
-                datos_r["satisfaccion"],
-                metas_base["Satisfacción"],
-            ) * pesos_bono["Satisfacción"],
-            cumplimiento_bono(
-                datos_r["pecuf"],
-                metas_base["PECUF"],
-            ) * pesos_bono["PECUF"],
-            cumplimiento_bono(
-                datos_r["pecn"],
-                metas_base["PECN"],
-            ) * pesos_bono["PECN"],
-        ]
-        score_r = sum(comps_r)
-        filas_resumen.append(
-            {
-                "Operador": datos_r["nombre"],
-                "Puntaje": score_r,
-                "Bono Bs": monto_bono(score_r),
-                "Estado": "Referencia completa",
-                "Productividad": datos_r["productividad"],
-                "Meta productividad": mprod_r,
-                "Recuperación": datos_r["recuperacion"],
-                "Promesas": datos_r["promesas"],
-            }
+    for idx_r, (usuario_r, datos_r) in enumerate(bonos_julio.items(), start=1):
+        sat_r = parsear_porcentaje_calidad(
+            st.session_state.get(f"bono_sat_txt_{usuario_r}_{fuente_bono}", "")
+        )
+        pecuf_r = parsear_porcentaje_calidad(
+            st.session_state.get(f"bono_pecuf_txt_{usuario_r}_{fuente_bono}", "")
+        )
+        pecn_r = parsear_porcentaje_calidad(
+            st.session_state.get(f"bono_pecn_txt_{usuario_r}_{fuente_bono}", "")
         )
 
-    df_resumen_bonos = pd.DataFrame(
-        filas_resumen
-    )
-    df_resumen_bonos["Puntaje final %"] = (
-        df_resumen_bonos["Puntaje"] * 100
-    )
-    df_resumen_bonos = df_resumen_bonos.sort_values(
-        ["Bono Bs", "Puntaje"],
-        ascending=[False, False],
-    )
+        calidad_n = sum(v is not None for v in (sat_r, pecuf_r, pecn_r))
+        completo_r = calidad_n == 3
+        if completo_r:
+            completos_mes += 1
+
+        filas_control_mes.append({
+            "Nº": idx_r,
+            "Operador": datos_r["nombre"],
+            "Calidad": f"{calidad_n}/3",
+            "Estado": "✅ Completo" if completo_r else "⚠️ Pendiente Calidad",
+        })
+
+    c1_mes, c2_mes, c3_mes = st.columns(3)
+    c1_mes.metric("Operadores completos", f"{completos_mes}/8")
+    c2_mes.metric("Pendientes", 8 - completos_mes)
+    c3_mes.metric("Cierre mensual", "✅ Listo" if completos_mes == 8 else "🟠 En revisión")
+
+    if completos_mes == 8:
+        st.success(
+            "Los 8 operadores tienen Calidad completa. "
+            "El BONOS CC consolidado ya está listo para cierre definitivo."
+        )
+    else:
+        st.info(
+            f"Faltan {8 - completos_mes} operador(es) por completar Satisfacción, PECUF y PECN. "
+            "Puedes seguir descargando el consolidado para revisión."
+        )
 
     st.dataframe(
-        df_resumen_bonos[
-            [
-                "Operador",
-                "Puntaje final %",
-                "Bono Bs",
-                "Estado",
-                "Productividad",
-                "Meta productividad",
-                "Recuperación",
-                "Promesas",
-            ]
-        ],
+        pd.DataFrame(filas_control_mes),
         use_container_width=True,
         hide_index=True,
-        column_config={
-            "Puntaje final %": st.column_config.ProgressColumn(
-                "Puntaje final",
-                min_value=0,
-                max_value=100,
-                format="%.2f%%",
-            ),
-            "Bono Bs": st.column_config.NumberColumn(
-                "Bono Bs",
-                format="Bs %d",
-            ),
-            "Recuperación": st.column_config.NumberColumn(
-                "Recuperación",
-                format="USD %.2f",
-            ),
-        },
     )
 
-    st.caption(
-        "Esta es una prueba funcional. Todavía no guarda ajustes ni bonos en Supabase."
-    )
 
 elif menu == "👥 Equipo":
 
