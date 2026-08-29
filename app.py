@@ -10947,10 +10947,24 @@ elif menu == "💰 Bonos":
         "PECN": 0.90,
     }
 
-    def cumplimiento_bono(alcance, objetivo):
+    def cumplimiento_real_bono(alcance, objetivo):
         if objetivo is None or objetivo <= 0:
             return 0.0
-        return min(max(float(alcance) / float(objetivo), 0.0), 1.0)
+        return max(
+            float(alcance) / float(objetivo),
+            0.0,
+        )
+
+    def cumplimiento_bono(alcance, objetivo):
+        # Para el puntaje del bono el cumplimiento se topa en 100%,
+        # tal como en el archivo original. El cumplimiento real se muestra aparte.
+        return min(
+            cumplimiento_real_bono(
+                alcance,
+                objetivo,
+            ),
+            1.0,
+        )
 
     def monto_bono(puntaje):
         if puntaje >= 0.95:
@@ -10966,11 +10980,28 @@ elif menu == "💰 Bonos":
     # -------------------------------------------------
     cperiodo, cmodo = st.columns([1.5, 1])
 
+    resultado_bonos_actual = st.session_state.get(
+        "resultado_operadores"
+    )
+    hay_datos_actuales_bonos = (
+        resultado_bonos_actual is not None
+        and not resultado_bonos_actual.empty
+    )
+
+    fuentes_bono = []
+    if hay_datos_actuales_bonos:
+        fuentes_bono.append(
+            "Datos actuales de GEN Control"
+        )
+    fuentes_bono.append(
+        "Julio 2026 · ejemplo del archivo"
+    )
+
     with cperiodo:
-        st.selectbox(
-            "Periodo",
-            ["Julio 2026 · prueba con archivo real"],
-            key="bonos_periodo_prueba",
+        fuente_bono = st.selectbox(
+            "Fuente de resultados",
+            fuentes_bono,
+            key="bonos_fuente_resultados_v4",
         )
 
     with cmodo:
@@ -11022,9 +11053,61 @@ elif menu == "💰 Bonos":
         key="bono_operador_prueba",
     )
 
-    base = bonos_julio[usuario_bonus]
+    base = dict(
+        bonos_julio[usuario_bonus]
+    )
+
+    # Si se seleccionan datos actuales, Productividad, Recuperación y Promesas
+    # provienen de la misma fuente que el Resumen de GEN Control.
+    if (
+        fuente_bono == "Datos actuales de GEN Control"
+        and hay_datos_actuales_bonos
+    ):
+        fila_actual_bono = resultado_bonos_actual[
+            resultado_bonos_actual["Usuario"].astype(str)
+            == str(usuario_bonus)
+        ]
+
+        if not fila_actual_bono.empty:
+            fila_actual_bono = fila_actual_bono.iloc[0]
+
+            base["productividad"] = int(
+                float(
+                    fila_actual_bono.get(
+                        "Gestiones",
+                        base["productividad"],
+                    )
+                    or 0
+                )
+            )
+            base["recuperacion"] = float(
+                fila_actual_bono.get(
+                    "Recuperación acumulada",
+                    base["recuperacion"],
+                )
+                or 0
+            )
+            base["promesas"] = int(
+                float(
+                    fila_actual_bono.get(
+                        "Compromisos",
+                        base["promesas"],
+                    )
+                    or 0
+                )
+            )
 
     st.markdown(f"### {base['nombre']}")
+
+    if fuente_bono == "Datos actuales de GEN Control":
+        st.success(
+            "Productividad, Recuperación y Promesas están tomando los mismos "
+            "acumulados que el Resumen de GEN Control."
+        )
+    else:
+        st.info(
+            "Estás viendo los valores históricos de Julio 2026 usados solo como ejemplo."
+        )
 
     # -------------------------------------------------
     # Ajuste/prorrateo
@@ -11218,9 +11301,13 @@ elif menu == "💰 Bonos":
     puntaje_total = 0.0
 
     for indicador, alcance, meta in indicadores:
-        cumplimiento = cumplimiento_bono(
+        cumplimiento_real = cumplimiento_real_bono(
             alcance,
             meta,
+        )
+        cumplimiento = min(
+            cumplimiento_real,
+            1.0,
         )
         peso = pesos_bono[indicador]
         aporte = cumplimiento * peso
@@ -11231,7 +11318,8 @@ elif menu == "💰 Bonos":
                 "Indicador": indicador,
                 "Meta válida": meta,
                 "Alcance": alcance,
-                "Cumplimiento": cumplimiento,
+                "Cumplimiento real": cumplimiento_real,
+                "Cumplimiento bono": cumplimiento,
                 "Peso": peso,
                 "Aporte": aporte,
             }
@@ -11240,6 +11328,10 @@ elif menu == "💰 Bonos":
     bono_bs = monto_bono(puntaje_total)
 
     st.markdown("#### 3. Resultado proyectado")
+    st.caption(
+        "El cumplimiento real puede superar 100%. Para calcular el bono, "
+        "cada indicador aporta como máximo el 100% de su peso."
+    )
 
     b1, b2, b3, b4 = st.columns(4)
     with b1:
@@ -11285,13 +11377,13 @@ elif menu == "💰 Bonos":
     }
 
     prod_pct_msg = (
-        detalle_msg_bono["Productividad"]["Cumplimiento"] * 100
+        detalle_msg_bono["Productividad"]["Cumplimiento real"] * 100
     )
     rec_pct_msg = (
-        detalle_msg_bono["Recuperación"]["Cumplimiento"] * 100
+        detalle_msg_bono["Recuperación"]["Cumplimiento real"] * 100
     )
     prom_pct_msg = (
-        detalle_msg_bono["Promesas"]["Cumplimiento"] * 100
+        detalle_msg_bono["Promesas"]["Cumplimiento real"] * 100
     )
 
     mensaje_bono = (
@@ -11353,21 +11445,25 @@ elif menu == "💰 Bonos":
                 )
             )
 
-            # Fallback al mismo origen usado en otras pantallas.
+            # Fallback correcto: misma fuente que Mensajes diarios.
             if not chat_id_bono:
                 try:
-                    datos_contacto_bono = (
-                        cargar_contactos_operadores_supabase()
-                    )
-                    chat_id_bono = normalizar_telegram_chat_id(
-                        datos_contacto_bono.get(
-                            usuario_bonus,
-                            {}
-                        ).get(
-                            "telegram_chat_id",
-                            ""
-                        )
-                    )
+                    operadores_bono_db = cargar_operadores_supabase()
+                    if (
+                        operadores_bono_db is not None
+                        and not operadores_bono_db.empty
+                    ):
+                        fila_bono_tg = operadores_bono_db[
+                            operadores_bono_db["usuario"].astype(str)
+                            == str(usuario_bonus)
+                        ]
+                        if not fila_bono_tg.empty:
+                            chat_id_bono = normalizar_telegram_chat_id(
+                                fila_bono_tg.iloc[0].get(
+                                    "telegram_chat_id",
+                                    "",
+                                )
+                            )
                 except Exception:
                     chat_id_bono = ""
 
@@ -11408,8 +11504,11 @@ elif menu == "💰 Bonos":
     )
 
     # Columnas visuales en porcentaje real (0–100).
-    df_detalle_bono["Cumplimiento %"] = (
-        df_detalle_bono["Cumplimiento"] * 100
+    df_detalle_bono["Cumplimiento real %"] = (
+        df_detalle_bono["Cumplimiento real"] * 100
+    )
+    df_detalle_bono["Cumplimiento bono %"] = (
+        df_detalle_bono["Cumplimiento bono"] * 100
     )
     df_detalle_bono["Peso %"] = (
         df_detalle_bono["Peso"] * 100
@@ -11424,7 +11523,8 @@ elif menu == "💰 Bonos":
                 "Indicador",
                 "Meta válida",
                 "Alcance",
-                "Cumplimiento %",
+                "Cumplimiento real %",
+                "Cumplimiento bono %",
                 "Peso %",
                 "Aporte %",
             ]
@@ -11440,8 +11540,12 @@ elif menu == "💰 Bonos":
                 "Alcance",
                 format="%.2f",
             ),
-            "Cumplimiento %": st.column_config.ProgressColumn(
-                "Cumplimiento",
+            "Cumplimiento real %": st.column_config.NumberColumn(
+                "Cumplimiento real",
+                format="%.1f%%",
+            ),
+            "Cumplimiento bono %": st.column_config.ProgressColumn(
+                "Cumplimiento válido bono",
                 min_value=0,
                 max_value=100,
                 format="%.1f%%",
@@ -11470,7 +11574,7 @@ elif menu == "💰 Bonos":
         )
 
     st.divider()
-    st.markdown("### Vista general · Julio 2026")
+    st.markdown("### Vista general · referencia Julio 2026")
     st.caption(
         "El envío del resultado se realiza de forma individual desde la ficha de cada operador."
     )
