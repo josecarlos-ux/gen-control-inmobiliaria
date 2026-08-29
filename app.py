@@ -742,7 +742,186 @@ st.markdown(
         }
         .kpi-value-v79{font-size:23px!important}
     }
-    </style>
+    
+    /* =========================================================
+       V20 · MENSAJES DIARIOS · UI EJECUTIVA
+       ========================================================= */
+    .msg-v20-title{
+        font-size:30px;
+        line-height:1.08;
+        font-weight:850;
+        color:#13233A;
+        letter-spacing:-.035em;
+        margin:0 0 3px 0;
+    }
+    .msg-v20-sub{
+        color:#6C7B90;
+        font-size:13px;
+        margin-bottom:14px;
+    }
+    .msg-v20-top{
+        display:flex;
+        gap:10px;
+        justify-content:flex-end;
+        margin-bottom:6px;
+    }
+    .msg-v20-chip{
+        min-width:130px;
+        padding:10px 14px;
+        border:1px solid #DCE6F2;
+        border-radius:12px;
+        background:#FFFFFF;
+        box-shadow:0 4px 14px rgba(25,55,90,.04);
+    }
+    .msg-v20-chip .k{
+        font-size:10px;
+        color:#7B8BA0;
+        font-weight:750;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+    }
+    .msg-v20-chip .v{
+        font-size:15px;
+        color:#173B72;
+        font-weight:850;
+        margin-top:2px;
+    }
+    .msg-v20-protect{
+        border:1px solid #D8E4F2;
+        border-radius:14px;
+        background:linear-gradient(135deg,#FFFFFF 0%,#F7FAFF 100%);
+        padding:15px 17px;
+        margin:8px 0 14px;
+        box-shadow:0 5px 18px rgba(32,64,110,.04);
+    }
+    .msg-v20-protect-title{
+        font-size:14px;
+        font-weight:850;
+        color:#1856B4;
+    }
+    .msg-v20-protect-sub{
+        color:#667A91;
+        font-size:11px;
+        margin-top:4px;
+    }
+    .msg-v20-sendbar{
+        border:1px solid #D9E7FB;
+        background:linear-gradient(90deg,#EEF5FF 0%,#F8FBFF 100%);
+        border-radius:13px;
+        padding:11px 14px;
+        margin:10px 0 12px;
+        color:#35597E;
+        font-size:11px;
+    }
+    .msg-v20-sendbar strong{
+        color:#173B72;
+        font-size:13px;
+    }
+    .msg-v20-headrow{
+        display:grid;
+        grid-template-columns:2.3fr .9fr 1.25fr 1.65fr 1.65fr 1.15fr;
+        gap:12px;
+        color:#728198;
+        font-size:9px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+        padding:0 13px 7px;
+    }
+    .msg-v20-opname{
+        font-size:13px;
+        line-height:1.2;
+        font-weight:850;
+        color:#172B4D;
+    }
+    .msg-v20-user{
+        font-size:9px;
+        color:#7A8EA5;
+        margin-top:2px;
+    }
+    .msg-v20-status{
+        display:inline-block;
+        border-radius:999px;
+        padding:5px 8px;
+        font-size:9px;
+        font-weight:800;
+        white-space:nowrap;
+    }
+    .msg-v20-green{background:#E7F8EF;color:#11834C;}
+    .msg-v20-orange{background:#FFF2DF;color:#B46500;}
+    .msg-v20-red{background:#FFE9EB;color:#C53B4B;}
+    .msg-v20-gray{background:#F0F3F7;color:#6E7D90;}
+    .msg-v20-small{
+        font-size:10px;
+        color:#43556B;
+        line-height:1.45;
+    }
+    .msg-v20-strong{
+        font-weight:850;
+        color:#172B4D;
+    }
+    .msg-v20-progress{
+        height:5px;
+        border-radius:999px;
+        background:#E9EEF5;
+        overflow:hidden;
+        margin-top:4px;
+    }
+    .msg-v20-fill-g{
+        height:100%;
+        border-radius:999px;
+        background:#2E7BEF;
+    }
+    .msg-v20-fill-c{
+        height:100%;
+        border-radius:999px;
+        background:#2DBD78;
+    }
+    .msg-v20-side-title{
+        font-size:14px;
+        font-weight:850;
+        color:#172B4D;
+        margin-bottom:2px;
+    }
+    .msg-v20-side-sub{
+        font-size:10px;
+        color:#7A8EA5;
+        margin-bottom:10px;
+    }
+    .msg-v20-side-card{
+        border:1px solid #E0E7F0;
+        border-radius:12px;
+        padding:12px;
+        background:#FFFFFF;
+        margin-bottom:10px;
+    }
+    .msg-v20-side-ok{
+        border:1px solid #CDEEDC;
+        border-radius:12px;
+        padding:12px;
+        background:#EFFBF4;
+        color:#16834F;
+        font-size:11px;
+        line-height:1.55;
+        margin-top:10px;
+    }
+    .msg-v20-side-info{
+        border:1px solid #D9E7FB;
+        border-radius:12px;
+        padding:12px;
+        background:#F1F6FF;
+        color:#35597E;
+        font-size:10px;
+        line-height:1.55;
+        margin-top:10px;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]{
+        border-color:#E1E8F0!important;
+        box-shadow:0 4px 15px rgba(24,52,88,.035);
+    }
+
+</style>
     """,
     unsafe_allow_html=True,
 )
@@ -9682,282 +9861,291 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         # FILTROS + ENVÍO MASIVO
         # -------------------------------------------------
-        st.markdown("### Seguimiento individual")
+        ahora_ui_v20 = ahora_bolivia()
         modo_fuera_final = bool(
             st.session_state.get(
                 "permitir_envio_fuera_turno",
                 False,
             )
         )
-        st.caption(
-            "Estado operativo del envío: "
-            + (
-                "🔓 modo excepcional global activo"
-                if modo_fuera_final
-                else "🔒 protección de horario activa"
+
+        ui_h1, ui_h2 = st.columns([3.8, 2.2], vertical_alignment="top")
+        with ui_h1:
+            st.markdown(
+                """
+                <div class="msg-v20-title">✈️ Mensajes diarios</div>
+                <div class="msg-v20-sub">
+                    Envía seguimientos diarios a los operadores de cobranzas.
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-            + " · los desbloqueos individuales se suman al contador real de destinatarios."
-        )
+        with ui_h2:
+            st.markdown(
+                f"""
+                <div class="msg-v20-top">
+                    <div class="msg-v20-chip">
+                        <div class="k">Hora actual</div>
+                        <div class="v">🕒 {ahora_ui_v20.strftime("%H:%M")}</div>
+                    </div>
+                    <div class="msg-v20-chip">
+                        <div class="k">Fecha</div>
+                        <div class="v">📅 {ahora_ui_v20.strftime("%d/%m/%Y")}</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         st.markdown(
             """
-            <div style="
-                margin:10px 0 8px;
-                padding:10px 13px;
-                border:1px solid #dfe6ee;
-                border-radius:11px;
-                background:#f8fafc;
-            ">
-                <div style="font-size:12px;font-weight:800;color:#20364d;">
-                    🔐 Control de horario para envíos
-                </div>
-                <div style="font-size:9px;color:#708195;margin-top:2px;">
-                    Normalmente GEN Control bloquea el envío cuando el operador termina su jornada.
-                    Activa el modo excepcional solo cuando necesites escribirle después de su salida.
+            <div class="msg-v20-protect">
+                <div class="msg-v20-protect-title">🛡️ Protección de horario activa</div>
+                <div class="msg-v20-protect-sub">
+                    Los operadores fuera de turno están protegidos. Los mensajes se envían
+                    dentro del horario laboral, salvo que habilites una excepción.
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        permitir_fuera_v98 = st.toggle(
-            "🔓 Habilitar envío a operadores fuera de turno",
-            value=bool(
-                st.session_state.get(
-                    "permitir_envio_fuera_turno",
-                    False,
-                )
-            ),
-            key="permitir_fuera_turno_v98",
-        )
-        st.session_state.permitir_envio_fuera_turno = permitir_fuera_v98
-
-        if permitir_fuera_v98:
-            st.warning(
-                "Modo excepcional activo: también puedes enviar a quienes ya finalizaron su jornada.",
-                icon="⚠️",
-            )
-        else:
-            st.caption(
-                "🔒 Protección activa · los operadores fuera de turno permanecen bloqueados."
-            )
-
-        st.caption(
-                    "Protección de horario activa."
-                )
-
-        st.caption("Aquí está el trabajo principal: avance de hoy, prioridad y envío por operador.")
-
-        f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
-
-        with f1:
-            buscar_operador = st.text_input(
-                "Buscar operador",
-                placeholder="Nombre o usuario...",
-                key="buscar_operador_mensajes_v63",
-            ).strip()
-
-        with f2:
-            filtro_estado = st.selectbox(
-                "Estado",
-                [
-                    "Todos",
-                    "⚠️ Prioridad",
-                    "Reforzar",
-                    "Seguimiento",
-                    "Buen avance",
-                    "Excelente",
-                ],
-                key="filtro_estado_mensajes_v63",
-            )
-
-        with f3:
-            filtro_canal = st.selectbox(
-                "Telegram",
-                [
-                    "Todos",
-                    "Configurado",
-                    "Pendiente",
-                ],
-                key="filtro_canal_mensajes_v63",
-            )
-
-        with f4:
-            ordenar_mensajes = st.selectbox(
-                "Ordenar por",
-                [
-                    "Prioridad de hoy",
-                    "Mayor prioridad",
-                    "Nombre A-Z",
-                    "Recuperación mayor",
-                    "Recuperación menor",
-                    "Gestiones mayor",
-                    "Compromisos mayor",
-                ],
-                key="orden_mensajes_v63",
-            )
-
-        with f5:
-            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-
-            telegram_configurados_top = [
-                usuario
-                for usuario in resultado["Usuario"].tolist()
-                if normalizar_telegram_chat_id(
-                    datos_contacto.get(
-                        usuario, {}
-                    ).get("telegram_chat_id", "")
-                )
-            ]
-
-            momento_envio_top = datetime.now(
-                ZoneInfo("America/La_Paz")
-            )
-
-            telegram_en_turno_top = [
-                usuario
-                for usuario in telegram_configurados_top
-                if operador_en_turno(
-                    usuario,
-                    momento_envio_top,
-                )
-            ]
-
-            # V100: lista real usada por contador, botón y envío.
-            telegram_pendientes_top = [
-                usuario
-                for usuario in telegram_configurados_top
-                if operador_habilitado_para_envio(
-                    usuario,
-                    momento_envio_top,
-                )
-            ]
-
-            telegram_fuera_turno_top = [
-                usuario
-                for usuario in telegram_configurados_top
-                if not operador_en_turno(
-                    usuario,
-                    momento_envio_top,
-                )
-            ]
-
-            st.caption(
-                f"En turno ahora: {len(telegram_en_turno_top)} · "
-                f"Seleccionados para envío: {len(telegram_pendientes_top)} · "
-                f"Fuera de turno: {len(telegram_fuera_turno_top)}"
-            )
-
-            recientes_masivo, _ = resumen_frecuencia_seguimiento(
-                telegram_pendientes_top,
-                momento_envio_top,
-            )
-
-            if recientes_masivo:
-                st.caption(
-                    f"⚠️ {len(recientes_masivo)} operador(es) recibieron un avance "
-                    "hace menos de 60 minutos. El botón sigue habilitado porque "
-                    "el seguimiento puede repetirse durante el turno."
-                )
-
-            if st.button(
-                f"✈️ Enviar seguimiento seleccionado ({len(telegram_pendientes_top)})",
-                use_container_width=True,
-                type="primary",
-                disabled=(
-                    len(telegram_pendientes_top) == 0
-                    or validacion_v86["bloquear_envio"]
+        pcol1, pcol2 = st.columns([3.8, 1.2], vertical_alignment="center")
+        with pcol1:
+            permitir_fuera_v98 = st.toggle(
+                "Habilitar excepción para operadores fuera de turno",
+                value=bool(
+                    st.session_state.get(
+                        "permitir_envio_fuera_turno",
+                        False,
+                    )
                 ),
-                key="enviar_todos_top_v86",
-            ):
-                enviados_top = []
-                errores_top = []
+                key="permitir_fuera_turno_v98",
+                help="Úsalo solo cuando necesites enviar un mensaje después de la jornada.",
+            )
+            st.session_state.permitir_envio_fuera_turno = permitir_fuera_v98
+        with pcol2:
+            if permitir_fuera_v98:
+                st.warning("Excepción activa", icon="⚠️")
+            else:
+                st.success("Protección activa", icon="🔒")
 
-                for _, fila_envio in resultado.iterrows():
-                    usuario_envio = fila_envio["Usuario"]
+        with st.container(border=True):
+            st.markdown(
+                "<div style='font-size:12px;font-weight:850;color:#172B4D;margin-bottom:2px;'>Filtros y selección</div>",
+                unsafe_allow_html=True,
+            )
 
-                    chat_id_envio = normalizar_telegram_chat_id(
+            f1, f2, f3, f4, f5 = st.columns([2.0, 1.0, 1.1, 1.05, 1])
+
+            with f1:
+                buscar_operador = st.text_input(
+                    "Buscar operador",
+                    placeholder="Nombre o usuario...",
+                    key="buscar_operador_mensajes_v63",
+                ).strip()
+
+            with f2:
+                filtro_estado = st.selectbox(
+                    "Estado",
+                    [
+                        "Todos",
+                        "⚠️ Prioridad",
+                        "Reforzar",
+                        "Seguimiento",
+                        "Buen avance",
+                        "Excelente",
+                    ],
+                    key="filtro_estado_mensajes_v63",
+                )
+
+            with f3:
+                filtro_canal = st.selectbox(
+                    "Telegram",
+                    [
+                        "Todos",
+                        "Configurado",
+                        "Pendiente",
+                    ],
+                    key="filtro_canal_mensajes_v63",
+                )
+
+            with f4:
+                ordenar_mensajes = st.selectbox(
+                    "Ordenar por",
+                    [
+                        "Prioridad de hoy",
+                        "Mayor prioridad",
+                        "Nombre A-Z",
+                        "Recuperación mayor",
+                        "Recuperación menor",
+                        "Gestiones mayor",
+                        "Compromisos mayor",
+                    ],
+                    key="orden_mensajes_v63",
+                )
+
+            with f5:
+                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+
+                telegram_configurados_top = [
+                    usuario
+                    for usuario in resultado["Usuario"].tolist()
+                    if normalizar_telegram_chat_id(
                         datos_contacto.get(
-                            usuario_envio, {}
+                            usuario, {}
                         ).get("telegram_chat_id", "")
                     )
+                ]
 
-                    if not chat_id_envio:
-                        continue
+                momento_envio_top = datetime.now(
+                    ZoneInfo("America/La_Paz")
+                )
 
-                    if not operador_habilitado_para_envio(
-                        usuario_envio,
+                telegram_en_turno_top = [
+                    usuario
+                    for usuario in telegram_configurados_top
+                    if operador_en_turno(
+                        usuario,
                         momento_envio_top,
-                    ):
-                        continue
+                    )
+                ]
 
-                    # Puede recibir nuevamente mientras siga en turno.
-                    # Fuera de horario se bloquea por defecto, salvo habilitación excepcional.
-                    calculo_envio = generar_mensaje_operador_actual(
-                        usuario_envio,
-                        jornadas_info,
+                # V100: lista real usada por contador, botón y envío.
+                telegram_pendientes_top = [
+                    usuario
+                    for usuario in telegram_configurados_top
+                    if operador_habilitado_para_envio(
+                        usuario,
+                        momento_envio_top,
+                    )
+                ]
+
+                telegram_fuera_turno_top = [
+                    usuario
+                    for usuario in telegram_configurados_top
+                    if not operador_en_turno(
+                        usuario,
+                        momento_envio_top,
+                    )
+                ]
+
+                st.caption(
+                    f"En turno ahora: {len(telegram_en_turno_top)} · "
+                    f"Seleccionados para envío: {len(telegram_pendientes_top)} · "
+                    f"Fuera de turno: {len(telegram_fuera_turno_top)}"
+                )
+
+                recientes_masivo, _ = resumen_frecuencia_seguimiento(
+                    telegram_pendientes_top,
+                    momento_envio_top,
+                )
+
+                if recientes_masivo:
+                    st.caption(
+                        f"⚠️ {len(recientes_masivo)} operador(es) recibieron un avance "
+                        "hace menos de 60 minutos. El botón sigue habilitado porque "
+                        "el seguimiento puede repetirse durante el turno."
                     )
 
-                    if calculo_envio is None:
-                        errores_top.append(
-                            f"{fila_envio['Operador']}: sin datos actuales."
+                if st.button(
+                    f"✈️ Enviar seguimiento seleccionado ({len(telegram_pendientes_top)})",
+                    use_container_width=True,
+                    type="primary",
+                    disabled=(
+                        len(telegram_pendientes_top) == 0
+                        or validacion_v86["bloquear_envio"]
+                    ),
+                    key="enviar_todos_top_v86",
+                ):
+                    enviados_top = []
+                    errores_top = []
+
+                    for _, fila_envio in resultado.iterrows():
+                        usuario_envio = fila_envio["Usuario"]
+
+                        chat_id_envio = normalizar_telegram_chat_id(
+                            datos_contacto.get(
+                                usuario_envio, {}
+                            ).get("telegram_chat_id", "")
                         )
-                        continue
 
-                    ok_envio, detalle_envio = enviar_mensaje_telegram(
-                        chat_id_envio,
-                        calculo_envio["mensaje"],
-                    )
+                        if not chat_id_envio:
+                            continue
 
-                    if ok_envio:
-                        enviados_top.append(
-                            fila_envio["Operador"]
-                        )
-
-                        registrar_envio_diario(
+                        if not operador_habilitado_para_envio(
                             usuario_envio,
-                            fila_envio["Operador"],
-                            canal="telegram",
-                            tipo="seguimiento",
-                            detalle=detalle_envio,
+                            momento_envio_top,
+                        ):
+                            continue
+
+                        # Puede recibir nuevamente mientras siga en turno.
+                        # Fuera de horario se bloquea por defecto, salvo habilitación excepcional.
+                        calculo_envio = generar_mensaje_operador_actual(
+                            usuario_envio,
+                            jornadas_info,
                         )
 
-                        enviar_copia_coordinador(
-                            fila_envio["Operador"],
+                        if calculo_envio is None:
+                            errores_top.append(
+                                f"{fila_envio['Operador']}: sin datos actuales."
+                            )
+                            continue
+
+                        ok_envio, detalle_envio = enviar_mensaje_telegram(
+                            chat_id_envio,
                             calculo_envio["mensaje"],
-                            detalle_envio,
-                        )
-                    else:
-                        errores_top.append(
-                            f"{fila_envio['Operador']}: {detalle_envio}"
                         )
 
-                if enviados_top:
-                    st.success(
-                        f"Se enviaron {len(enviados_top)} mensajes individuales."
-                    )
+                        if ok_envio:
+                            enviados_top.append(
+                                fila_envio["Operador"]
+                            )
 
-                    ok_aviso_grupo, detalle_aviso_grupo = (
-                        enviar_resumen_grupo_actualizado(
-                            st.session_state.callcenter_df
-                        )
-                    )
+                            registrar_envio_diario(
+                                usuario_envio,
+                                fila_envio["Operador"],
+                                canal="telegram",
+                                tipo="seguimiento",
+                                detalle=detalle_envio,
+                            )
 
-                    if ok_aviso_grupo:
-                        st.info(
-                            "📊 Resumen general actualizado enviado al grupo."
+                            enviar_copia_coordinador(
+                                fila_envio["Operador"],
+                                calculo_envio["mensaje"],
+                                detalle_envio,
+                            )
+                        else:
+                            errores_top.append(
+                                f"{fila_envio['Operador']}: {detalle_envio}"
+                            )
+
+                    if enviados_top:
+                        st.success(
+                            f"Se enviaron {len(enviados_top)} mensajes individuales."
                         )
-                    else:
+
+                        ok_aviso_grupo, detalle_aviso_grupo = (
+                            enviar_resumen_grupo_actualizado(
+                                st.session_state.callcenter_df
+                            )
+                        )
+
+                        if ok_aviso_grupo:
+                            st.info(
+                                "📊 Resumen general actualizado enviado al grupo."
+                            )
+                        else:
+                            st.warning(
+                                "Los mensajes individuales se enviaron, pero el "
+                                f"resumen del grupo no pudo actualizarse: {detalle_aviso_grupo}"
+                            )
+
+                    if errores_top:
                         st.warning(
-                            "Los mensajes individuales se enviaron, pero el "
-                            f"resumen del grupo no pudo actualizarse: {detalle_aviso_grupo}"
+                            "No se pudieron enviar:\n\n- "
+                            + "\n- ".join(errores_top)
                         )
-
-                if errores_top:
-                    st.warning(
-                        "No se pudieron enviar:\n\n- "
-                        + "\n- ".join(errores_top)
-                    )
 
         # -------------------------------------------------
         # FILTRAR Y ORDENAR
@@ -10189,556 +10377,304 @@ elif menu == "✉️ Mensajes diarios":
         )
 
         # -------------------------------------------------
-        # TARJETAS DE OPERADORES — V88
-        # 3 por fila para recuperar legibilidad
         # -------------------------------------------------
-        for bloque_inicio in range(
-            0,
-            len(filas_preparadas),
-            3,
-        ):
-            cols = st.columns(3)
+        # OPERADORES · V20 · TABLA EJECUTIVA + PREVIEW
+        # -------------------------------------------------
+        elegibles_v20 = [
+            item for item in filas_preparadas
+            if normalizar_telegram_chat_id(
+                datos_contacto.get(item[0]["Usuario"], {}).get("telegram_chat_id", "")
+            )
+            and operador_habilitado_para_envio(item[0]["Usuario"])
+        ]
 
-            for pos, item in enumerate(
-                filas_preparadas[
-                    bloque_inicio:bloque_inicio + 3
-                ]
-            ):
-                fila, calculo, _, _ = item
+        st.markdown(
+            f"""
+            <div class="msg-v20-sendbar">
+                <strong>👥 {len(elegibles_v20)} operadores listos para seguimiento</strong><br>
+                Se enviará 1 mensaje individual a cada operador habilitado y
+                1 resumen general actualizado al grupo de Telegram.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        area_ops_v20, area_side_v20 = st.columns([4.7, 1.45], gap="medium")
+
+        with area_ops_v20:
+            st.markdown(
+                """
+                <div class="msg-v20-headrow">
+                    <div>Operador</div>
+                    <div>Estado</div>
+                    <div>Horario laboral</div>
+                    <div>Prioridad de hoy</div>
+                    <div>Avance de hoy</div>
+                    <div>Acción</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            for fila, calculo, _, _ in filas_preparadas:
                 usuario = fila["Usuario"]
-
-                contacto = datos_contacto.get(
-                    usuario,
-                    {},
-                )
-
-                correo_actual = (
-                    contacto.get("correo")
-                    or str(
-                        fila.get("Correo", "")
-                    ).strip()
-                )
-
+                contacto = datos_contacto.get(usuario, {})
                 telegram_chat_id = normalizar_telegram_chat_id(
-                    contacto.get(
-                        "telegram_chat_id",
-                        "",
-                    )
+                    contacto.get("telegram_chat_id", "")
                 )
+                avance = calculo.get("avance_hora", {}) or {}
+                horario = avance.get("horario") or {}
 
-                avance = calculo.get(
-                    "avance_hora",
-                    {},
-                )
-
-                pct_g_mes = float(
-                    fila["% Gestiones"]
-                )
-                pct_c_mes = float(
-                    fila["% Compromisos"]
-                )
-                pct_r_mes = float(
-                    fila["% Recuperación"]
-                )
-
-                dg = (
-                    int(
-                        avance.get(
-                            "delta_gestiones",
-                            0,
-                        )
-                    )
-                    if avance.get("disponible")
-                    else 0
-                )
-
-                dc_val = avance.get(
-                    "delta_compromisos"
-                )
-
-                dc = (
-                    int(dc_val)
-                    if dc_val is not None
-                    else 0
-                )
-
-                estado_jornada = avance.get(
-                    "estado_jornada",
-                    "",
-                )
+                dg = int(avance.get("delta_gestiones", 0)) if avance.get("disponible") else 0
+                dc_raw = avance.get("delta_compromisos")
+                dc = int(dc_raw) if dc_raw is not None else 0
+                estado_jornada = avance.get("estado_jornada", "")
 
                 if not avance.get("disponible"):
-                    estado_txt = "⚪ Sin datos"
-                    status_cls = "v74-gray"
-                    action_cls = "action-gray-v74"
-                    action_txt = "Carga CallCenter para habilitar seguimiento"
+                    estado_txt_v20, estado_cls_v20 = "Sin datos", "msg-v20-gray"
                 elif estado_jornada == "Jornada aún no iniciada":
-                    estado_txt = "⚪ Aún no inicia"
-                    status_cls = "v74-gray"
-                    action_cls = "action-gray-v74"
-                    action_txt = "Aún no corresponde seguimiento"
+                    estado_txt_v20, estado_cls_v20 = "Aún no inicia", "msg-v20-gray"
                 elif min(dg, dc) <= -10:
-                    estado_txt = "🔴 Seguimiento"
-                    status_cls = "v74-red"
-                    action_cls = "action-red-v74"
-                    if dg <= dc:
-                        action_txt = f"Recuperar {abs(dg)} gestiones para volver al ritmo"
-                    else:
-                        action_txt = f"Recuperar {abs(dc)} compromisos para volver al ritmo"
+                    estado_txt_v20, estado_cls_v20 = "Seguimiento", "msg-v20-red"
                 elif min(dg, dc) < 0:
-                    estado_txt = "🟠 Atención"
-                    status_cls = "v74-orange"
-                    action_cls = "action-orange-v74"
-                    if dg < 0:
-                        action_txt = f"{abs(dg)} gestiones por debajo del ritmo"
-                    else:
-                        action_txt = f"{abs(dc)} compromisos por debajo del ritmo"
-                elif dg >= 5 and dc >= 2:
-                    estado_txt = "🟢 Adelantado"
-                    status_cls = "v74-green"
-                    action_cls = "action-green-v74"
-                    action_txt = "Buen avance · mantener el ritmo"
+                    estado_txt_v20, estado_cls_v20 = "Atención", "msg-v20-orange"
                 else:
-                    estado_txt = "🟢 En ritmo"
-                    status_cls = "v74-green"
-                    action_cls = "action-green-v74"
-                    action_txt = "Avance dentro de lo esperado"
+                    estado_txt_v20, estado_cls_v20 = "En turno", "msg-v20-green"
 
-                horario = avance.get(
-                    "horario"
-                ) or {}
+                esperado_g_v20 = max(int(avance.get("esperado_gestiones", 0)), 1)
+                esperado_c_v20 = max(int(avance.get("esperado_compromisos", 0)), 1)
+                gest_hoy_v20 = int(avance.get("gestiones_hoy", 0))
+                comp_hoy_v20 = int(avance.get("compromisos_hoy", 0)) if avance.get("compromisos_disponibles") else 0
 
-                tg_txt = (
-                    "Telegram ✓"
-                    if telegram_chat_id
-                    else "Telegram pendiente"
+                pct_g_v20 = min(100.0, max(0.0, gest_hoy_v20 / esperado_g_v20 * 100))
+                pct_c_v20 = min(
+                    100.0,
+                    max(
+                        0.0,
+                        (comp_hoy_v20 / esperado_c_v20 * 100)
+                        if avance.get("compromisos_disponibles")
+                        else 0.0,
+                    ),
                 )
 
-                if avance.get("disponible"):
-                    esperado_g = max(
-                        int(
-                            avance.get(
-                                "esperado_gestiones",
-                                0,
-                            )
-                        ),
-                        1,
+                turno_txt_v20 = (
+                    f"{horario.get('entrada','--:--')}–{horario.get('salida','--:--')}"
+                    if horario.get("horario_configurado")
+                    else "Sin horario"
+                )
+
+                prioridad_g_v20 = (
+                    f"{abs(dg)} gestiones por recuperar"
+                    if dg < 0 else f"{dg:+d} gestiones vs esperado"
+                )
+                prioridad_c_v20 = (
+                    f"{abs(dc)} compromisos por recuperar"
+                    if dc < 0 else f"{dc:+d} compromisos vs esperado"
+                )
+
+                en_turno_v20 = operador_en_turno(usuario)
+                habilitado_v20 = bool(
+                    telegram_chat_id
+                    and operador_habilitado_para_envio(usuario)
+                )
+
+                with st.container(border=True):
+                    c1, c2, c3, c4, c5, c6 = st.columns(
+                        [2.3, .9, 1.25, 1.65, 1.65, 1.15],
+                        vertical_alignment="center",
                     )
 
-                    esperado_c = max(
-                        int(
-                            avance.get(
-                                "esperado_compromisos",
-                                0,
-                            )
-                        ),
-                        1,
-                    )
-
-                    pct_g_hoy = min(
-                        max(
-                            avance["gestiones_hoy"]
-                            / esperado_g
-                            * 100,
-                            0,
-                        ),
-                        100,
-                    )
-
-                    pct_c_hoy = min(
-                        max(
-                            (
-                                avance["compromisos_hoy"]
-                                / esperado_c
-                                * 100
-                            )
-                            if avance.get(
-                                "compromisos_disponibles"
-                            )
-                            else 0,
-                            0,
-                        ),
-                        100,
-                    )
-
-                    barra_g = (
-                        "mini-green-v74"
-                        if dg >= 0
-                        else (
-                            "mini-orange-v74"
-                            if dg > -10
-                            else "mini-red-v74"
-                        )
-                    )
-
-                    barra_c = (
-                        "mini-green-v74"
-                        if dc >= 0
-                        else (
-                            "mini-orange-v74"
-                            if dc > -10
-                            else "mini-red-v74"
-                        )
-                    )
-
-                with cols[pos]:
-                    with st.container(
-                        border=True,
-                    ):
+                    with c1:
+                        iniciales_v20 = "".join(
+                            [p[0] for p in str(fila["Operador"]).split()[:2]]
+                        ).upper()
                         st.markdown(
                             f"""
-                            <div class="op-head-v74">
-                                <div>
-                                    <div class="op-name-v74">
-                                        {fila['Operador']}
-                                    </div>
-                                    <div class="op-contact-v74">
-                                        @{usuario} · ✈ {tg_txt}
-                                    </div>
-                                </div>
-                                <span class="status-v74 {status_cls}">
-                                    {estado_txt}
-                                </span>
+                            <div class="msg-v20-opname">◉ {fila['Operador']}</div>
+                            <div class="msg-v20-user">@{usuario} · {'Telegram ✓' if telegram_chat_id else 'Telegram pendiente'}</div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                    with c2:
+                        st.markdown(
+                            f'<span class="msg-v20-status {estado_cls_v20}">{estado_txt_v20}</span>',
+                            unsafe_allow_html=True,
+                        )
+
+                    with c3:
+                        st.markdown(
+                            f"""
+                            <div class="msg-v20-small">
+                                <span class="msg-v20-strong">{turno_txt_v20}</span><br>
+                                {estado_jornada or '—'}
                             </div>
                             """,
                             unsafe_allow_html=True,
                         )
 
-                        if horario.get(
-                            "horario_configurado"
-                        ):
-                            st.markdown(
-                                f"""
-                                <div class="schedule-v74">
-                                    🕒 {horario['entrada']}–{horario['salida']}
-                                    · ☕ {f"{horario['break_inicio']}–{horario['break_fin']}" if horario.get('break_inicio') and horario.get('break_fin') else "Sin break"}
-                                    · 📍 {estado_jornada}
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-
-                        st.markdown(
-                            f'<div class="kicker-v74">HOY · corte {avance.get("hora_corte","--:--")}</div>',
-                            unsafe_allow_html=True,
-                        )
-
-                        h1, h2 = st.columns(2)
-
-                        with h1:
-                            if avance.get(
-                                "disponible"
-                            ):
-                                st.metric(
-                                    "📞 Gestiones",
-                                    f'{formato_entero(avance["gestiones_hoy"])} / 98',
-                                    f"{dg:+d} vs esperado",
-                                )
-
-                                st.markdown(
-                                    f"""
-                                    <div class="mini-progress-v74">
-                                        <div class="mini-fill-v74 {barra_g}"
-                                             style="width:{pct_g_hoy}%;">
-                                        </div>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-
-                                st.caption(
-                                    f'Esperado {formato_entero(avance["esperado_gestiones"])} · '
-                                    f'Faltan {formato_entero(avance["faltan_gestiones"])}'
-                                )
-
-                        with h2:
-                            if avance.get(
-                                "compromisos_disponibles"
-                            ):
-                                st.metric(
-                                    "🤝 Compromisos",
-                                    f'{formato_entero(avance["compromisos_hoy"])} / 25',
-                                    f"{dc:+d} vs esperado",
-                                )
-
-                                st.markdown(
-                                    f"""
-                                    <div class="mini-progress-v74">
-                                        <div class="mini-fill-v74 {barra_c}"
-                                             style="width:{pct_c_hoy}%;">
-                                        </div>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-
-                                st.caption(
-                                    f'Esperado {formato_entero(avance["esperado_compromisos"])} · '
-                                    f'Faltan {formato_entero(avance["faltan_compromisos"])}'
-                                )
-                            else:
-                                st.metric(
-                                    "🤝 Compromisos",
-                                    "Sin dato",
-                                )
-
-                        st.markdown(
-                            f'<div class="action-v74 {action_cls}">{action_txt}</div>',
-                            unsafe_allow_html=True,
-                        )
-
+                    with c4:
                         st.markdown(
                             f"""
-                            <div class="monthly-v74">
-                                <span>ACUMULADO</span>
-                                <span>
-                                    G <strong>{formato_porcentaje(pct_g_mes)}</strong>
-                                    · C <strong>{formato_porcentaje(pct_c_mes)}</strong>
-                                    · R <strong>{formato_porcentaje(pct_r_mes)}</strong>
-                                </span>
+                            <div class="msg-v20-small">
+                                📞 <span class="msg-v20-strong">{prioridad_g_v20}</span><br>
+                                🤝 {prioridad_c_v20}
                             </div>
                             """,
                             unsafe_allow_html=True,
                         )
 
-                        enviado_hoy = envio_ya_realizado_hoy(
-                            usuario,
-                            "seguimiento",
+                    with c5:
+                        st.markdown(
+                            f"""
+                            <div class="msg-v20-small">
+                                📞 Gestiones: <span class="msg-v20-strong">{gest_hoy_v20} / {esperado_g_v20}</span>
+                                <div class="msg-v20-progress"><div class="msg-v20-fill-g" style="width:{pct_g_v20:.0f}%"></div></div>
+                                🤝 Compromisos: <span class="msg-v20-strong">{comp_hoy_v20 if avance.get('compromisos_disponibles') else 'Sin dato'} / {esperado_c_v20 if avance.get('compromisos_disponibles') else '—'}</span>
+                                <div class="msg-v20-progress"><div class="msg-v20-fill-c" style="width:{pct_c_v20:.0f}%"></div></div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
                         )
 
-                        hora_envio_actual = hora_envio_hoy(
-                            usuario,
-                            "seguimiento",
-                        )
-
-                        minutos_ultimo_envio = minutos_desde_ultimo_envio(
-                            usuario
-                        )
-
-                        en_turno_actual = operador_en_turno(
-                            usuario
-                        )
-
-                        fuera_horario = operador_fuera_de_horario(
-                            usuario
-                        )
-
-                        estado_turno_actual = texto_estado_turno(
-                            usuario
-                        )
-
-                        if enviado_hoy and en_turno_actual:
-                            if (
-                                minutos_ultimo_envio is not None
-                                and minutos_ultimo_envio
-                                < MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS
-                            ):
-                                texto_envio_estado = (
-                                    "⚠️ Seguimiento reciente (hora Bolivia)"
-                                    + (
-                                        f" · {hora_envio_actual}"
-                                        if hora_envio_actual
-                                        else ""
-                                    )
-                                    + f" · hace {minutos_ultimo_envio} min"
-                                    + " · puedes reenviar si es necesario"
-                                )
-                                st.warning(
-                                    texto_envio_estado
-                                )
-                            else:
-                                texto_envio_estado = (
-                                    "✅ Ya recibió seguimiento hoy"
-                                    + (
-                                        f" · último registro {hora_envio_actual}"
-                                        if hora_envio_actual
-                                        else ""
-                                    )
-                                    + " · puede recibir otro; fuera de turno requiere habilitación excepcional"
-                                )
-                                st.success(
-                                    texto_envio_estado
-                                )
-
-                        elif enviado_hoy and not en_turno_actual:
-                            texto_envio_estado = (
-                                "✅ Seguimiento realizado"
-                                + (
-                                    f" · último registro {hora_envio_actual}"
-                                    if hora_envio_actual
-                                    else ""
-                                )
-                                + f" · {estado_turno_actual}"
-                            )
-                            st.info(
-                                texto_envio_estado
-                            )
-
-                            override_individual = st.toggle(
-                                "🔓 Habilitar envío fuera de turno",
-                                value=bool(
-                                    st.session_state.get(
-                                        f"override_fuera_turno_{usuario}",
-                                        False,
-                                    )
-                                ),
-                                key=f"toggle_override_fuera_turno_enviado_{usuario}",
-                            )
-                            st.session_state[
-                                f"override_fuera_turno_{usuario}"
-                            ] = override_individual
-
-                        elif not en_turno_actual:
-                            override_individual = st.toggle(
-                                "🔓 Habilitar envío fuera de turno",
-                                value=bool(
-                                    st.session_state.get(
-                                        f"override_fuera_turno_{usuario}",
-                                        False,
-                                    )
-                                ),
-                                key=f"toggle_override_fuera_turno_{usuario}",
-                            )
-                            st.session_state[
-                                f"override_fuera_turno_{usuario}"
-                            ] = override_individual
-
-                            if (
-                                override_individual
-                                or st.session_state.get(
-                                    "permitir_envio_fuera_turno",
-                                    False,
-                                )
-                            ):
-                                st.warning(
-                                    f"{estado_turno_actual} · envío excepcional habilitado."
-                                )
-                            else:
-                                st.info(
-                                    f"{estado_turno_actual} · envío bloqueado por horario."
-                                )
-
-                        a1, a2 = st.columns(2)
-
-                        with a1:
-                            if (
-                                telegram_chat_id
-                                and operador_habilitado_para_envio(
-                                    usuario
-                                )
-                            ):
-                                if st.button(
-                                    "✈️ Enviar",
-                                    use_container_width=True,
-                                    key=f"telegram_v74_{usuario}",
-                                ):
-                                    calculo_actual = generar_mensaje_operador_actual(
-                                        usuario,
-                                        jornadas_info,
-                                    )
-
-                                    if calculo_actual is None:
-                                        st.error(
-                                            "No se encontraron datos actuales del operador."
-                                        )
-                                    else:
-                                        ok_tg, detalle_tg = enviar_mensaje_telegram(
-                                            telegram_chat_id,
-                                            calculo_actual["mensaje"],
-                                        )
-
-                                        if ok_tg:
-                                            minutos_previos_envio = (
-                                                minutos_desde_ultimo_envio(
-                                                    usuario
-                                                )
-                                            )
-
-                                            registrar_envio_diario(
-                                                usuario,
-                                                fila["Operador"],
-                                                canal="telegram",
-                                                tipo="seguimiento",
-                                                detalle=detalle_tg,
-                                            )
-
-                                            if (
-                                                minutos_previos_envio is not None
-                                                and minutos_previos_envio
-                                                < MINUTOS_RECOMENDADOS_ENTRE_SEGUIMIENTOS
-                                            ):
-                                                st.warning(
-                                                    "Enviado correctamente. "
-                                                    f"El seguimiento anterior había sido "
-                                                    f"hace {minutos_previos_envio} min."
-                                                )
-                                            else:
-                                                st.success(
-                                                    "Enviado con datos actuales."
-                                                )
-
-                                            enviar_copia_coordinador(
-                                                fila["Operador"],
-                                                calculo_actual["mensaje"],
-                                                detalle_tg,
-                                            )
-
-                                            ok_resumen_auto, det_resumen_auto = (
-                                                enviar_resumen_grupo_actualizado(
-                                                    st.session_state.callcenter_df
-                                                )
-                                            )
-                                            if ok_resumen_auto:
-                                                st.info(
-                                                    "📊 Resumen general actualizado enviado al grupo."
-                                                )
-                                            else:
-                                                st.warning(
-                                                    "El mensaje individual se envió, pero el resumen "
-                                                    f"del grupo no pudo actualizarse: {det_resumen_auto}"
-                                                )
-                                        else:
-                                            st.error(
-                                                f"No se pudo enviar: {detalle_tg}"
-                                            )
-                            elif not en_turno_actual:
-                                st.button(
-                                    "🔒 Habilita arriba",
-                                    disabled=True,
-                                    use_container_width=True,
-                                    key=f"fuera_turno_v99_{usuario}",
-                                )
-                            else:
-                                st.button(
-                                    "✈️ Pendiente",
-                                    disabled=True,
-                                    use_container_width=True,
-                                    key=f"sin_telegram_v81_{usuario}",
-                                )
-
-                        with a2:
-                            with st.popover(
-                                "👁️ Ver mensaje",
+                    with c6:
+                        if habilitado_v20:
+                            if st.button(
+                                "✈️ Enviar",
                                 use_container_width=True,
+                                key=f"telegram_v20_{usuario}",
                             ):
-                                calculo_preview = generar_mensaje_operador_actual(
+                                calculo_actual = generar_mensaje_operador_actual(
                                     usuario,
                                     jornadas_info,
                                 )
+                                if calculo_actual is None:
+                                    st.error("Sin datos actuales.")
+                                else:
+                                    ok_tg, detalle_tg = enviar_mensaje_telegram(
+                                        telegram_chat_id,
+                                        calculo_actual["mensaje"],
+                                    )
+                                    if ok_tg:
+                                        registrar_envio_diario(
+                                            usuario,
+                                            fila["Operador"],
+                                            canal="telegram",
+                                            tipo="seguimiento",
+                                            detalle=detalle_tg,
+                                        )
+                                        enviar_copia_coordinador(
+                                            fila["Operador"],
+                                            calculo_actual["mensaje"],
+                                            detalle_tg,
+                                        )
+                                        ok_resumen_auto, det_resumen_auto = (
+                                            enviar_resumen_grupo_actualizado(
+                                                st.session_state.callcenter_df
+                                            )
+                                        )
+                                        st.success("Enviado")
+                                        if not ok_resumen_auto:
+                                            st.warning("Resumen grupal pendiente")
+                                    else:
+                                        st.error("Error de envío")
+                        elif not en_turno_v20:
+                            st.button(
+                                "🔒 Fuera turno",
+                                disabled=True,
+                                use_container_width=True,
+                                key=f"bloqueado_v20_{usuario}",
+                            )
+                        else:
+                            st.button(
+                                "Telegram pendiente",
+                                disabled=True,
+                                use_container_width=True,
+                                key=f"pendiente_v20_{usuario}",
+                            )
 
-                                mensaje_preview = (
-                                    calculo_preview["mensaje"]
-                                    if calculo_preview is not None
-                                    else calculo["mensaje"]
-                                )
+                        with st.popover("👁️ Ver", use_container_width=True):
+                            calculo_preview = generar_mensaje_operador_actual(
+                                usuario,
+                                jornadas_info,
+                            )
+                            mensaje_preview = (
+                                calculo_preview["mensaje"]
+                                if calculo_preview is not None
+                                else calculo.get("mensaje", "")
+                            )
+                            st.text_area(
+                                "Vista previa",
+                                value=mensaje_preview,
+                                height=240,
+                                disabled=True,
+                                label_visibility="collapsed",
+                                key=f"msg_v20_{usuario}",
+                            )
 
-                                st.text_area(
-                                    "Mensaje",
-                                    value=mensaje_preview,
-                                    height=280,
-                                    key=f"msg_v75_{usuario}",
-                                    label_visibility="collapsed",
-                                )
+        with area_side_v20:
+            st.markdown(
+                """
+                <div class="msg-v20-side-title">Vista previa del resumen general</div>
+                <div class="msg-v20-side-sub">
+                    Así se verá la actualización que llegará al grupo.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            try:
+                preview_v20 = generar_imagen_resumen_gestiones_grupo(
+                    st.session_state.callcenter_df
+                )
+                st.image(
+                    preview_v20.getvalue(),
+                    use_container_width=True,
+                )
+            except Exception as e:
+                st.info("Carga CallCenter para generar la vista previa.")
+
+            st.markdown(
+                f"""
+                <div class="msg-v20-side-ok">
+                    <strong>¿Qué se enviará?</strong><br><br>
+                    👤 {len(elegibles_v20)} mensajes individuales<br>
+                    👥 1 resumen general al grupo
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown(
+                """
+                <div class="msg-v20-side-info">
+                    <strong>Consejo</strong><br><br>
+                    Revisa la vista previa antes del seguimiento.
+                    El resumen grupal se actualiza con el último CallCenter cargado.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if st.button(
+                "📊 Ver resumen completo",
+                use_container_width=True,
+                key="ver_resumen_completo_v20",
+            ):
+                st.session_state["mostrar_resumen_completo_v20"] = True
+
+            if st.session_state.get("mostrar_resumen_completo_v20", False):
+                with st.expander("Resumen completo", expanded=True):
+                    try:
+                        preview_full_v20 = generar_imagen_resumen_gestiones_grupo(
+                            st.session_state.callcenter_df
+                        )
+                        st.image(
+                            preview_full_v20.getvalue(),
+                            use_container_width=True,
+                        )
+                    except Exception:
+                        st.info("No hay vista previa disponible.")
 
         st.markdown(
             """
@@ -10754,7 +10690,7 @@ elif menu == "✉️ Mensajes diarios":
             unsafe_allow_html=True,
         )
 
-        with st.expander("📊 Vista previa y envío del ranking", expanded=False):
+        with st.expander("📊 Recuperación y herramientas adicionales", expanded=False):
             coordinador_chat_id = obtener_telegram_coordinador_chat_id()
 
             if coordinador_chat_id:
