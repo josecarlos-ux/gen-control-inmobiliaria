@@ -1155,39 +1155,12 @@ def generar_mensaje_operador_actual(
     if fila_actual is None:
         return None
 
-    # generar_mensaje_diario devuelve un diccionario con el texto y
-    # los datos auxiliares usados por las tarjetas/controles.
-    resultado = generar_mensaje_diario(
+    # Devuelve el mensaje individual tal como lo genera GEN Control,
+    # sin enlace ni invitación adicional para escribir a coordinación.
+    return generar_mensaje_diario(
         fila_actual,
         jornadas_info,
     )
-
-    if not resultado:
-        return resultado
-
-    # Mantener intacta la estructura esperada por el resto de la app.
-    if isinstance(resultado, dict):
-        texto = str(resultado.get("mensaje", "") or "")
-        if texto:
-            resultado["mensaje"] = (
-                texto.rstrip()
-                + "\n\n💬 ¿Necesitas comentarme algo? "
-                + "[Escríbeme directamente](https://t.me/josecarlos_27)"
-            )
-        return resultado
-
-    # Fallback defensivo por compatibilidad con versiones antiguas.
-    texto = str(resultado or "")
-    if not texto:
-        return resultado
-
-    return {
-        "mensaje": (
-            texto.rstrip()
-            + "\n\n💬 ¿Necesitas comentarme algo? "
-            + "[Escríbeme directamente](https://t.me/josecarlos_27)"
-        )
-    }
 
 
 def generar_mensaje_diario(fila, jornadas_info):
@@ -3168,13 +3141,12 @@ def generar_mensaje_resumen_gestiones_grupo(callcenter_df):
     corte_txt = corte.strftime("%H:%M") if corte is not None else ahora_bolivia().strftime("%H:%M")
 
     return (
-        f"📊 RESUMEN DE AVANCE DEL EQUIPO · {corte_txt}\n\n"
-        f"📞 Gestiones: {formato_entero(total_g)}\n"
+        f"📊 AVANCE DE GESTIONES Y COMPROMISOS | {fecha_local_actual().strftime('%d/%m/%Y')}\n\n"
+        f"📞 Gestiones del equipo: {formato_entero(total_g)}\n"
         f"🤝 Compromisos: {formato_entero(total_c)}\n"
-        f"💵 Monto comprometido: {formato_usd(total_m)}\n"
-        f"👥 Operadores con actividad: {activos}/{CANTIDAD_OPERADORES}\n\n"
-        "Adjunto el detalle visual por operador.\n"
-        "Mantengamos el ritmo para continuar avanzando con las metas del día. 💪"
+        f"💵 Monto comprometido: {formato_usd(total_m)}\n\n"
+        "Adjunto el detalle actualizado por operador.\n"
+        "Sigamos avanzando con enfoque para cumplir las metas del día. 💪"
     )
 
 
