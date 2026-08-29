@@ -10822,6 +10822,98 @@ elif menu == "💰 Bonos":
         .bonus-small{
             color:#71849A;font-size:9px;
         }
+        .bonus-top-grid{
+            display:grid;
+            grid-template-columns:repeat(4,minmax(0,1fr));
+            gap:10px;
+            margin:10px 0 14px;
+        }
+        .bonus-top-card{
+            border:1px solid #E4EBF3;
+            background:#fff;
+            border-radius:15px;
+            padding:13px 14px;
+            box-shadow:0 7px 20px rgba(16,42,67,.035);
+            min-height:94px;
+        }
+        .bonus-top-label{
+            font-size:8px;
+            text-transform:uppercase;
+            letter-spacing:.04em;
+            color:#71849A;
+            font-weight:800;
+        }
+        .bonus-top-value{
+            font-size:23px;
+            line-height:1.05;
+            color:#102A43;
+            font-weight:850;
+            margin-top:7px;
+        }
+        .bonus-top-sub{
+            font-size:9px;
+            color:#7A8DA1;
+            margin-top:5px;
+        }
+        .bonus-status{
+            display:inline-block;
+            padding:5px 8px;
+            border-radius:999px;
+            font-size:8px;
+            font-weight:800;
+        }
+        .bonus-status-ok{
+            background:#ECFDF3;
+            color:#067647;
+            border:1px solid #ABEFC6;
+        }
+        .bonus-status-warn{
+            background:#FFF7ED;
+            color:#B54708;
+            border:1px solid #FED7AA;
+        }
+        .bonus-section-card{
+            border:1px solid #E4EBF3;
+            background:#fff;
+            border-radius:16px;
+            padding:14px 15px;
+            box-shadow:0 7px 20px rgba(16,42,67,.03);
+            margin-bottom:12px;
+        }
+        .bonus-flow{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:8px;
+            padding:10px 12px;
+            border-radius:12px;
+            background:#F7FAFC;
+            border:1px solid #E7EDF4;
+            margin:7px 0 11px;
+            flex-wrap:wrap;
+        }
+        .bonus-flow-item{
+            min-width:120px;
+        }
+        .bonus-flow-label{
+            font-size:8px;
+            color:#7A8DA1;
+            text-transform:uppercase;
+            font-weight:800;
+        }
+        .bonus-flow-value{
+            font-size:16px;
+            font-weight:850;
+            color:#183B5B;
+            margin-top:2px;
+        }
+        .bonus-arrow{
+            color:#8AA0B5;
+            font-weight:900;
+        }
+        @media(max-width:1000px){
+            .bonus-top-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -11005,10 +11097,14 @@ elif menu == "💰 Bonos":
         )
 
     with cmodo:
-        st.selectbox(
-            "Modo de metas",
-            ["Meta individual ajustable", "Solo meta estándar"],
-            key="bonos_modo_meta",
+        modo_ajuste_bono = st.selectbox(
+            "Tipo de ajuste",
+            [
+                "Sin ajuste",
+                "Prorrateo por horas",
+                "Ajuste manual",
+            ],
+            key="bonos_modo_ajuste_v6",
         )
 
     st.markdown("### Configuración general del bono")
@@ -11162,11 +11258,15 @@ elif menu == "💰 Bonos":
     )
 
     with p3:
-        aplicar_prorrateo = st.toggle(
-            "Aplicar prorrateo automático",
-            value=False,
-            key=f"bono_prorrateo_{usuario_bonus}",
+        aplicar_prorrateo = (
+            modo_ajuste_bono == "Prorrateo por horas"
         )
+        if aplicar_prorrateo:
+            st.success("Prorrateo por horas activo")
+        elif modo_ajuste_bono == "Ajuste manual":
+            st.info("Ajuste manual activo")
+        else:
+            st.caption("Sin ajuste de metas")
 
     with p4:
         st.metric(
@@ -11183,21 +11283,18 @@ elif menu == "💰 Bonos":
 
     ma1, ma2, ma3 = st.columns(3)
 
-    meta_prod_default = (
-        meta_prod_prorrateada
-        if aplicar_prorrateo
-        else int(base["meta_productividad"])
-    )
-    meta_rec_default = (
-        meta_rec_prorrateada
-        if aplicar_prorrateo
-        else meta_rec_estandar
-    )
-    meta_prom_default = (
-        meta_prom_prorrateada
-        if aplicar_prorrateo
-        else meta_prom_estandar
-    )
+    if modo_ajuste_bono == "Prorrateo por horas":
+        meta_prod_default = meta_prod_prorrateada
+        meta_rec_default = meta_rec_prorrateada
+        meta_prom_default = meta_prom_prorrateada
+    elif modo_ajuste_bono == "Ajuste manual":
+        meta_prod_default = int(base["meta_productividad"])
+        meta_rec_default = meta_rec_estandar
+        meta_prom_default = meta_prom_estandar
+    else:
+        meta_prod_default = int(base["meta_productividad"])
+        meta_rec_default = meta_rec_estandar
+        meta_prom_default = meta_prom_estandar
 
     with ma1:
         meta_prod_final = st.number_input(
@@ -11225,6 +11322,32 @@ elif menu == "💰 Bonos":
             step=1,
             key=f"bono_meta_prom_final_{usuario_bonus}_{int(aplicar_prorrateo)}",
         )
+
+    ajuste_prod_v6 = int(meta_prod_final) - int(base["meta_productividad"])
+    ajuste_rec_v6 = float(meta_rec_final) - float(meta_rec_estandar)
+    ajuste_prom_v6 = int(meta_prom_final) - int(meta_prom_estandar)
+
+    st.markdown(
+        f"""
+        <div class="bonus-flow">
+            <div class="bonus-flow-item">
+                <div class="bonus-flow-label">Meta original · Productividad</div>
+                <div class="bonus-flow-value">{formato_entero(base["meta_productividad"])}</div>
+            </div>
+            <div class="bonus-arrow">→</div>
+            <div class="bonus-flow-item">
+                <div class="bonus-flow-label">Ajuste</div>
+                <div class="bonus-flow-value">{ajuste_prod_v6:+d}</div>
+            </div>
+            <div class="bonus-arrow">→</div>
+            <div class="bonus-flow-item">
+                <div class="bonus-flow-label">Meta válida</div>
+                <div class="bonus-flow-value">{formato_entero(meta_prod_final)}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     # -------------------------------------------------
     # Resultados / manuales
@@ -11262,10 +11385,10 @@ elif menu == "💰 Bonos":
         "venir automáticamente de los reportes cargados en GEN Control."
     )
 
-    st.markdown("##### Indicadores de Calidad")
+    st.markdown("#### 2. Calidad")
     st.caption(
-        "Satisfacción, PECUF y PECN se cargan manualmente desde el reporte/fuente de Calidad. "
-        "No se asume 100% cuando aún no están disponibles."
+        "Satisfacción, PECUF y PECN se cargan manualmente desde la fuente de Calidad. "
+        "Hasta completar los tres, el bono queda pendiente."
     )
 
     def parsear_porcentaje_calidad(valor):
@@ -11331,6 +11454,19 @@ elif menu == "💰 Bonos":
         for valor in [satisf, pecuf, pecn]
     )
 
+    calidad_cargados_v6 = sum(
+        valor is not None
+        for valor in [satisf, pecuf, pecn]
+    )
+    if calidad_completa:
+        st.success(
+            "✅ Calidad completa · 3 de 3 indicadores cargados."
+        )
+    else:
+        st.warning(
+            f"⚠️ Calidad pendiente · {calidad_cargados_v6} de 3 indicadores cargados."
+        )
+
     indicadores = [
         ("Productividad", alcance_prod, meta_prod_final),
         ("Recuperación", alcance_rec, meta_rec_final),
@@ -11382,6 +11518,73 @@ elif menu == "💰 Bonos":
 
     st.markdown("#### 3. Resultado proyectado")
 
+    estado_bono_v6 = (
+        "Listo para enviar"
+        if calidad_completa
+        else "Pendiente Calidad"
+    )
+    estado_cls_v6 = (
+        "bonus-status-ok"
+        if calidad_completa
+        else "bonus-status-warn"
+    )
+
+    if bono_bs is None:
+        bono_top_v6 = "Pendiente"
+    else:
+        bono_top_v6 = f"Bs {bono_bs}"
+
+    if puntaje_total >= 0.95:
+        siguiente_bono_txt_v6 = "Máximo alcanzado"
+        puntos_faltan_v6 = 0.0
+    elif puntaje_total >= 0.90:
+        puntos_faltan_v6 = max(95 - puntaje_total * 100, 0)
+        siguiente_bono_txt_v6 = (
+            f"Faltan {puntos_faltan_v6:.1f} pts para Bs 350"
+        )
+    elif puntaje_total >= 0.85:
+        puntos_faltan_v6 = max(90 - puntaje_total * 100, 0)
+        siguiente_bono_txt_v6 = (
+            f"Faltan {puntos_faltan_v6:.1f} pts para Bs 200"
+        )
+    else:
+        puntos_faltan_v6 = max(85 - puntaje_total * 100, 0)
+        siguiente_bono_txt_v6 = (
+            f"Faltan {puntos_faltan_v6:.1f} pts para Bs 100"
+        )
+
+    st.markdown(
+        f"""
+        <div class="bonus-top-grid">
+            <div class="bonus-top-card">
+                <div class="bonus-top-label">Puntaje</div>
+                <div class="bonus-top-value">{puntaje_total*100:.2f}%</div>
+                <div class="bonus-top-sub">{siguiente_bono_txt_v6}</div>
+            </div>
+            <div class="bonus-top-card">
+                <div class="bonus-top-label">Bono proyectado</div>
+                <div class="bonus-top-value">{bono_top_v6}</div>
+                <div class="bonus-top-sub">Según escala vigente</div>
+            </div>
+            <div class="bonus-top-card">
+                <div class="bonus-top-label">Estado</div>
+                <div style="margin-top:10px;">
+                    <span class="bonus-status {estado_cls_v6}">{estado_bono_v6}</span>
+                </div>
+                <div class="bonus-top-sub">Calidad y cálculo</div>
+            </div>
+            <div class="bonus-top-card">
+                <div class="bonus-top-label">Meta válida · Productividad</div>
+                <div class="bonus-top-value">{formato_entero(meta_prod_final)}</div>
+                <div class="bonus-top-sub">
+                    Original {formato_entero(base["meta_productividad"])}
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     if calidad_completa:
         st.caption(
             "El cumplimiento real puede superar 100%. Para calcular el bono, "
@@ -11420,7 +11623,7 @@ elif menu == "💰 Bonos":
     # -------------------------------------------------
     # 4. MENSAJE INDIVIDUAL DEL BONO
     # -------------------------------------------------
-    st.markdown("#### 4. Mensaje individual")
+    st.markdown("#### 4. Envío individual")
 
     nombre_mensaje_bono = OPERADORES.get(
         usuario_bonus,
@@ -11602,7 +11805,6 @@ elif menu == "💰 Bonos":
                 "Meta válida",
                 "Alcance",
                 "Cumplimiento real %",
-                "Cumplimiento bono %",
                 "Peso %",
                 "Aporte %",
             ]
@@ -11693,6 +11895,7 @@ elif menu == "💰 Bonos":
                 "Operador": datos_r["nombre"],
                 "Puntaje": score_r,
                 "Bono Bs": monto_bono(score_r),
+                "Estado": "Referencia completa",
                 "Productividad": datos_r["productividad"],
                 "Meta productividad": mprod_r,
                 "Recuperación": datos_r["recuperacion"],
@@ -11717,6 +11920,7 @@ elif menu == "💰 Bonos":
                 "Operador",
                 "Puntaje final %",
                 "Bono Bs",
+                "Estado",
                 "Productividad",
                 "Meta productividad",
                 "Recuperación",
