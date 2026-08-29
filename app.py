@@ -9051,53 +9051,88 @@ elif menu == "✉️ Mensajes diarios":
 
                 try:
                     imagen_resumen_v12 = generar_imagen_resumen_gestiones_grupo(call_resumen_v12)
-                    st.image(imagen_resumen_v12, use_container_width=True)
 
-                    with st.expander("👁️ Ver mensaje que acompañará la imagen", expanded=False):
-                        st.text_area(
-                            "Mensaje resumen",
-                            value=mensaje_resumen_v12,
-                            height=180,
-                            disabled=True,
-                            label_visibility="collapsed",
-                            key="preview_resumen_gestiones_grupo_v12",
+                    # V13 · La imagen ya no ocupa espacio permanentemente.
+                    # El usuario decide cuándo abrir/cerrar la vista previa.
+                    if "mostrar_preview_resumen_grupal_v13" not in st.session_state:
+                        st.session_state["mostrar_preview_resumen_grupal_v13"] = False
+
+                    pv1, pv2 = st.columns([1, 1])
+                    with pv1:
+                        texto_preview_v13 = (
+                            "🙈 Ocultar vista previa"
+                            if st.session_state["mostrar_preview_resumen_grupal_v13"]
+                            else "👁️ Visualizar resumen"
                         )
+                        if st.button(
+                            texto_preview_v13,
+                            use_container_width=True,
+                            key="toggle_preview_resumen_grupal_v13",
+                        ):
+                            st.session_state["mostrar_preview_resumen_grupal_v13"] = (
+                                not st.session_state["mostrar_preview_resumen_grupal_v13"]
+                            )
+                            st.rerun()
 
-                    rb1, rb2 = st.columns(2)
-                    with rb1:
+                    with pv2:
                         st.download_button(
-                            "🖼️ Descargar resumen",
+                            "🖼️ Descargar imagen",
                             data=imagen_resumen_v12.getvalue(),
                             file_name=f"resumen_gestiones_compromisos_{fecha_local_actual().isoformat()}.png",
                             mime="image/png",
                             use_container_width=True,
-                            key="descargar_resumen_gestiones_v12",
+                            key="descargar_resumen_gestiones_v13",
                         )
-                    with rb2:
-                        chat_grupo_v12 = obtener_telegram_group_chat_id()
-                        if st.button(
-                            "📊 Enviar resumen grupal",
-                            type="primary",
+
+                    if st.session_state["mostrar_preview_resumen_grupal_v13"]:
+                        st.markdown("#### Vista previa antes de enviar")
+                        st.caption(
+                            "Esta es exactamente la imagen que se enviará al grupo con el corte actual."
+                        )
+                        st.image(
+                            imagen_resumen_v12,
                             use_container_width=True,
-                            disabled=not bool(chat_grupo_v12),
-                            key="enviar_resumen_gestiones_compromisos_v12",
+                            caption="Resumen de gestiones y compromisos del equipo",
+                        )
+
+                        with st.expander(
+                            "💬 Ver mensaje que acompañará la imagen",
+                            expanded=True,
                         ):
-                            ok_txt_v12, det_txt_v12 = enviar_mensaje_telegram(
-                                chat_grupo_v12,
-                                mensaje_resumen_v12,
+                            st.text_area(
+                                "Mensaje resumen",
+                                value=mensaje_resumen_v12,
+                                height=180,
+                                disabled=True,
+                                label_visibility="collapsed",
+                                key="preview_resumen_gestiones_grupo_v13",
                             )
-                            if ok_txt_v12:
-                                ok_img_v12, det_img_v12 = enviar_foto_telegram(
-                                    chat_grupo_v12,
-                                    imagen_resumen_v12,
-                                    "📊 Gestiones y compromisos por operador",
-                                )
-                                if ok_img_v12:
-                                    st.success("Resumen de gestiones y compromisos enviado al grupo.")
-                                else:
-                                    st.error(f"El texto se envió, pero la imagen falló: {det_img_v12}")
+
+                    st.markdown("##### Envío")
+                    chat_grupo_v12 = obtener_telegram_group_chat_id()
+                    if st.button(
+                        "📊 Enviar resumen grupal",
+                        type="primary",
+                        use_container_width=True,
+                        disabled=not bool(chat_grupo_v12),
+                        key="enviar_resumen_gestiones_compromisos_v13",
+                    ):
+                        ok_txt_v12, det_txt_v12 = enviar_mensaje_telegram(
+                            chat_grupo_v12,
+                            mensaje_resumen_v12,
+                        )
+                        if ok_txt_v12:
+                            ok_img_v12, det_img_v12 = enviar_foto_telegram(
+                                chat_grupo_v12,
+                                imagen_resumen_v12,
+                                "📊 Gestiones y compromisos por operador",
+                            )
+                            if ok_img_v12:
+                                st.success("Resumen de gestiones y compromisos enviado al grupo.")
                             else:
-                                st.error(f"No se pudo enviar el resumen: {det_txt_v12}")
+                                st.error(f"El texto se envió, pero la imagen falló: {det_img_v12}")
+                        else:
+                            st.error(f"No se pudo enviar el resumen: {det_txt_v12}")
 
                     if not obtener_telegram_group_chat_id():
                         st.info("Configura TELEGRAM_GROUP_CHAT_ID para habilitar el envío al grupo.")
