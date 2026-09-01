@@ -2111,6 +2111,98 @@ def clasificar_avance(porcentaje, esperado):
 
 
 
+
+def snapshot_es_mes_actual_v28(snapshot, fecha_ref=None):
+    """Valida si el snapshot fue actualizado dentro del mes calendario actual."""
+    fecha_ref = fecha_ref or fecha_local_actual()
+    ts = (snapshot or {}).get("actualizado_en")
+
+    if not ts:
+        return False
+
+    try:
+        fecha_snap = datetime_bolivia(ts).date()
+    except Exception:
+        try:
+            fecha_snap = pd.to_datetime(ts, errors="coerce").date()
+        except Exception:
+            return False
+
+    return (
+        fecha_snap.year == fecha_ref.year
+        and fecha_snap.month == fecha_ref.month
+    )
+
+
+def limpiar_gestiones_compromisos_mes_anterior_v28(resultado_df):
+    """
+    Conserva recuperación del cierre anterior, pero evita arrastrar
+    Gestiones y Compromisos al nuevo mes.
+    """
+    if resultado_df is None or resultado_df.empty:
+        return resultado_df
+
+    limpio = resultado_df.copy()
+
+    for col in ["Gestiones", "Compromisos", "Compromisos cumplidos"]:
+        if col in limpio.columns:
+            limpio[col] = 0
+
+    for col in ["% Gestiones", "% Compromisos"]:
+        if col in limpio.columns:
+            limpio[col] = 0.0
+
+    return limpio
+
+
+def combinar_inicio_mes_v28(resultado_nuevo, resultado_cierre):
+    """
+    Días 1–5:
+    - Gestiones/Compromisos: toma el reporte NUEVO del mes actual.
+    - Recuperación: conserva el último cierre del mes anterior,
+      salvo que el reporte nuevo ya traiga una recuperación mayor/actualizada.
+    """
+    if resultado_nuevo is None or resultado_nuevo.empty:
+        return resultado_nuevo
+    if resultado_cierre is None or resultado_cierre.empty:
+        return resultado_nuevo
+
+    nuevo = resultado_nuevo.copy()
+    cierre = resultado_cierre.copy()
+
+    if "Usuario" not in nuevo.columns or "Usuario" not in cierre.columns:
+        return nuevo
+
+    cierre_idx = cierre.set_index("Usuario", drop=False)
+
+    cols_rec = [
+        "Recuperación individual",
+        "Recuperación acumulada",
+        "% Recuperación",
+    ]
+
+    for i, fila in nuevo.iterrows():
+        usuario = fila.get("Usuario")
+        if usuario not in cierre_idx.index:
+            continue
+
+        anterior = cierre_idx.loc[usuario]
+        if isinstance(anterior, pd.DataFrame):
+            anterior = anterior.iloc[0]
+
+        rec_nueva = float(fila.get("Recuperación acumulada", 0) or 0)
+        rec_anterior = float(anterior.get("Recuperación acumulada", 0) or 0)
+
+        # Durante el cierre se conserva el valor más actualizado disponible.
+        if rec_anterior > rec_nueva:
+            for col in cols_rec:
+                if col in nuevo.columns and col in cierre.columns:
+                    nuevo.at[i, col] = anterior.get(col, nuevo.at[i, col])
+
+    return nuevo
+
+
+
 def obtener_fila_operador_actual(usuario):
     """
     Devuelve SIEMPRE la fila más reciente del operador desde
@@ -2180,6 +2272,20 @@ def generar_mensaje_operador_actual(
     usuario,
     jornadas_info,
 ):
+    # Nunca enviar Gestiones/Compromisos heredados del mes anterior.
+    cargado_en = st.session_state.get("promesas_cargado_en")
+    if cargado_en is not None:
+        try:
+            fecha_carga = cargado_en.date()
+            hoy = fecha_local_actual()
+            if (
+                fecha_carga.year != hoy.year
+                or fecha_carga.month != hoy.month
+            ):
+                return None
+        except Exception:
+            pass
+
     fila_actual = obtener_fila_operador_actual(
         usuario
     )
@@ -3633,6 +3739,8 @@ def guardar_snapshot_promesas_v93(
             "distribucion_sin_usuario": float(
                 distribucion or 0.0
             ),
+            "mes_operativo": int(fecha_local_actual().month),
+            "anio_operativo": int(fecha_local_actual().year),
         },
     )
 
@@ -3687,8 +3795,47 @@ def restaurar_estado_operativo_v93():
             filas = datos.get("resultado_operadores") or []
 
             if filas:
-                st.session_state.resultado_operadores = pd.DataFrame(
+                resultado_restaurado_v28 = pd.DataFrame(
                     filas
+                )
+
+                hoy_v28 = fecha_local_actual()
+                snapshot_mes_actual_v28 = snapshot_es_mes_actual_v28(
+                    snap,
+                    hoy_v28,
+                )
+
+                # Si cambió el mes, jamás se arrastran Gestiones ni
+                # Compromisos del mes anterior.
+                if not snapshot_mes_actual_v28:
+                    if hoy_v28.day <= 5:
+                        # Únicamente Recuperación permanece visible
+                        # como cierre del mes anterior.
+                        resultado_restaurado_v28 = (
+                            limpiar_gestiones_compromisos_mes_anterior_v28(
+                                resultado_restaurado_v28
+                            )
+                        )
+                        st.session_state["cierre_recuperacion_anterior_v28"] = (
+                            pd.DataFrame(filas)
+                        )
+                    else:
+                        # Desde el día 6 tampoco debe permanecer el cierre anterior.
+                        resultado_restaurado_v28 = (
+                            limpiar_gestiones_compromisos_mes_anterior_v28(
+                                resultado_restaurado_v28
+                            )
+                        )
+                        for col_rec in [
+                            "Recuperación individual",
+                            "Recuperación acumulada",
+                            "% Recuperación",
+                        ]:
+                            if col_rec in resultado_restaurado_v28.columns:
+                                resultado_restaurado_v28[col_rec] = 0.0
+
+                st.session_state.resultado_operadores = (
+                    resultado_restaurado_v28
                 )
                 st.session_state.monto_sin_usuario = float(
                     datos.get("monto_sin_usuario", 0.0) or 0.0
@@ -9768,6 +9915,24 @@ elif menu == "✉️ Mensajes diarios":
     jornadas_info = jornadas_configuradas()
 
     periodo_rec_msg_v27 = periodo_recuperacion_actual()
+    carga_promesas_mes_actual_v28 = False
+    if st.session_state.get("promesas_cargado_en") is not None:
+        try:
+            fecha_carga_v28 = st.session_state.promesas_cargado_en.date()
+            carga_promesas_mes_actual_v28 = (
+                fecha_carga_v28.year == fecha_local_actual().year
+                and fecha_carga_v28.month == fecha_local_actual().month
+            )
+        except Exception:
+            pass
+
+    if not carga_promesas_mes_actual_v28:
+        st.warning(
+            "Gestiones y Compromisos del mes anterior fueron reiniciados. "
+            "Carga el reporte de Promesas del mes actual para habilitar cifras nuevas.",
+            icon="🔄",
+        )
+
     if periodo_rec_msg_v27["cierre_anterior"]:
         st.info(
             f"Gestiones y Compromisos: {nombre_mes_es(fecha_local_actual().month)} · "
@@ -11871,6 +12036,25 @@ elif menu == "📥 Cargar reportes":
                         monto_sin_usuario,
                         distribucion,
                     ) = procesar_promesas(df)
+
+                    # Regla de inicio de mes:
+                    # G/C siempre son del archivo nuevo del mes actual.
+                    # Recuperación puede seguir cerrando el mes anterior hasta el día 5.
+                    periodo_upload_v28 = periodo_recuperacion_actual()
+                    cierre_anterior_v28 = st.session_state.get(
+                        "cierre_recuperacion_anterior_v28"
+                    )
+
+                    if (
+                        periodo_upload_v28["cierre_anterior"]
+                        and cierre_anterior_v28 is not None
+                        and hasattr(cierre_anterior_v28, "empty")
+                        and not cierre_anterior_v28.empty
+                    ):
+                        resultado = combinar_inicio_mes_v28(
+                            resultado,
+                            cierre_anterior_v28,
+                        )
 
                     st.session_state.resultado_operadores = (
                         resultado
