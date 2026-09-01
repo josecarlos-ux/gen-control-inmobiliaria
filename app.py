@@ -1829,6 +1829,60 @@ def fecha_local_actual():
     return datetime.now(ZoneInfo("America/La_Paz")).date()
 
 
+
+def nombre_mes_es(numero_mes):
+    meses = [
+        "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    ]
+    try:
+        return meses[int(numero_mes)]
+    except Exception:
+        return str(numero_mes)
+
+
+def periodo_recuperacion_actual(fecha_ref=None):
+    """
+    Regla definitiva:
+    - Gestiones y Compromisos: siempre mes actual.
+    - Recuperación: días 1–5 sigue cerrando el mes anterior.
+    - Recuperación: desde día 6 corresponde al mes actual.
+    """
+    fecha_ref = fecha_ref or fecha_local_actual()
+
+    if fecha_ref.day <= 5:
+        primer_dia = fecha_ref.replace(day=1)
+        mes_anterior = primer_dia - timedelta(days=1)
+        return {
+            "cierre_anterior": True,
+            "mes": mes_anterior.month,
+            "anio": mes_anterior.year,
+            "nombre_mes": nombre_mes_es(mes_anterior.month),
+            "etiqueta": f"Cierre {nombre_mes_es(mes_anterior.month)}",
+            "esperado_pct": 100.0,
+            "plazo": fecha_ref.replace(day=5),
+        }
+
+    return {
+        "cierre_anterior": False,
+        "mes": fecha_ref.month,
+        "anio": fecha_ref.year,
+        "nombre_mes": nombre_mes_es(fecha_ref.month),
+        "etiqueta": nombre_mes_es(fecha_ref.month),
+        "esperado_pct": None,
+        "plazo": None,
+    }
+
+
+def esperado_indicador(indicador, esperado_mes):
+    """Esperado correcto según indicador y período."""
+    periodo = periodo_recuperacion_actual()
+    if indicador == "Recuperación" and periodo["cierre_anterior"]:
+        return 100.0
+    return float(esperado_mes)
+
+
+
 def ahora_bolivia():
     """
     Hora Bolivia calculada desde UTC real.
@@ -7877,10 +7931,19 @@ if menu == "🏠 Resumen":
 
         # Estado del equipo según la MAYOR brecha real.
         # No se promedian indicadores distintos para evitar ocultar rezagos.
+        periodo_rec_v27 = periodo_recuperacion_actual()
+        esperado_recuperacion_v27 = esperado_indicador(
+            "Recuperación",
+            esperado,
+        )
+
         brechas_equipo = {
             "Gestiones": promedio_gestiones - esperado,
             "Compromisos": promedio_compromisos - esperado,
-            "Recuperación": promedio_recuperacion - esperado,
+            "Recuperación": (
+                promedio_recuperacion
+                - esperado_recuperacion_v27
+            ),
         }
 
         indicador_prioritario = min(
@@ -7903,6 +7966,29 @@ if menu == "🏠 Resumen":
         else:
             estado_general = "🔴 Reforzar ritmo"
             estado_clase_v79 = "team-state-red-v79"
+
+        if periodo_rec_v27["cierre_anterior"]:
+            st.markdown(
+                f"""
+                <div style="
+                    border:1px solid #D6E5F8;
+                    background:linear-gradient(90deg,#EEF5FF,#F9FBFF);
+                    border-radius:12px;
+                    padding:10px 13px;
+                    margin:4px 0 10px;
+                    color:#35597E;
+                    font-size:10px;
+                ">
+                    📅 <strong>Inicio de {nombre_mes_es(fecha_local_actual().month)}:</strong>
+                    Gestiones y Compromisos ya se calculan para
+                    <strong>{nombre_mes_es(fecha_local_actual().month)}</strong>.
+                    Recuperación continúa como
+                    <strong>{periodo_rec_v27["etiqueta"]}</strong>
+                    y tiene plazo hasta el <strong>05/{fecha_local_actual().month:02d}</strong>.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         st.markdown(
             f"""
@@ -7965,11 +8051,12 @@ if menu == "🏠 Resumen":
             st.markdown(
                 f"""
                 <div class="kpi-card-v79 kpi-card-green-v79">
-                    <div class="kpi-label-v79">💰 Recuperación</div>
+                    <div class="kpi-label-v79">💰 Recuperación · {periodo_rec_v27["etiqueta"]}</div>
                     <div class="kpi-value-v79">{formato_usd(total_recuperacion)}</div>
                     <div class="kpi-foot-v79">
                         {formato_porcentaje(promedio_recuperacion)} ·
                         Meta equipo {formato_usd(meta_equipo_recuperacion)}
+                        {" · Plazo 05/" + fecha_local_actual().strftime("%m") if periodo_rec_v27["cierre_anterior"] else ""}
                     </div>
                 </div>
                 """,
@@ -7999,19 +8086,23 @@ if menu == "🏠 Resumen":
         st.markdown("### Avance vs esperado")
 
         comparativos_v79 = [
-            ("Gestiones", promedio_gestiones),
-            ("Compromisos", promedio_compromisos),
-            ("Recuperación", promedio_recuperacion),
+            ("Gestiones", promedio_gestiones, esperado),
+            ("Compromisos", promedio_compromisos, esperado),
+            (
+                f"Recuperación · {periodo_rec_v27['etiqueta']}",
+                promedio_recuperacion,
+                esperado_recuperacion_v27,
+            ),
         ]
 
         cc1, cc2, cc3 = st.columns(3)
 
-        for columna_cmp, (nombre_cmp, valor_cmp) in zip(
+        for columna_cmp, (nombre_cmp, valor_cmp, esperado_cmp) in zip(
             [cc1, cc2, cc3],
             comparativos_v79,
         ):
             brecha_cmp = float(
-                valor_cmp - esperado
+                valor_cmp - esperado_cmp
             )
 
             if brecha_cmp >= -3:
@@ -8033,7 +8124,7 @@ if menu == "🏠 Resumen":
                             {formato_porcentaje(valor_cmp)}
                         </div>
                         <div class="compare-sub-v79">
-                            Esperado: {formato_porcentaje(esperado)}
+                            Esperado: {formato_porcentaje(esperado_cmp)}
                         </div>
                         <div class="compare-sub-v79 {clase_gap}">
                             {estado_gap} ·
@@ -8093,10 +8184,16 @@ if menu == "🏠 Resumen":
         }
         columna_orden = mapa_criterio[criterio]
 
+        esperado_ranking_v27 = (
+            esperado_recuperacion_v27
+            if criterio == "Recuperación"
+            else esperado
+        )
+
         ranking["Estado"] = ranking[columna_orden].apply(
             lambda x: clasificar_avance(
                 float(x),
-                esperado,
+                esperado_ranking_v27,
             )
         )
 
@@ -8114,7 +8211,7 @@ if menu == "🏠 Resumen":
         ultimo_rank_v26 = ranking.iloc[-1] if not ranking.empty else None
         promedio_rank_v26 = float(ranking[columna_orden].mean()) if not ranking.empty else 0.0
         reforzar_rank_v26 = int(
-            (ranking[columna_orden].astype(float) < esperado - 10).sum()
+            (ranking[columna_orden].astype(float) < esperado_ranking_v27 - 10).sum()
         ) if not ranking.empty else 0
 
         st.markdown(
@@ -8136,7 +8233,7 @@ if menu == "🏠 Resumen":
                     <div class="s">Acumulado actual</div>
                 </div>
                 <div class="rank-kpi-v26 green">
-                    <div class="k">Recuperación equipo</div>
+                    <div class="k">Recuperación · {periodo_rec_v27["etiqueta"]}</div>
                     <div class="v">{formato_usd(total_recuperacion)}</div>
                     <div class="s">Acumulado actual</div>
                 </div>
@@ -8170,9 +8267,9 @@ if menu == "🏠 Resumen":
             bar_c = min(max(pct_c, 0), 100)
             bar_r = min(max(pct_r, 0), 100)
 
-            if pct_estado >= esperado - 3:
+            if pct_estado >= esperado_ranking_v27 - 3:
                 estado_cls = "ok"
-            elif pct_estado >= esperado - 10:
+            elif pct_estado >= esperado_ranking_v27 - 10:
                 estado_cls = "warn"
             else:
                 estado_cls = "bad"
@@ -8258,7 +8355,7 @@ if menu == "🏠 Resumen":
         # ALERTAS Y RECOMENDACIONES · V26
         # -------------------------------------------------
         alertas_df = ranking[
-            ranking[columna_orden].astype(float) < esperado - 10
+            ranking[columna_orden].astype(float) < esperado_ranking_v27 - 10
         ].copy()
 
         st.markdown(
@@ -8289,7 +8386,7 @@ if menu == "🏠 Resumen":
             lineas_alerta_v26 = []
             for _, ar in alertas_df.iterrows():
                 valor_ar = float(ar[columna_orden])
-                brecha_ar = max(esperado - valor_ar, 0)
+                brecha_ar = max(esperado_ranking_v27 - valor_ar, 0)
 
                 lineas_alerta_v26.append(
                     f"""
@@ -9669,6 +9766,14 @@ elif menu == "✉️ Mensajes diarios":
 
     resultado = st.session_state.resultado_operadores
     jornadas_info = jornadas_configuradas()
+
+    periodo_rec_msg_v27 = periodo_recuperacion_actual()
+    if periodo_rec_msg_v27["cierre_anterior"]:
+        st.info(
+            f"Gestiones y Compromisos: {nombre_mes_es(fecha_local_actual().month)} · "
+            f"Recuperación: {periodo_rec_msg_v27['etiqueta']} hasta el 05/{fecha_local_actual().month:02d}.",
+            icon="📅",
+        )
 
     st.markdown("""
     <style>
@@ -11709,6 +11814,15 @@ elif menu == "📥 Cargar reportes":
         """,
         unsafe_allow_html=True,
     )
+
+    periodo_carga_v27 = periodo_recuperacion_actual()
+    if periodo_carga_v27["cierre_anterior"]:
+        st.info(
+            f"Del 1 al 5: Gestiones y Compromisos se registran para "
+            f"{nombre_mes_es(fecha_local_actual().month)}; Recuperación se mantiene como "
+            f"{periodo_carga_v27['etiqueta']}.",
+            icon="📅",
+        )
 
     archivos = st.file_uploader(
         "Seleccionar archivos",
