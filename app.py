@@ -8200,67 +8200,46 @@ if menu == "🏠 Resumen":
         # No se promedian indicadores distintos para evitar ocultar rezagos.
         resumen_mes_v29 = resumen_mes_actual_v29()
 
-        st.markdown(
-            f"""
-            <div class="month-head-v29">
-                <div>
-                    <div class="month-title-v29">Resumen de {resumen_mes_v29['mes_actual']} {resumen_mes_v29['anio']}</div>
-                    <div class="month-sub-v29">
-                        Gestiones y Compromisos corresponden únicamente al mes actual.
-                    </div>
-                </div>
-                <div class="month-badge-v29">
-                    📅 Mes actual · {resumen_mes_v29['mes_actual']}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        html_resumen_mes_v31 = (
+            f'<div class="month-head-v29">'
+            f'<div><div class="month-title-v29">Resumen de {resumen_mes_v29["mes_actual"]} {resumen_mes_v29["anio"]}</div>'
+            f'<div class="month-sub-v29">Gestiones y Compromisos corresponden únicamente al mes actual.</div></div>'
+            f'<div class="month-badge-v29">📅 Mes actual · {resumen_mes_v29["mes_actual"]}</div>'
+            f'</div>'
+            f'<div class="month-grid-v29">'
+            f'<div class="month-card-v29 blue">'
+            f'<div class="lbl">Gestiones del mes</div>'
+            f'<div class="val">{formato_entero(resumen_mes_v29["total_gestiones"])}</div>'
+            f'<div class="sub">{formato_porcentaje(resumen_mes_v29["promedio_gestiones"])} de cumplimiento promedio</div>'
+            f'</div>'
+            f'<div class="month-card-v29 orange">'
+            f'<div class="lbl">Compromisos del mes</div>'
+            f'<div class="val">{formato_entero(resumen_mes_v29["total_compromisos"])}</div>'
+            f'<div class="sub">{formato_porcentaje(resumen_mes_v29["promedio_compromisos"])} de cumplimiento promedio</div>'
+            f'</div>'
+            f'<div class="month-card-v29 green">'
+            f'<div class="lbl">Recuperación</div>'
+            f'<div class="val">{formato_usd(resumen_mes_v29["total_recuperacion"])}</div>'
+            f'<div class="sub">{resumen_mes_v29["periodo_recuperacion"]["etiqueta"]}</div>'
+            f'</div>'
+            f'</div>'
         )
-
         st.markdown(
-            f"""
-            <div class="month-grid-v29">
-                <div class="month-card-v29 blue">
-                    <div class="lbl">Gestiones del mes</div>
-                    <div class="val">{formato_entero(resumen_mes_v29['total_gestiones'])}</div>
-                    <div class="sub">
-                        {formato_porcentaje(resumen_mes_v29['promedio_gestiones'])}
-                        de cumplimiento promedio
-                    </div>
-                </div>
-
-                <div class="month-card-v29 orange">
-                    <div class="lbl">Compromisos del mes</div>
-                    <div class="val">{formato_entero(resumen_mes_v29['total_compromisos'])}</div>
-                    <div class="sub">
-                        {formato_porcentaje(resumen_mes_v29['promedio_compromisos'])}
-                        de cumplimiento promedio
-                    </div>
-                </div>
-
-                <div class="month-card-v29 green">
-                    <div class="lbl">Recuperación</div>
-                    <div class="val">{formato_usd(resumen_mes_v29['total_recuperacion'])}</div>
-                    <div class="sub">
-                        {resumen_mes_v29['periodo_recuperacion']['etiqueta']}
-                    </div>
-                </div>
-            </div>
-            """,
+            html_resumen_mes_v31,
             unsafe_allow_html=True,
         )
 
         if resumen_mes_v29["periodo_recuperacion"]["cierre_anterior"]:
+            html_cierre_mes_v31 = (
+                f'<div class="month-close-v29">'
+                f'💰 <strong>Recuperación en cierre:</strong> del 1 al 5 se mantiene el cierre de '
+                f'<strong>{resumen_mes_v29["periodo_recuperacion"]["nombre_mes"]}</strong>. '
+                f'Gestiones y Compromisos ya pertenecen a '
+                f'<strong>{resumen_mes_v29["mes_actual"]}</strong>.'
+                f'</div>'
+            )
             st.markdown(
-                f"""
-                <div class="month-close-v29">
-                    💰 <strong>Recuperación en cierre:</strong>
-                    del 1 al 5 se mantiene el cierre de
-                    <strong>{resumen_mes_v29['periodo_recuperacion']['nombre_mes']}</strong>.
-                    Gestiones y Compromisos ya pertenecen a
-                    <strong>{resumen_mes_v29['mes_actual']}</strong>.
-                </div>
-                """,
+                html_cierre_mes_v31,
                 unsafe_allow_html=True,
             )
 
