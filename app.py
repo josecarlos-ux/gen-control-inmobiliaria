@@ -2191,6 +2191,46 @@ def clasificar_avance(porcentaje, esperado):
 
 
 
+def promesas_es_mes_actual_v32(fecha_ref=None):
+    """
+    Valida el período REAL de Promesas.
+    Solo se considera mes actual cuando existe un marcador explícito
+    de mes/año guardado al procesar el archivo.
+    Esto evita reutilizar acumulados del mes anterior después de F5,
+    redeploy o restauración desde Supabase.
+    """
+    fecha_ref = fecha_ref or fecha_local_actual()
+
+    mes = st.session_state.get("promesas_mes_operativo_v32")
+    anio = st.session_state.get("promesas_anio_operativo_v32")
+
+    try:
+        return (
+            int(mes) == int(fecha_ref.month)
+            and int(anio) == int(fecha_ref.year)
+        )
+    except Exception:
+        return False
+
+
+def sanear_resultado_para_mes_actual_v32(resultado_df):
+    """
+    Para Mensajes:
+    - Si Promesas no está confirmado para el mes actual, G/C = 0.
+    - Recuperación se conserva porque puede corresponder al cierre anterior.
+    """
+    if resultado_df is None or resultado_df.empty:
+        return resultado_df
+
+    if promesas_es_mes_actual_v32():
+        return resultado_df.copy()
+
+    return limpiar_gestiones_compromisos_mes_anterior_v28(
+        resultado_df.copy()
+    )
+
+
+
 def snapshot_es_mes_actual_v28(snapshot, fecha_ref=None):
     """Valida si el snapshot fue actualizado dentro del mes calendario actual."""
     fecha_ref = fecha_ref or fecha_local_actual()
@@ -2392,19 +2432,10 @@ def generar_mensaje_operador_actual(
     usuario,
     jornadas_info,
 ):
-    # Nunca enviar Gestiones/Compromisos heredados del mes anterior.
-    cargado_en = st.session_state.get("promesas_cargado_en")
-    if cargado_en is not None:
-        try:
-            fecha_carga = cargado_en.date()
-            hoy = fecha_local_actual()
-            if (
-                fecha_carga.year != hoy.year
-                or fecha_carga.month != hoy.month
-            ):
-                return None
-        except Exception:
-            pass
+    # Nunca enviar Gestiones/Compromisos si Promesas no está
+    # confirmado explícitamente para el mes actual.
+    if not promesas_es_mes_actual_v32():
+        return None
 
     fila_actual = obtener_fila_operador_actual(
         usuario
@@ -3966,6 +3997,12 @@ def restaurar_estado_operativo_v93():
                 st.session_state.promesas_nombre_archivo = str(
                     snap.get("nombre_archivo") or ""
                 )
+                st.session_state.promesas_mes_operativo_v32 = (
+                    datos.get("mes_operativo")
+                )
+                st.session_state.promesas_anio_operativo_v32 = (
+                    datos.get("anio_operativo")
+                )
 
                 ts = snap.get("actualizado_en")
                 if ts:
@@ -4035,6 +4072,12 @@ if "promesas_cargado_en" not in st.session_state:
 
 if "promesas_nombre_archivo" not in st.session_state:
     st.session_state.promesas_nombre_archivo = ""
+
+if "promesas_mes_operativo_v32" not in st.session_state:
+    st.session_state.promesas_mes_operativo_v32 = None
+
+if "promesas_anio_operativo_v32" not in st.session_state:
+    st.session_state.promesas_anio_operativo_v32 = None
 
 if "envios_diarios_cache" not in st.session_state:
     st.session_state.envios_diarios_cache = {}
@@ -10077,20 +10120,20 @@ elif menu == "📈 Comportamiento diario":
 
 elif menu == "✉️ Mensajes diarios":
 
-    resultado = st.session_state.resultado_operadores
+    # V32: el mensaje solo puede usar G/C del mes actual confirmado.
+    resultado = sanear_resultado_para_mes_actual_v32(
+        st.session_state.resultado_operadores
+    )
+    st.session_state.resultado_operadores = (
+        resultado.copy()
+        if resultado is not None
+        else None
+    )
+
     jornadas_info = jornadas_configuradas()
 
     periodo_rec_msg_v27 = periodo_recuperacion_actual()
-    carga_promesas_mes_actual_v28 = False
-    if st.session_state.get("promesas_cargado_en") is not None:
-        try:
-            fecha_carga_v28 = st.session_state.promesas_cargado_en.date()
-            carga_promesas_mes_actual_v28 = (
-                fecha_carga_v28.year == fecha_local_actual().year
-                and fecha_carga_v28.month == fecha_local_actual().month
-            )
-        except Exception:
-            pass
+    carga_promesas_mes_actual_v28 = promesas_es_mes_actual_v32()
 
     if not carga_promesas_mes_actual_v28:
         # Protección definitiva: aunque la sesión haya quedado abierta desde el
@@ -11582,10 +11625,37 @@ elif menu == "✉️ Mensajes diarios":
             if fila_actual_pre is not None:
                 fila_pre = fila_actual_pre
 
-            calculo_pre = generar_mensaje_diario(
-                fila_pre,
-                jornadas_info,
-            )
+            if carga_promesas_mes_actual_v28:
+                calculo_pre = generar_mensaje_diario(
+                    fila_pre,
+                    jornadas_info,
+                )
+            else:
+                # Vista segura: nunca mostrar acumulados heredados.
+                saludo_pre, emoji_pre = saludo_segun_hora()
+                nombre_pre = OPERADORES.get(
+                    usuario_pre,
+                    {},
+                ).get(
+                    "nombre_mensaje",
+                    fila_pre["Operador"].split()[0],
+                )
+                calculo_pre = {
+                    "mensaje": (
+                        f"{saludo_pre}, {nombre_pre}. {emoji_pre}\n\n"
+                        f"📊 Acumulado de {nombre_mes_es(fecha_local_actual().month)}\n"
+                        "🔹 Gestiones: pendiente de cargar reporte del mes actual\n"
+                        "🔹 Compromisos: pendiente de cargar reporte del mes actual\n\n"
+                        "La información del mes anterior ya no se utiliza para este seguimiento."
+                    ),
+                    "estado_gestiones": "Sin datos",
+                    "estado_compromisos": "Sin datos",
+                    "estado_recuperacion": "Sin datos",
+                    "avance_hora": calcular_avance_hora_operador(
+                        usuario_pre,
+                        st.session_state.callcenter_df,
+                    ),
+                }
 
             OPERADORES[usuario_pre][
                 "nombre_mensaje"
@@ -11596,7 +11666,10 @@ elif menu == "✉️ Mensajes diarios":
                 calculo_pre["estado_compromisos"],
             ]
 
-            if "Reforzar" in estados_pre:
+            if not carga_promesas_mes_actual_v28:
+                estado_pre = "Sin datos"
+                clase_pre = "status-gray"
+            elif "Reforzar" in estados_pre:
                 estado_pre = "Reforzar"
                 clase_pre = "status-red"
             elif "En seguimiento" in estados_pre:
@@ -11650,7 +11723,8 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         elegibles_v20 = [
             item for item in filas_preparadas
-            if normalizar_telegram_chat_id(
+            if carga_promesas_mes_actual_v28
+            and normalizar_telegram_chat_id(
                 datos_contacto.get(item[0]["Usuario"], {}).get("telegram_chat_id", "")
             )
             and operador_habilitado_para_envio(item[0]["Usuario"])
@@ -11741,7 +11815,8 @@ elif menu == "✉️ Mensajes diarios":
 
                 en_turno_v20 = operador_en_turno(usuario)
                 habilitado_v20 = bool(
-                    telegram_chat_id
+                    carga_promesas_mes_actual_v28
+                    and telegram_chat_id
                     and operador_habilitado_para_envio(usuario)
                 )
 
@@ -11868,20 +11943,10 @@ elif menu == "✉️ Mensajes diarios":
                             if calculo_preview is not None:
                                 mensaje_preview = calculo_preview["mensaje"]
                             else:
-                                nombre_preview = OPERADORES.get(
-                                    usuario,
-                                    {},
-                                ).get(
-                                    "nombre_mensaje",
-                                    fila["Operador"].split()[0],
-                                )
-                                saludo_preview, emoji_preview = saludo_segun_hora()
-                                mensaje_preview = (
-                                    f"{saludo_preview}, {nombre_preview}. {emoji_preview}\n\n"
-                                    f"📊 Acumulado de {nombre_mes_es(fecha_local_actual().month)}\n"
-                                    "🔹 Gestiones: pendiente de cargar reporte del mes actual\n"
-                                    "🔹 Compromisos: pendiente de cargar reporte del mes actual\n\n"
-                                    "La información del mes anterior ya no se utiliza para este seguimiento."
+                                # `calculo` ya fue saneado arriba en V32.
+                                mensaje_preview = calculo.get(
+                                    "mensaje",
+                                    "Carga el reporte del mes actual para generar el mensaje.",
                                 )
                             st.text_area(
                                 "Vista previa",
@@ -12255,6 +12320,12 @@ elif menu == "📥 Cargar reportes":
                         ZoneInfo("America/La_Paz")
                     )
                     st.session_state.promesas_nombre_archivo = archivo.name
+                    st.session_state.promesas_mes_operativo_v32 = int(
+                        fecha_local_actual().month
+                    )
+                    st.session_state.promesas_anio_operativo_v32 = int(
+                        fecha_local_actual().year
+                    )
 
                     if supabase_disponible():
                         guardar_snapshot_promesas_v93(
