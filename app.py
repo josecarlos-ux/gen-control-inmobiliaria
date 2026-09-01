@@ -1685,6 +1685,85 @@ st.markdown(
         .rank-kpis-v26{grid-template-columns:repeat(3,minmax(0,1fr));}
         .rank-row-v26{grid-template-columns:40px 1.8fr 1.35fr 1.35fr 1.55fr .9fr;}
     }
+
+    /* =========================================================
+       V29 · RESUMEN MENSUAL
+       ========================================================= */
+    .month-head-v29{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:14px;
+        margin:2px 0 12px;
+    }
+    .month-title-v29{
+        font-size:22px;
+        font-weight:900;
+        color:#102A43;
+        letter-spacing:-.03em;
+    }
+    .month-sub-v29{
+        color:#6F8195;
+        font-size:9px;
+        margin-top:3px;
+    }
+    .month-badge-v29{
+        padding:7px 10px;
+        border-radius:999px;
+        background:#EEF5FF;
+        border:1px solid #D8E6F8;
+        color:#245A8D;
+        font-size:9px;
+        font-weight:850;
+        white-space:nowrap;
+    }
+    .month-grid-v29{
+        display:grid;
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:11px;
+        margin:10px 0 14px;
+    }
+    .month-card-v29{
+        border:1px solid #E1E8F0;
+        border-radius:15px;
+        padding:14px 15px;
+        background:#FFFFFF;
+        box-shadow:0 7px 18px rgba(16,42,67,.035);
+    }
+    .month-card-v29 .lbl{
+        font-size:8px;
+        font-weight:850;
+        color:#71849A;
+        text-transform:uppercase;
+        letter-spacing:.045em;
+    }
+    .month-card-v29 .val{
+        font-size:23px;
+        font-weight:900;
+        color:#102A43;
+        margin:6px 0 3px;
+        letter-spacing:-.035em;
+    }
+    .month-card-v29 .sub{
+        font-size:8px;
+        color:#8192A4;
+    }
+    .month-card-v29.blue{border-top:3px solid #2E77E5;}
+    .month-card-v29.orange{border-top:3px solid #D88700;}
+    .month-card-v29.green{border-top:3px solid #2A9D66;}
+    .month-close-v29{
+        border:1px solid #D5E6F8;
+        background:linear-gradient(90deg,#F3F8FF,#FBFDFF);
+        border-radius:13px;
+        padding:10px 12px;
+        margin:8px 0 12px;
+        font-size:9px;
+        color:#35597E;
+    }
+    .month-close-v29 strong{color:#173B72;}
+    @media(max-width:950px){
+        .month-grid-v29{grid-template-columns:1fr;}
+    }
 </style>
     """,
     unsafe_allow_html=True,
@@ -2203,6 +2282,47 @@ def combinar_inicio_mes_v28(resultado_nuevo, resultado_cierre):
 
 
 
+
+def resumen_mes_actual_v29():
+    """
+    Construye el resumen mensual visible:
+    - Gestiones y Compromisos: SOLO mes actual.
+    - Recuperación: si estamos del 1 al 5, se muestra aparte como cierre anterior.
+    """
+    resultado = st.session_state.get("resultado_operadores")
+    hoy = fecha_local_actual()
+    periodo_rec = periodo_recuperacion_actual(hoy)
+
+    if resultado is None or resultado.empty:
+        total_g = 0
+        total_c = 0
+        total_r = 0.0
+        prom_g = 0.0
+        prom_c = 0.0
+        prom_r = 0.0
+    else:
+        total_g = float(resultado["Gestiones"].sum()) if "Gestiones" in resultado.columns else 0.0
+        total_c = float(resultado["Compromisos"].sum()) if "Compromisos" in resultado.columns else 0.0
+        total_r = float(resultado["Recuperación acumulada"].sum()) if "Recuperación acumulada" in resultado.columns else 0.0
+
+        prom_g = float(resultado["% Gestiones"].mean()) if "% Gestiones" in resultado.columns else 0.0
+        prom_c = float(resultado["% Compromisos"].mean()) if "% Compromisos" in resultado.columns else 0.0
+        prom_r = float(resultado["% Recuperación"].mean()) if "% Recuperación" in resultado.columns else 0.0
+
+    return {
+        "mes_actual": nombre_mes_es(hoy.month),
+        "anio": hoy.year,
+        "total_gestiones": total_g,
+        "total_compromisos": total_c,
+        "total_recuperacion": total_r,
+        "promedio_gestiones": prom_g,
+        "promedio_compromisos": prom_c,
+        "promedio_recuperacion": prom_r,
+        "periodo_recuperacion": periodo_rec,
+    }
+
+
+
 def obtener_fila_operador_actual(usuario):
     """
     Devuelve SIEMPRE la fila más reciente del operador desde
@@ -2428,7 +2548,7 @@ def generar_mensaje_diario(fila, jornadas_info):
     # en el mensaje individual.
     mostrar_recuperacion_v87 = False
     bloque_mes_v87 = (
-        f"📊 Acumulado del mes\n"
+        f"📊 Acumulado de {nombre_mes_es(fecha_local_actual().month)}\n"
         f"{linea_g}\n"
         f"{linea_c}"
     )
@@ -8078,6 +8198,72 @@ if menu == "🏠 Resumen":
 
         # Estado del equipo según la MAYOR brecha real.
         # No se promedian indicadores distintos para evitar ocultar rezagos.
+        resumen_mes_v29 = resumen_mes_actual_v29()
+
+        st.markdown(
+            f"""
+            <div class="month-head-v29">
+                <div>
+                    <div class="month-title-v29">Resumen de {resumen_mes_v29['mes_actual']} {resumen_mes_v29['anio']}</div>
+                    <div class="month-sub-v29">
+                        Gestiones y Compromisos corresponden únicamente al mes actual.
+                    </div>
+                </div>
+                <div class="month-badge-v29">
+                    📅 Mes actual · {resumen_mes_v29['mes_actual']}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"""
+            <div class="month-grid-v29">
+                <div class="month-card-v29 blue">
+                    <div class="lbl">Gestiones del mes</div>
+                    <div class="val">{formato_entero(resumen_mes_v29['total_gestiones'])}</div>
+                    <div class="sub">
+                        {formato_porcentaje(resumen_mes_v29['promedio_gestiones'])}
+                        de cumplimiento promedio
+                    </div>
+                </div>
+
+                <div class="month-card-v29 orange">
+                    <div class="lbl">Compromisos del mes</div>
+                    <div class="val">{formato_entero(resumen_mes_v29['total_compromisos'])}</div>
+                    <div class="sub">
+                        {formato_porcentaje(resumen_mes_v29['promedio_compromisos'])}
+                        de cumplimiento promedio
+                    </div>
+                </div>
+
+                <div class="month-card-v29 green">
+                    <div class="lbl">Recuperación</div>
+                    <div class="val">{formato_usd(resumen_mes_v29['total_recuperacion'])}</div>
+                    <div class="sub">
+                        {resumen_mes_v29['periodo_recuperacion']['etiqueta']}
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if resumen_mes_v29["periodo_recuperacion"]["cierre_anterior"]:
+            st.markdown(
+                f"""
+                <div class="month-close-v29">
+                    💰 <strong>Recuperación en cierre:</strong>
+                    del 1 al 5 se mantiene el cierre de
+                    <strong>{resumen_mes_v29['periodo_recuperacion']['nombre_mes']}</strong>.
+                    Gestiones y Compromisos ya pertenecen a
+                    <strong>{resumen_mes_v29['mes_actual']}</strong>.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         periodo_rec_v27 = periodo_recuperacion_actual()
         esperado_recuperacion_v27 = esperado_indicador(
             "Recuperación",
@@ -8168,7 +8354,7 @@ if menu == "🏠 Resumen":
             st.markdown(
                 f"""
                 <div class="kpi-card-v79 kpi-card-blue-v79">
-                    <div class="kpi-label-v79">📞 Gestiones</div>
+                    <div class="kpi-label-v79">📞 Cumplimiento Gestiones · {resumen_mes_v29["mes_actual"]}</div>
                     <div class="kpi-value-v79">{formato_entero(total_gestiones)}</div>
                     <div class="kpi-foot-v79">
                         {formato_porcentaje(promedio_gestiones)} ·
@@ -8183,7 +8369,7 @@ if menu == "🏠 Resumen":
             st.markdown(
                 f"""
                 <div class="kpi-card-v79 kpi-card-orange-v79">
-                    <div class="kpi-label-v79">🤝 Compromisos</div>
+                    <div class="kpi-label-v79">🤝 Cumplimiento Compromisos · {resumen_mes_v29["mes_actual"]}</div>
                     <div class="kpi-value-v79">{formato_entero(total_compromisos)}</div>
                     <div class="kpi-foot-v79">
                         {formato_porcentaje(promedio_compromisos)} ·
@@ -8230,7 +8416,7 @@ if menu == "🏠 Resumen":
         # AVANCE VS ESPERADO — V79
         # -------------------------------------------------
 
-        st.markdown("### Avance vs esperado")
+        st.markdown(f"### Avance de {resumen_mes_v29['mes_actual']} vs esperado")
 
         comparativos_v79 = [
             ("Gestiones", promedio_gestiones, esperado),
@@ -8294,7 +8480,8 @@ if menu == "🏠 Resumen":
                 <div>
                     <div class="rank-title-v26">Ranking de operadores</div>
                     <div class="rank-sub-v26">
-                        Compara desempeño, identifica líderes y prioriza seguimiento.
+                        Gestiones y Compromisos: {resumen_mes_v29["mes_actual"]} ·
+                        Recuperación: {resumen_mes_v29["periodo_recuperacion"]["etiqueta"]}.
                     </div>
                 </div>
             </div>
@@ -9927,9 +10114,18 @@ elif menu == "✉️ Mensajes diarios":
             pass
 
     if not carga_promesas_mes_actual_v28:
+        # Protección definitiva: aunque la sesión haya quedado abierta desde el
+        # mes anterior, nunca mostrar ni reutilizar sus Gestiones/Compromisos.
+        if resultado is not None and not resultado.empty:
+            resultado = limpiar_gestiones_compromisos_mes_anterior_v28(
+                resultado
+            )
+            st.session_state.resultado_operadores = resultado.copy()
+
         st.warning(
-            "Gestiones y Compromisos del mes anterior fueron reiniciados. "
-            "Carga el reporte de Promesas del mes actual para habilitar cifras nuevas.",
+            f"Gestiones y Compromisos de {nombre_mes_es(fecha_local_actual().month - 1 if fecha_local_actual().month > 1 else 12)} "
+            f"ya no se usan. Carga el reporte de {nombre_mes_es(fecha_local_actual().month)} "
+            "para mostrar el acumulado nuevo.",
             icon="🔄",
         )
 
@@ -11419,7 +11615,6 @@ elif menu == "✉️ Mensajes diarios":
             estados_pre = [
                 calculo_pre["estado_gestiones"],
                 calculo_pre["estado_compromisos"],
-                calculo_pre["estado_recuperacion"],
             ]
 
             if "Reforzar" in estados_pre:
@@ -11442,7 +11637,6 @@ elif menu == "✉️ Mensajes diarios":
                 brecha_max_pre = max(
                     esperado_pre - float(fila_pre["% Gestiones"]),
                     esperado_pre - float(fila_pre["% Compromisos"]),
-                    esperado_pre - float(fila_pre["% Recuperación"]),
                 )
                 if brecha_max_pre < 15:
                     continue
@@ -11692,11 +11886,24 @@ elif menu == "✉️ Mensajes diarios":
                                 usuario,
                                 jornadas_info,
                             )
-                            mensaje_preview = (
-                                calculo_preview["mensaje"]
-                                if calculo_preview is not None
-                                else calculo.get("mensaje", "")
-                            )
+                            if calculo_preview is not None:
+                                mensaje_preview = calculo_preview["mensaje"]
+                            else:
+                                nombre_preview = OPERADORES.get(
+                                    usuario,
+                                    {},
+                                ).get(
+                                    "nombre_mensaje",
+                                    fila["Operador"].split()[0],
+                                )
+                                saludo_preview, emoji_preview = saludo_segun_hora()
+                                mensaje_preview = (
+                                    f"{saludo_preview}, {nombre_preview}. {emoji_preview}\n\n"
+                                    f"📊 Acumulado de {nombre_mes_es(fecha_local_actual().month)}\n"
+                                    "🔹 Gestiones: pendiente de cargar reporte del mes actual\n"
+                                    "🔹 Compromisos: pendiente de cargar reporte del mes actual\n\n"
+                                    "La información del mes anterior ya no se utiliza para este seguimiento."
+                                )
                             st.text_area(
                                 "Vista previa",
                                 value=mensaje_preview,
