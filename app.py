@@ -14810,7 +14810,7 @@ elif menu == "⚙️ Configuración":
 
         st.markdown("### Metas mensuales")
 
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3, c4 = st.columns(4)
 
         with c1:
             nueva_meta_g = st.number_input(
@@ -14830,6 +14830,16 @@ elif menu == "⚙️ Configuración":
                     st.session_state.meta_compromisos_cfg
                 ),
                 step=10,
+            )
+
+        with c3:
+            nueva_meta_r = st.number_input(
+                "Meta mensual de recuperación por operador (USD)",
+                min_value=1,
+                value=int(
+                    st.session_state.meta_recuperacion_cfg
+                ),
+                step=1000,
             )
 
         with c4:
@@ -14855,9 +14865,6 @@ elif menu == "⚙️ Configuración":
             )
             st.session_state.meta_recuperacion_cfg = float(
                 nueva_meta_r
-            )
-            st.session_state.meta_diaria_compromisos_cfg = int(
-                nueva_meta_diaria_c
             )
 
             if supabase_disponible():
