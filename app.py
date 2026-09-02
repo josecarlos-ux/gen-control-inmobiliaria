@@ -2231,6 +2231,175 @@ def sanear_resultado_para_mes_actual_v32(resultado_df):
 
 
 
+def cargar_cierre_mes_anterior_v33(fecha_ref=None):
+    """
+    Busca en resultados_diarios el último cierre disponible ANTES
+    del primer día del mes actual.
+    Devuelve una fila por operador con Gestiones/Compromisos de cierre.
+    """
+    fecha_ref = fecha_ref or fecha_local_actual()
+    sb = get_supabase()
+
+    if sb is None:
+        return None
+
+    primer_dia = fecha_ref.replace(day=1)
+
+    try:
+        resp = (
+            sb.table("resultados_diarios")
+            .select("fecha,usuario,operador,gestiones,compromisos")
+            .lt("fecha", primer_dia.isoformat())
+            .order("fecha", desc=True)
+            .limit(200)
+            .execute()
+        )
+
+        hist = pd.DataFrame(resp.data or [])
+        if hist.empty:
+            return None
+
+        hist["fecha"] = pd.to_datetime(
+            hist["fecha"],
+            errors="coerce",
+        ).dt.date
+        hist = hist.dropna(subset=["fecha"])
+
+        if hist.empty:
+            return None
+
+        # Para evitar mezclar días, tomamos el último registro disponible
+        # de cada operador antes del cambio de mes.
+        hist = (
+            hist.sort_values(
+                ["usuario", "fecha"],
+                ascending=[True, False],
+                kind="stable",
+            )
+            .drop_duplicates(
+                subset=["usuario"],
+                keep="first",
+            )
+        )
+
+        return hist
+
+    except Exception:
+        return None
+
+
+def aplicar_corte_gestiones_compromisos_v33(
+    resultado_df,
+    fecha_ref=None,
+):
+    """
+    Corrige el problema real del reporte Promesas cuando el sistema origen
+    sigue mostrando acumulados del mes anterior al iniciar un mes nuevo.
+
+    Regla:
+    - Gestiones/Compromisos deben representar SOLO el mes actual.
+    - Si el reporte ya reinició, se usa el valor tal cual.
+    - Si el reporte continúa acumulado, se resta el último cierre del mes anterior.
+    - Recuperación NO se toca; del 1 al 5 puede seguir cerrando el mes anterior.
+    """
+    if resultado_df is None or resultado_df.empty:
+        return resultado_df
+
+    fecha_ref = fecha_ref or fecha_local_actual()
+    limpio = resultado_df.copy()
+
+    cierre = cargar_cierre_mes_anterior_v33(fecha_ref)
+
+    # Fallback de seguridad: en los primeros días un acumulado cercano o superior
+    # a la meta mensual es claramente arrastre del mes anterior.
+    if cierre is None or cierre.empty:
+        if fecha_ref.day <= 5:
+            meta_g = float(
+                st.session_state.get(
+                    "meta_gestiones_cfg",
+                    META_GESTIONES,
+                ) or META_GESTIONES
+            )
+            meta_c = float(
+                st.session_state.get(
+                    "meta_compromisos_cfg",
+                    META_COMPROMISOS,
+                ) or META_COMPROMISOS
+            )
+
+            for idx, fila in limpio.iterrows():
+                g_raw = float(fila.get("Gestiones", 0) or 0)
+                c_raw = float(fila.get("Compromisos", 0) or 0)
+
+                if g_raw >= meta_g * 0.50:
+                    limpio.at[idx, "Gestiones"] = 0
+                    limpio.at[idx, "% Gestiones"] = 0.0
+
+                if c_raw >= meta_c * 0.50:
+                    limpio.at[idx, "Compromisos"] = 0
+                    limpio.at[idx, "% Compromisos"] = 0.0
+
+        return limpio
+
+    cierre_idx = cierre.set_index(
+        cierre["usuario"].astype(str)
+    )
+
+    meta_g = float(
+        st.session_state.get(
+            "meta_gestiones_cfg",
+            META_GESTIONES,
+        ) or META_GESTIONES
+    )
+    meta_c = float(
+        st.session_state.get(
+            "meta_compromisos_cfg",
+            META_COMPROMISOS,
+        ) or META_COMPROMISOS
+    )
+
+    for idx, fila in limpio.iterrows():
+        usuario = str(fila.get("Usuario", ""))
+
+        if usuario not in cierre_idx.index:
+            continue
+
+        base = cierre_idx.loc[usuario]
+        if isinstance(base, pd.DataFrame):
+            base = base.iloc[0]
+
+        g_raw = float(fila.get("Gestiones", 0) or 0)
+        c_raw = float(fila.get("Compromisos", 0) or 0)
+
+        g_base = float(base.get("gestiones", 0) or 0)
+        c_base = float(base.get("compromisos", 0) or 0)
+
+        # Si el sistema origen ya reinició, raw < base y se conserva raw.
+        # Si no reinició, calculamos solo lo generado desde el cambio de mes.
+        g_mes = (
+            max(g_raw - g_base, 0)
+            if g_raw >= g_base and g_base > 0
+            else max(g_raw, 0)
+        )
+        c_mes = (
+            max(c_raw - c_base, 0)
+            if c_raw >= c_base and c_base > 0
+            else max(c_raw, 0)
+        )
+
+        limpio.at[idx, "Gestiones"] = int(round(g_mes))
+        limpio.at[idx, "Compromisos"] = int(round(c_mes))
+        limpio.at[idx, "% Gestiones"] = (
+            g_mes / meta_g * 100 if meta_g else 0.0
+        )
+        limpio.at[idx, "% Compromisos"] = (
+            c_mes / meta_c * 100 if meta_c else 0.0
+        )
+
+    return limpio
+
+
+
 def snapshot_es_mes_actual_v28(snapshot, fecha_ref=None):
     """Valida si el snapshot fue actualizado dentro del mes calendario actual."""
     fecha_ref = fecha_ref or fecha_local_actual()
@@ -2330,6 +2499,10 @@ def resumen_mes_actual_v29():
     - Recuperación: si estamos del 1 al 5, se muestra aparte como cierre anterior.
     """
     resultado = st.session_state.get("resultado_operadores")
+    resultado = aplicar_corte_gestiones_compromisos_v33(
+        resultado,
+        fecha_local_actual(),
+    )
     hoy = fecha_local_actual()
     periodo_rec = periodo_recuperacion_actual(hoy)
 
@@ -2432,17 +2605,23 @@ def generar_mensaje_operador_actual(
     usuario,
     jornadas_info,
 ):
-    # Nunca enviar Gestiones/Compromisos si Promesas no está
-    # confirmado explícitamente para el mes actual.
-    if not promesas_es_mes_actual_v32():
-        return None
-
+    # V34: el mensaje privado usa CallCenter para G/C del mes actual.
+    # Promesas queda reservado para Recuperación y no bloquea este mensaje.
     fila_actual = obtener_fila_operador_actual(
         usuario
     )
 
     if fila_actual is None:
         return None
+
+    # Protección final V33: aunque exista una sesión antigua,
+    # el mensaje se calcula sobre el corte mensual real.
+    fila_df_v33 = pd.DataFrame([fila_actual])
+    fila_df_v33 = aplicar_corte_gestiones_compromisos_v33(
+        fila_df_v33,
+        fecha_local_actual(),
+    )
+    fila_actual = fila_df_v33.iloc[0].copy()
 
     # Devuelve el mensaje individual tal como lo genera GEN Control,
     # sin enlace ni invitación adicional para escribir a coordinación.
@@ -2460,8 +2639,26 @@ def generar_mensaje_diario(fila, jornadas_info):
         fila["Operador"].split()[0],
     )
 
-    gestiones = int(fila["Gestiones"])
-    compromisos = int(fila["Compromisos"])
+    # V34 · Gestiones y Compromisos del mensaje salen del
+    # CallCenter filtrado estrictamente al mes actual.
+    acumulado_mes_v34 = calcular_acumulado_mes_callcenter_v34(
+        usuario,
+        st.session_state.get("callcenter_df"),
+        fecha_local_actual(),
+    )
+
+    if acumulado_mes_v34["disponible"]:
+        gestiones = int(
+            acumulado_mes_v34["gestiones_mes"]
+        )
+        compromisos = int(
+            acumulado_mes_v34["compromisos_mes"] or 0
+        )
+    else:
+        # Nunca reutilizar cifras del mes anterior si no hay CallCenter actual.
+        gestiones = 0
+        compromisos = 0
+
     recuperacion = float(fila["Recuperación acumulada"])
 
     meta_g = int(st.session_state.meta_gestiones_cfg)
@@ -3033,6 +3230,14 @@ def procesar_promesas(df):
         )
 
     resultado_df = pd.DataFrame(resultados)
+
+    # V33: Gestiones y Compromisos deben ser siempre del mes actual.
+    # Si Promesas aún arrastra el acumulado anterior, se resta el cierre
+    # histórico del mes previo. Recuperación permanece intacta.
+    resultado_df = aplicar_corte_gestiones_compromisos_v33(
+        resultado_df,
+        fecha_local_actual(),
+    )
 
     return (
         resultado_df,
@@ -4132,6 +4337,20 @@ if "estado_operativo_restaurado_v93" not in st.session_state:
 
 if not st.session_state.estado_operativo_restaurado_v93:
     restaurar_estado_operativo_v93()
+
+    # V33: sanear inmediatamente cualquier acumulado heredado,
+    # incluso si el snapshot fue guardado nuevamente en septiembre.
+    if (
+        st.session_state.get("resultado_operadores") is not None
+        and not st.session_state.resultado_operadores.empty
+    ):
+        st.session_state.resultado_operadores = (
+            aplicar_corte_gestiones_compromisos_v33(
+                st.session_state.resultado_operadores,
+                fecha_local_actual(),
+            )
+        )
+
     st.session_state.estado_operativo_restaurado_v93 = True
 
 
@@ -5092,6 +5311,134 @@ def obtener_corte_callcenter(callcenter_df):
 # =========================================================
 # AVANCE DE HOY / A LA HORA
 # =========================================================
+
+def calcular_acumulado_mes_callcenter_v34(
+    usuario,
+    callcenter_df=None,
+    fecha_ref=None,
+):
+    """
+    Fuente definitiva para Gestiones y Compromisos de los mensajes:
+    GEN CallCenter filtrado por MES/AÑO ACTUAL.
+
+    Esto evita por completo que Promesas arrastre acumulados del mes anterior.
+    """
+    fecha_ref = fecha_ref or fecha_local_actual()
+
+    base = {
+        "disponible": False,
+        "gestiones_mes": 0,
+        "compromisos_mes": None,
+        "compromisos_disponibles": False,
+        "mes": fecha_ref.month,
+        "anio": fecha_ref.year,
+    }
+
+    if callcenter_df is None or callcenter_df.empty:
+        return base
+
+    df = callcenter_df.copy()
+
+    col_fecha = buscar_columna(df, ["fecha"])
+    col_usuario = buscar_columna(df, ["usuario"])
+    col_compromiso = buscar_columna(df, ["compromiso"])
+
+    if col_fecha is None or col_usuario is None:
+        return base
+
+    df["_fecha_hora_v34"] = pd.to_datetime(
+        df[col_fecha],
+        dayfirst=True,
+        errors="coerce",
+    )
+    df = df.dropna(subset=["_fecha_hora_v34"])
+
+    # SOLO mes y año actuales.
+    df = df[
+        (df["_fecha_hora_v34"].dt.year == int(fecha_ref.year))
+        & (df["_fecha_hora_v34"].dt.month == int(fecha_ref.month))
+    ].copy()
+
+    if df.empty:
+        return base
+
+    datos_op = OPERADORES.get(usuario, {})
+
+    aliases = {
+        normalizar_texto(usuario),
+        normalizar_texto(datos_op.get("nombre", "")),
+        normalizar_texto(datos_op.get("nombre_mensaje", "")),
+        normalizar_texto(datos_op.get("correo", "")),
+    }
+
+    correo_op = str(datos_op.get("correo", "")).strip()
+    if "@" in correo_op:
+        aliases.add(
+            normalizar_texto(
+                correo_op.split("@")[0]
+            )
+        )
+
+    aliases = {x for x in aliases if x}
+
+    df["_usuario_norm_v34"] = (
+        df[col_usuario]
+        .astype(str)
+        .apply(normalizar_texto)
+    )
+
+    mascara_usuario = df["_usuario_norm_v34"].isin(aliases)
+
+    if not mascara_usuario.any():
+        aliases_largos = [x for x in aliases if len(x) >= 4]
+        mascara_usuario = df["_usuario_norm_v34"].apply(
+            lambda valor: any(
+                alias in valor or valor in alias
+                for alias in aliases_largos
+            )
+        )
+
+    df_op = df[mascara_usuario].copy()
+
+    if df_op.empty:
+        return {
+            **base,
+            "disponible": True,
+            "gestiones_mes": 0,
+            "compromisos_mes": 0 if col_compromiso is not None else None,
+            "compromisos_disponibles": col_compromiso is not None,
+        }
+
+    gestiones_mes = int(len(df_op))
+
+    compromisos_disponibles = col_compromiso is not None
+    compromisos_mes = None
+
+    if compromisos_disponibles:
+        compromiso_txt = (
+            df_op[col_compromiso]
+            .astype(str)
+            .str.strip()
+        )
+
+        compromisos_mes = int(
+            (
+                df_op[col_compromiso].notna()
+                & (compromiso_txt != "")
+                & (compromiso_txt.str.lower() != "nan")
+            ).sum()
+        )
+
+    return {
+        "disponible": True,
+        "gestiones_mes": gestiones_mes,
+        "compromisos_mes": compromisos_mes,
+        "compromisos_disponibles": compromisos_disponibles,
+        "mes": fecha_ref.month,
+        "anio": fecha_ref.year,
+    }
+
+
 
 def calcular_avance_hora_operador(
     usuario,
@@ -10124,6 +10471,10 @@ elif menu == "✉️ Mensajes diarios":
     resultado = sanear_resultado_para_mes_actual_v32(
         st.session_state.resultado_operadores
     )
+    resultado = aplicar_corte_gestiones_compromisos_v33(
+        resultado,
+        fecha_local_actual(),
+    )
     st.session_state.resultado_operadores = (
         resultado.copy()
         if resultado is not None
@@ -10135,19 +10486,33 @@ elif menu == "✉️ Mensajes diarios":
     periodo_rec_msg_v27 = periodo_recuperacion_actual()
     carga_promesas_mes_actual_v28 = promesas_es_mes_actual_v32()
 
-    if not carga_promesas_mes_actual_v28:
-        # Protección definitiva: aunque la sesión haya quedado abierta desde el
-        # mes anterior, nunca mostrar ni reutilizar sus Gestiones/Compromisos.
-        if resultado is not None and not resultado.empty:
-            resultado = limpiar_gestiones_compromisos_mes_anterior_v28(
-                resultado
+    callcenter_mes_disponible_v34 = False
+    if (
+        st.session_state.get("callcenter_df") is not None
+        and not st.session_state.callcenter_df.empty
+    ):
+        col_fecha_v34 = buscar_columna(
+            st.session_state.callcenter_df,
+            ["fecha"],
+        )
+        if col_fecha_v34 is not None:
+            fechas_v34 = pd.to_datetime(
+                st.session_state.callcenter_df[col_fecha_v34],
+                dayfirst=True,
+                errors="coerce",
             )
-            st.session_state.resultado_operadores = resultado.copy()
+            hoy_v34 = fecha_local_actual()
+            callcenter_mes_disponible_v34 = bool(
+                (
+                    (fechas_v34.dt.year == hoy_v34.year)
+                    & (fechas_v34.dt.month == hoy_v34.month)
+                ).any()
+            )
 
+    if not callcenter_mes_disponible_v34:
         st.warning(
-            f"Gestiones y Compromisos de {nombre_mes_es(fecha_local_actual().month - 1 if fecha_local_actual().month > 1 else 12)} "
-            f"ya no se usan. Carga el reporte de {nombre_mes_es(fecha_local_actual().month)} "
-            "para mostrar el acumulado nuevo.",
+            f"Carga GEN CallCenter de {nombre_mes_es(fecha_local_actual().month)} "
+            "para calcular Gestiones y Compromisos acumulados del mes.",
             icon="🔄",
         )
 
@@ -11625,13 +11990,18 @@ elif menu == "✉️ Mensajes diarios":
             if fila_actual_pre is not None:
                 fila_pre = fila_actual_pre
 
-            if carga_promesas_mes_actual_v28:
+            acumulado_pre_v34 = calcular_acumulado_mes_callcenter_v34(
+                usuario_pre,
+                st.session_state.get("callcenter_df"),
+                fecha_local_actual(),
+            )
+
+            if acumulado_pre_v34["disponible"]:
                 calculo_pre = generar_mensaje_diario(
                     fila_pre,
                     jornadas_info,
                 )
             else:
-                # Vista segura: nunca mostrar acumulados heredados.
                 saludo_pre, emoji_pre = saludo_segun_hora()
                 nombre_pre = OPERADORES.get(
                     usuario_pre,
@@ -11644,9 +12014,9 @@ elif menu == "✉️ Mensajes diarios":
                     "mensaje": (
                         f"{saludo_pre}, {nombre_pre}. {emoji_pre}\n\n"
                         f"📊 Acumulado de {nombre_mes_es(fecha_local_actual().month)}\n"
-                        "🔹 Gestiones: pendiente de cargar reporte del mes actual\n"
-                        "🔹 Compromisos: pendiente de cargar reporte del mes actual\n\n"
-                        "La información del mes anterior ya no se utiliza para este seguimiento."
+                        "🔹 Gestiones: pendiente de cargar CallCenter del mes actual\n"
+                        "🔹 Compromisos: pendiente de cargar CallCenter del mes actual\n\n"
+                        "Carga el GEN CallCenter actualizado para generar el seguimiento."
                     ),
                     "estado_gestiones": "Sin datos",
                     "estado_compromisos": "Sin datos",
@@ -11666,7 +12036,7 @@ elif menu == "✉️ Mensajes diarios":
                 calculo_pre["estado_compromisos"],
             ]
 
-            if not carga_promesas_mes_actual_v28:
+            if not acumulado_pre_v34["disponible"]:
                 estado_pre = "Sin datos"
                 clase_pre = "status-gray"
             elif "Reforzar" in estados_pre:
@@ -11723,7 +12093,11 @@ elif menu == "✉️ Mensajes diarios":
         # -------------------------------------------------
         elegibles_v20 = [
             item for item in filas_preparadas
-            if carga_promesas_mes_actual_v28
+            if calcular_acumulado_mes_callcenter_v34(
+                item[0]["Usuario"],
+                st.session_state.get("callcenter_df"),
+                fecha_local_actual(),
+            )["disponible"]
             and normalizar_telegram_chat_id(
                 datos_contacto.get(item[0]["Usuario"], {}).get("telegram_chat_id", "")
             )
@@ -11815,7 +12189,7 @@ elif menu == "✉️ Mensajes diarios":
 
                 en_turno_v20 = operador_en_turno(usuario)
                 habilitado_v20 = bool(
-                    carga_promesas_mes_actual_v28
+                    acumulado_pre_v34["disponible"]
                     and telegram_chat_id
                     and operador_habilitado_para_envio(usuario)
                 )
