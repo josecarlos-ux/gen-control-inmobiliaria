@@ -2084,6 +2084,44 @@ def inicializar_calendario_mes(fecha_ref):
     return clave_mes
 
 
+def meta_diaria_compromisos_calendario_v35(fecha_ref=None, acumulado_actual=0):
+    """Meta diaria de compromisos basada en calendario laboral real."""
+    fecha_ref = fecha_ref or fecha_local_actual()
+    jornadas = jornadas_configuradas(fecha_ref)
+
+    meta_mensual = int(
+        st.session_state.get("meta_compromisos_cfg", META_COMPROMISOS)
+    )
+
+    total_jornadas = max(int(jornadas.get("total", 0)), 1)
+    disponibles = max(int(jornadas.get("disponibles", 0)), 1)
+
+    faltante = max(meta_mensual - int(acumulado_actual or 0), 0)
+
+    if faltante <= 0:
+        return {
+            "meta_diaria": 0,
+            "base_mes": 0,
+            "necesaria": 0,
+            "faltante": 0,
+            "jornadas_total": total_jornadas,
+            "jornadas_disponibles": disponibles,
+        }
+
+    base_mes = math.ceil(meta_mensual / total_jornadas)
+    necesaria = math.ceil(faltante / disponibles)
+
+    return {
+        "meta_diaria": max(base_mes, necesaria),
+        "base_mes": base_mes,
+        "necesaria": necesaria,
+        "faltante": faltante,
+        "jornadas_total": total_jornadas,
+        "jornadas_disponibles": disponibles,
+    }
+
+
+
 def jornadas_configuradas(fecha_ref=None):
     fecha_ref = fecha_ref or fecha_local_actual()
     clave_mes = inicializar_calendario_mes(fecha_ref)
@@ -2677,7 +2715,11 @@ def generar_mensaje_diario(fila, jornadas_info):
             META_DIARIA_GESTIONES,
         )
     )
-    minimo_c = int(st.session_state.meta_diaria_compromisos_cfg)
+    calculo_comp_msg_v35 = meta_diaria_compromisos_calendario_v35(
+        fecha_local_actual(),
+        compromisos,
+    )
+    minimo_c = int(calculo_comp_msg_v35["meta_diaria"])
 
     faltante_r = max(meta_r - recuperacion, 0)
 
@@ -14790,24 +14832,16 @@ elif menu == "⚙️ Configuración":
                 step=10,
             )
 
-        with c3:
-            nueva_meta_r = st.number_input(
-                "Meta mensual de recuperación por operador (USD)",
-                min_value=1,
-                value=int(
-                    st.session_state.meta_recuperacion_cfg
-                ),
-                step=1000,
+        with c4:
+            st.markdown(
+                """
+                <div style="border:1px solid #DDE6F0;border-radius:10px;padding:10px 12px;background:#F8FAFC;min-height:58px;">
+                    <div style="font-size:9px;color:#71849A;font-weight:800;">META DIARIA DE COMPROMISOS</div>
+                    <div style="font-size:12px;color:#183B5B;font-weight:850;margin-top:5px;">Automática según calendario</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-
-        nueva_meta_diaria_c = st.number_input(
-            "Mínimo diario de compromisos",
-            min_value=0,
-            value=int(
-                st.session_state.meta_diaria_compromisos_cfg
-            ),
-            step=1,
-        )
 
         if st.button(
             "💾 Guardar metas",
@@ -15122,12 +15156,11 @@ elif menu == "⚙️ Configuración":
                 faltante_g / disponibles
             )
 
-            meta_diaria_c = max(
-                st.session_state.meta_diaria_compromisos_cfg,
-                math.ceil(
-                    faltante_c / disponibles
-                ),
-            ) if faltante_c > 0 else 0
+            calculo_comp_v35 = meta_diaria_compromisos_calendario_v35(
+                fecha_calculo,
+                promedio_c,
+            )
+            meta_diaria_c = int(calculo_comp_v35["meta_diaria"])
 
             meta_diaria_r = (
                 faltante_r / disponibles
@@ -15160,8 +15193,10 @@ elif menu == "⚙️ Configuración":
                 )
 
             st.caption(
-                "La meta diaria se recalcula automáticamente "
-                "según el avance acumulado y los días laborales pendientes."
+                f"Compromisos: base {calculo_comp_v35['base_mes']} por jornada · "
+                f"faltan {formato_entero(calculo_comp_v35['faltante'])} · "
+                f"{calculo_comp_v35['jornadas_disponibles']} jornadas disponibles. "
+                "El calendario controla este cálculo automáticamente."
             )
 
         else:
