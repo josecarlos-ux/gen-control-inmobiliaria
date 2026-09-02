@@ -14612,7 +14612,7 @@ elif menu == "👥 Equipo":
             operadores_db["usuario"] == seleccion
         ].iloc[0]
 
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3, c4 = st.columns(4)
 
         with c1:
             nombre_op = st.text_input(
