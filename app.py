@@ -3875,6 +3875,137 @@ def cargar_calendario_supabase(
         return None
 
 
+def cargar_historico_mes_v100(fecha_ref=None):
+    """Histórico acumulado del mes actual para proyectar el cierre."""
+    fecha_ref = fecha_ref or fecha_local_actual()
+    sb = get_supabase()
+    if sb is None:
+        return pd.DataFrame()
+
+    inicio = fecha_ref.replace(day=1)
+    fin = date(
+        fecha_ref.year,
+        fecha_ref.month,
+        calendar.monthrange(fecha_ref.year, fecha_ref.month)[1],
+    )
+    try:
+        resp = (
+            sb.table("resultados_diarios")
+            .select("fecha,usuario,operador,gestiones,compromisos,recuperacion_acumulada")
+            .gte("fecha", inicio.isoformat())
+            .lte("fecha", fin.isoformat())
+            .order("fecha")
+            .execute()
+        )
+        hist = pd.DataFrame(resp.data or [])
+        if hist.empty:
+            return hist
+        hist["fecha"] = pd.to_datetime(hist["fecha"], errors="coerce").dt.date
+        for col in ["gestiones", "compromisos", "recuperacion_acumulada"]:
+            hist[col] = pd.to_numeric(hist[col], errors="coerce").fillna(0)
+        return hist.dropna(subset=["fecha"])
+    except Exception:
+        return pd.DataFrame()
+
+
+def dias_disponibles_operador_v100(usuario, fecha_ref=None, incluir_hoy=False):
+    """Días futuros efectivos: calendario general + horario + indisponibilidad individual."""
+    fecha_ref = fecha_ref or fecha_local_actual()
+    jornadas = jornadas_configuradas(fecha_ref).get("dias", [])
+    bloqueos = st.session_state.get("indisponibilidad_operadores_v100", {}).get(usuario, [])
+    bloqueos = {
+        pd.to_datetime(x, errors="coerce").date() if not isinstance(x, date) else x
+        for x in bloqueos
+    }
+    dias = []
+    for d in jornadas:
+        if d < fecha_ref or (d == fecha_ref and not incluir_hoy):
+            continue
+        if d in bloqueos:
+            continue
+        if obtener_horario_operador(usuario, d) is None:
+            continue
+        dias.append(d)
+    return dias
+
+
+def construir_proyeccion_cierre_v100(resultado_df, fecha_ref=None):
+    """
+    Proyección por operador para Gestiones, Compromisos y Recuperación.
+    Ritmo principal: incrementos diarios reales del histórico del mes.
+    Si no hay histórico suficiente, usa acumulado / jornadas transcurridas.
+    """
+    fecha_ref = fecha_ref or fecha_local_actual()
+    if resultado_df is None or resultado_df.empty:
+        return pd.DataFrame()
+
+    hist = cargar_historico_mes_v100(fecha_ref)
+    filas = []
+    metas = metas_actuales()
+
+    for _, actual in resultado_df.iterrows():
+        usuario = str(actual.get("Usuario", ""))
+        operador = str(actual.get("Operador", usuario))
+        g_actual = float(actual.get("Gestiones", 0) or 0)
+        c_actual = float(actual.get("Compromisos", 0) or 0)
+        r_actual = float(actual.get("Recuperación acumulada", 0) or 0)
+
+        h = hist[hist["usuario"].astype(str) == usuario].copy() if not hist.empty else pd.DataFrame()
+        ritmos = {}
+        ritmos5 = {}
+        for col, actual_val in [("gestiones", g_actual), ("compromisos", c_actual), ("recuperacion_acumulada", r_actual)]:
+            incrementos = []
+            if not h.empty:
+                hh = h.sort_values("fecha").drop_duplicates("fecha", keep="last")
+                vals = hh[col].astype(float).tolist()
+                # Primer acumulado del mes cuenta como producción hasta ese corte;
+                # los siguientes días usan diferencias no negativas.
+                if vals:
+                    incrementos.append(max(vals[0], 0.0))
+                    incrementos.extend(max(vals[i] - vals[i-1], 0.0) for i in range(1, len(vals)))
+            positivos = [x for x in incrementos if x >= 0]
+            if positivos:
+                ritmo = sum(positivos) / len(positivos)
+                ult5 = positivos[-5:]
+                ritmo5 = sum(ult5) / len(ult5)
+            else:
+                trans = [d for d in jornadas_configuradas(fecha_ref).get("dias", []) if d <= fecha_ref and obtener_horario_operador(usuario, d)]
+                ritmo = actual_val / max(len(trans), 1)
+                ritmo5 = ritmo
+            ritmos[col] = ritmo
+            ritmos5[col] = ritmo5
+
+        dias_rest = dias_disponibles_operador_v100(usuario, fecha_ref, incluir_hoy=False)
+        n_rest = len(dias_rest)
+        proy_g = g_actual + ritmos["gestiones"] * n_rest
+        proy_c = c_actual + ritmos["compromisos"] * n_rest
+        proy_r = r_actual + ritmos["recuperacion_acumulada"] * n_rest
+
+        filas.append({
+            "Usuario": usuario,
+            "Operador": operador,
+            "Días disponibles": n_rest,
+            "Gestiones actual": g_actual,
+            "Ritmo G/día": ritmos["gestiones"],
+            "Tendencia G 5d": ritmos5["gestiones"],
+            "Proy. gestiones": proy_g,
+            "Necesario G/día": max((float(metas["gestiones"]) - g_actual) / max(n_rest, 1), 0),
+            "Compromisos actual": c_actual,
+            "Ritmo C/día": ritmos["compromisos"],
+            "Tendencia C 5d": ritmos5["compromisos"],
+            "Proy. compromisos": proy_c,
+            "Necesario C/día": max((float(metas["compromisos"]) - c_actual) / max(n_rest, 1), 0),
+            "Recuperación actual": r_actual,
+            "Ritmo R/día": ritmos["recuperacion_acumulada"],
+            "Tendencia R 5d": ritmos5["recuperacion_acumulada"],
+            "Proy. recuperación": proy_r,
+            "Meta recuperación": float(metas["recuperacion"]),
+            "Brecha recuperación": max(float(metas["recuperacion"]) - proy_r, 0),
+            "Necesario R/día": max((float(metas["recuperacion"]) - r_actual) / max(n_rest, 1), 0),
+        })
+    return pd.DataFrame(filas)
+
+
 def guardar_resultados_supabase(
     resultado_df,
     fecha_reporte,
@@ -4353,6 +4484,11 @@ if "meta_diaria_compromisos_cfg" not in st.session_state:
 
 if "calendario_laboral" not in st.session_state:
     st.session_state.calendario_laboral = {}
+
+# V100 · Disponibilidad individual para proyección al cierre.
+# Se guarda en sesión; no altera el calendario laboral general.
+if "indisponibilidad_operadores_v100" not in st.session_state:
+    st.session_state.indisponibilidad_operadores_v100 = {}
 
 if "config_supabase_cargada" not in st.session_state:
     st.session_state.config_supabase_cargada = False
@@ -9170,6 +9306,76 @@ if menu == "🏠 Resumen":
                 """,
                 unsafe_allow_html=True,
             )
+
+
+        # -------------------------------------------------
+        # PROYECCIÓN AL CIERRE · V100
+        # Recuperación es el foco principal, sin descuidar G/C.
+        # -------------------------------------------------
+        st.markdown("---")
+        st.markdown("## 🔭 Proyección al cierre de mes")
+        st.caption(
+            "Calculada con el ritmo real del mes y los días efectivos que le quedan a cada operador. "
+            "La recuperación se muestra como indicador principal; gestiones y compromisos permanecen visibles."
+        )
+
+        proy_v100 = construir_proyeccion_cierre_v100(resultado, fecha_local_actual())
+        if proy_v100.empty:
+            st.info("Aún no hay histórico suficiente para construir la proyección.")
+        else:
+            meta_r_v100 = float(st.session_state.meta_recuperacion_cfg)
+            total_actual_r_v100 = float(proy_v100["Recuperación actual"].sum())
+            total_proy_r_v100 = float(proy_v100["Proy. recuperación"].sum())
+            total_meta_r_v100 = meta_r_v100 * len(proy_v100)
+            brecha_equipo_r_v100 = max(total_meta_r_v100 - total_proy_r_v100, 0)
+            ops_meta_r_v100 = int((proy_v100["Proy. recuperación"] >= proy_v100["Meta recuperación"]).sum())
+            dias_capacidad_v100 = int(proy_v100["Días disponibles"].sum())
+
+            p1, p2, p3, p4, p5 = st.columns(5)
+            p1.metric("Recuperación actual", formato_usd(total_actual_r_v100))
+            p2.metric("Proyección cierre", formato_usd(total_proy_r_v100))
+            p3.metric("Objetivo equipo", formato_usd(total_meta_r_v100))
+            p4.metric("Brecha proyectada", formato_usd(brecha_equipo_r_v100))
+            p5.metric("Operadores en meta", f"{ops_meta_r_v100}/{len(proy_v100)}")
+
+            st.caption(
+                f"Capacidad futura disponible: {dias_capacidad_v100} jornadas-operador. "
+                "Los días marcados como no disponibles se excluyen de la proyección individual."
+            )
+
+            vista_r_v100 = proy_v100[[
+                "Operador", "Días disponibles", "Recuperación actual", "Ritmo R/día",
+                "Tendencia R 5d", "Proy. recuperación", "Meta recuperación",
+                "Brecha recuperación", "Necesario R/día"
+            ]].copy().sort_values("Proy. recuperación", ascending=False)
+            st.markdown("### 💰 Recuperación · prioridad")
+            st.dataframe(
+                vista_r_v100.style.format({
+                    "Recuperación actual": "${:,.2f}", "Ritmo R/día": "${:,.2f}",
+                    "Tendencia R 5d": "${:,.2f}", "Proy. recuperación": "${:,.2f}",
+                    "Meta recuperación": "${:,.2f}", "Brecha recuperación": "${:,.2f}",
+                    "Necesario R/día": "${:,.2f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            with st.expander("📞 Ver proyección de Gestiones y Compromisos", expanded=False):
+                vista_gc_v100 = proy_v100[[
+                    "Operador", "Días disponibles",
+                    "Gestiones actual", "Ritmo G/día", "Tendencia G 5d", "Proy. gestiones", "Necesario G/día",
+                    "Compromisos actual", "Ritmo C/día", "Tendencia C 5d", "Proy. compromisos", "Necesario C/día",
+                ]].copy()
+                st.dataframe(
+                    vista_gc_v100.style.format({
+                        "Gestiones actual": "{:,.0f}", "Ritmo G/día": "{:,.1f}", "Tendencia G 5d": "{:,.1f}",
+                        "Proy. gestiones": "{:,.0f}", "Necesario G/día": "{:,.1f}",
+                        "Compromisos actual": "{:,.0f}", "Ritmo C/día": "{:,.1f}", "Tendencia C 5d": "{:,.1f}",
+                        "Proy. compromisos": "{:,.0f}", "Necesario C/día": "{:,.1f}",
+                    }),
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
 
 # =========================================================
@@ -15057,6 +15263,38 @@ elif menu == "⚙️ Configuración":
                 st.success(
                     "Calendario actualizado para esta sesión."
                 )
+
+        # -------------------------------------------------
+        # DISPONIBILIDAD INDIVIDUAL · V100
+        # -------------------------------------------------
+        st.divider()
+        st.markdown("### 👤 Disponibilidad de operadores para la proyección")
+        st.caption(
+            "Marca fechas en las que un operador no estará disponible (vacación, permiso u otra ausencia). "
+            "Estas fechas se descuentan únicamente de su proyección al cierre."
+        )
+        usuario_disp_v100 = st.selectbox(
+            "Operador",
+            list(OPERADORES.keys()),
+            format_func=lambda u: OPERADORES[u].get("nombre_mensaje", u),
+            key="usuario_disp_v100",
+        )
+        fechas_mes_v100 = [
+            date(int(anio_sel), int(mes_sel), d)
+            for d in range(1, dias_mes + 1)
+            if calendario_mes.get(d, False) and obtener_horario_operador(usuario_disp_v100, date(int(anio_sel), int(mes_sel), d))
+        ]
+        actuales_disp_v100 = st.session_state.indisponibilidad_operadores_v100.get(usuario_disp_v100, [])
+        seleccion_disp_v100 = st.multiselect(
+            "Días no disponibles",
+            options=fechas_mes_v100,
+            default=[d for d in actuales_disp_v100 if d in fechas_mes_v100],
+            format_func=lambda d: d.strftime("%d/%m/%Y"),
+            key=f"indisp_{usuario_disp_v100}_{anio_sel}_{mes_sel}",
+        )
+        if st.button("💾 Aplicar disponibilidad", key="guardar_disp_v100"):
+            st.session_state.indisponibilidad_operadores_v100[usuario_disp_v100] = list(seleccion_disp_v100)
+            st.success("Disponibilidad aplicada a la proyección de cierre.")
 
         # -------------------------------------------------
         # CÁLCULO DE META DIARIA
