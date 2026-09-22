@@ -43,6 +43,21 @@ JORNADA_FIN_HORA = 17
 META_RECUPERACION = 170400
 CANTIDAD_OPERADORES = 8
 
+# OBJETIVOS OFICIALES DE RECUPERACIÓN 2026 · POR EMPRESA Y MES
+# Fuente: correo de Jefatura de Cobranzas compartido por Coordinación.
+OBJETIVOS_RECUPERACION_EMPRESA = {
+    (2026, 9): {"MILOTE": 1004998.23, "NM INVERSIONES": 242650.68},
+    (2026, 10): {"MILOTE": 1015136.22, "NM INVERSIONES": 250122.67},
+}
+
+def objetivo_recuperacion_oficial(fecha_ref=None):
+    """Devuelve objetivos por empresa, total general y referencia individual equivalente."""
+    fecha_ref = fecha_ref or fecha_local_actual()
+    detalle = OBJETIVOS_RECUPERACION_EMPRESA.get((fecha_ref.year, fecha_ref.month), {})
+    total = float(sum(detalle.values())) if detalle else float(META_RECUPERACION * CANTIDAD_OPERADORES)
+    individual_equivalente = total / max(CANTIDAD_OPERADORES, 1)
+    return {"detalle": detalle, "total": total, "individual_equivalente": individual_equivalente}
+
 
 OPERADORES = {
     "avargas": {
@@ -3908,8 +3923,12 @@ def cargar_historico_mes_v100(fecha_ref=None):
         return pd.DataFrame()
 
 
-def dias_disponibles_operador_v100(usuario, fecha_ref=None, incluir_hoy=False):
-    """Días futuros efectivos: calendario general + horario + indisponibilidad individual."""
+def capacidad_futura_operador_v102(usuario, fecha_ref=None, incluir_hoy=False):
+    """Capacidad futura real y teórica en jornadas equivalentes.
+
+    Vacación/ausencia completa = 0 jornada. Permiso parcial descuenta la
+    proporción de horas ausentes respecto a la jornada programada.
+    """
     fecha_ref = fecha_ref or fecha_local_actual()
     jornadas = jornadas_configuradas(fecha_ref).get("dias", [])
     bloqueos = st.session_state.get("indisponibilidad_operadores_v100", {}).get(usuario, [])
@@ -3917,16 +3936,53 @@ def dias_disponibles_operador_v100(usuario, fecha_ref=None, incluir_hoy=False):
         pd.to_datetime(x, errors="coerce").date() if not isinstance(x, date) else x
         for x in bloqueos
     }
-    dias = []
+    parciales_raw = st.session_state.get("permisos_parciales_operadores_v102", {}).get(usuario, {})
+    parciales = {}
+    for k, v in (parciales_raw or {}).items():
+        try:
+            dk = pd.to_datetime(k, errors="coerce").date() if not isinstance(k, date) else k
+            parciales[dk] = max(float(v or 0), 0.0)
+        except Exception:
+            pass
+
+    detalle = []
+    capacidad_real = 0.0
+    capacidad_teorica = 0.0
+    horas_programadas = 0.0
+    horas_disponibles = 0.0
     for d in jornadas:
         if d < fecha_ref or (d == fecha_ref and not incluir_hoy):
             continue
+        horario = obtener_horario_operador(usuario, d)
+        if horario is None:
+            continue
+        horas_jornada = float(horario.get("jornada_horas", 0) or 0)
+        if horas_jornada <= 0:
+            continue
+        capacidad_teorica += 1.0
+        horas_programadas += horas_jornada
         if d in bloqueos:
-            continue
-        if obtener_horario_operador(usuario, d) is None:
-            continue
-        dias.append(d)
-    return dias
+            horas_ausente = horas_jornada
+        else:
+            horas_ausente = min(parciales.get(d, 0.0), horas_jornada)
+        horas_disp = max(horas_jornada - horas_ausente, 0.0)
+        fraccion = horas_disp / horas_jornada
+        capacidad_real += fraccion
+        horas_disponibles += horas_disp
+        detalle.append({"fecha": d, "horas_programadas": horas_jornada, "horas_ausente": horas_ausente, "fraccion": fraccion})
+    return {
+        "real": capacidad_real,
+        "teorica": capacidad_teorica,
+        "horas_programadas": horas_programadas,
+        "horas_disponibles": horas_disponibles,
+        "detalle": detalle,
+    }
+
+
+def dias_disponibles_operador_v100(usuario, fecha_ref=None, incluir_hoy=False):
+    """Compatibilidad: devuelve fechas con alguna capacidad disponible."""
+    cap = capacidad_futura_operador_v102(usuario, fecha_ref, incluir_hoy)
+    return [x["fecha"] for x in cap["detalle"] if x["fraccion"] > 0]
 
 
 def construir_proyeccion_cierre_v100(resultado_df, fecha_ref=None):
@@ -3975,8 +4031,9 @@ def construir_proyeccion_cierre_v100(resultado_df, fecha_ref=None):
             ritmos[col] = ritmo
             ritmos5[col] = ritmo5
 
-        dias_rest = dias_disponibles_operador_v100(usuario, fecha_ref, incluir_hoy=False)
-        n_rest = len(dias_rest)
+        capacidad = capacidad_futura_operador_v102(usuario, fecha_ref, incluir_hoy=False)
+        n_rest = float(capacidad["real"])
+        n_teorico = float(capacidad["teorica"])
         proy_g = g_actual + ritmos["gestiones"] * n_rest
         proy_c = c_actual + ritmos["compromisos"] * n_rest
         proy_r = r_actual + ritmos["recuperacion_acumulada"] * n_rest
@@ -3984,7 +4041,11 @@ def construir_proyeccion_cierre_v100(resultado_df, fecha_ref=None):
         filas.append({
             "Usuario": usuario,
             "Operador": operador,
-            "Días disponibles": n_rest,
+            "Capacidad disponible": n_rest,
+            "Capacidad teórica": n_teorico,
+            "Horas disponibles": float(capacidad["horas_disponibles"]),
+            "Horas programadas": float(capacidad["horas_programadas"]),
+            "Días disponibles": len([x for x in capacidad["detalle"] if x["fraccion"] > 0]),
             "Gestiones actual": g_actual,
             "Ritmo G/día": ritmos["gestiones"],
             "Tendencia G 5d": ritmos5["gestiones"],
@@ -4474,7 +4535,12 @@ if "meta_compromisos_cfg" not in st.session_state:
     st.session_state.meta_compromisos_cfg = META_COMPROMISOS
 
 if "meta_recuperacion_cfg" not in st.session_state:
-    st.session_state.meta_recuperacion_cfg = META_RECUPERACION
+    st.session_state.meta_recuperacion_cfg = objetivo_recuperacion_oficial()["individual_equivalente"]
+
+# Para meses con objetivo oficial cargado, sincronizar la referencia individual con el objetivo general.
+_obj_rec_inicio = objetivo_recuperacion_oficial()
+if _obj_rec_inicio.get("detalle"):
+    st.session_state.meta_recuperacion_cfg = _obj_rec_inicio["individual_equivalente"]
 
 if "meta_diaria_gestiones_cfg" not in st.session_state:
     st.session_state.meta_diaria_gestiones_cfg = META_DIARIA_GESTIONES
@@ -4489,6 +4555,10 @@ if "calendario_laboral" not in st.session_state:
 # Se guarda en sesión; no altera el calendario laboral general.
 if "indisponibilidad_operadores_v100" not in st.session_state:
     st.session_state.indisponibilidad_operadores_v100 = {}
+
+# V102 · Permisos parciales por horas. Estructura: {usuario: {fecha: horas_ausente}}
+if "permisos_parciales_operadores_v102" not in st.session_state:
+    st.session_state.permisos_parciales_operadores_v102 = {}
 
 if "config_supabase_cargada" not in st.session_state:
     st.session_state.config_supabase_cargada = False
@@ -9309,7 +9379,7 @@ if menu == "🏠 Resumen":
 
 
         # -------------------------------------------------
-        # PROYECCIÓN AL CIERRE · V100
+        # PROYECCIÓN AL CIERRE · V102
         # Recuperación es el foco principal, sin descuidar G/C.
         # -------------------------------------------------
         st.markdown("---")
@@ -9323,35 +9393,48 @@ if menu == "🏠 Resumen":
         if proy_v100.empty:
             st.info("Aún no hay histórico suficiente para construir la proyección.")
         else:
-            meta_r_v100 = float(st.session_state.meta_recuperacion_cfg)
+            obj_oficial_v101 = objetivo_recuperacion_oficial(fecha_local_actual())
             total_actual_r_v100 = float(proy_v100["Recuperación actual"].sum())
             total_proy_r_v100 = float(proy_v100["Proy. recuperación"].sum())
-            total_meta_r_v100 = meta_r_v100 * len(proy_v100)
+            total_meta_r_v100 = float(obj_oficial_v101["total"])
             brecha_equipo_r_v100 = max(total_meta_r_v100 - total_proy_r_v100, 0)
-            ops_meta_r_v100 = int((proy_v100["Proy. recuperación"] >= proy_v100["Meta recuperación"]).sum())
-            dias_capacidad_v100 = int(proy_v100["Días disponibles"].sum())
+            capacidad_real_v102 = float(proy_v100["Capacidad disponible"].sum())
+            capacidad_teorica_v102 = float(proy_v100["Capacidad teórica"].sum())
+            pct_capacidad_v102 = (capacidad_real_v102 / capacidad_teorica_v102 * 100) if capacidad_teorica_v102 else 0
+            pct_proy_v101 = (total_proy_r_v100 / total_meta_r_v100 * 100) if total_meta_r_v100 else 0
 
             p1, p2, p3, p4, p5 = st.columns(5)
             p1.metric("Recuperación actual", formato_usd(total_actual_r_v100))
             p2.metric("Proyección cierre", formato_usd(total_proy_r_v100))
-            p3.metric("Objetivo equipo", formato_usd(total_meta_r_v100))
+            p3.metric("Objetivo general", formato_usd(total_meta_r_v100))
             p4.metric("Brecha proyectada", formato_usd(brecha_equipo_r_v100))
-            p5.metric("Operadores en meta", f"{ops_meta_r_v100}/{len(proy_v100)}")
+            p5.metric("Cumplimiento proyectado", f"{pct_proy_v101:,.1f}%")
 
             st.caption(
-                f"Capacidad futura disponible: {dias_capacidad_v100} jornadas-operador. "
-                "Los días marcados como no disponibles se excluyen de la proyección individual."
+                f"Capacidad restante real: {capacidad_real_v102:,.1f} de {capacidad_teorica_v102:,.0f} jornadas-operador "
+                f"({pct_capacidad_v102:,.1f}%). Vacaciones y permisos completos se excluyen; "
+                "los permisos por horas reducen proporcionalmente la capacidad de ese día."
             )
 
+            detalle_obj_v101 = obj_oficial_v101.get("detalle", {})
+            if detalle_obj_v101:
+                mes_obj_v101 = nombre_mes_es(fecha_local_actual().month).capitalize()
+                st.markdown(f"#### 🎯 Objetivo oficial de recuperación · {mes_obj_v101}")
+                cols_obj_v101 = st.columns(len(detalle_obj_v101) + 1)
+                for idx_obj, (empresa_obj, monto_obj) in enumerate(detalle_obj_v101.items()):
+                    cols_obj_v101[idx_obj].metric(empresa_obj, formato_usd(monto_obj))
+                cols_obj_v101[-1].metric("OBJETIVO GENERAL", formato_usd(total_meta_r_v100))
+                st.caption("El objetivo general es la suma de las metas de MILOTE y NM INVERSIONES. La referencia individual se usa solo para distribuir el seguimiento entre operadores; el cumplimiento principal de recuperación se evalúa contra el objetivo general.")
+
             vista_r_v100 = proy_v100[[
-                "Operador", "Días disponibles", "Recuperación actual", "Ritmo R/día",
+                "Operador", "Días disponibles", "Capacidad disponible", "Recuperación actual", "Ritmo R/día",
                 "Tendencia R 5d", "Proy. recuperación", "Meta recuperación",
                 "Brecha recuperación", "Necesario R/día"
             ]].copy().sort_values("Proy. recuperación", ascending=False)
             st.markdown("### 💰 Recuperación · prioridad")
             st.dataframe(
                 vista_r_v100.style.format({
-                    "Recuperación actual": "${:,.2f}", "Ritmo R/día": "${:,.2f}",
+                    "Capacidad disponible": "{:,.2f}", "Recuperación actual": "${:,.2f}", "Ritmo R/día": "${:,.2f}",
                     "Tendencia R 5d": "${:,.2f}", "Proy. recuperación": "${:,.2f}",
                     "Meta recuperación": "${:,.2f}", "Brecha recuperación": "${:,.2f}",
                     "Necesario R/día": "${:,.2f}",
@@ -9362,13 +9445,13 @@ if menu == "🏠 Resumen":
 
             with st.expander("📞 Ver proyección de Gestiones y Compromisos", expanded=False):
                 vista_gc_v100 = proy_v100[[
-                    "Operador", "Días disponibles",
+                    "Operador", "Días disponibles", "Capacidad disponible",
                     "Gestiones actual", "Ritmo G/día", "Tendencia G 5d", "Proy. gestiones", "Necesario G/día",
                     "Compromisos actual", "Ritmo C/día", "Tendencia C 5d", "Proy. compromisos", "Necesario C/día",
                 ]].copy()
                 st.dataframe(
                     vista_gc_v100.style.format({
-                        "Gestiones actual": "{:,.0f}", "Ritmo G/día": "{:,.1f}", "Tendencia G 5d": "{:,.1f}",
+                        "Capacidad disponible": "{:,.2f}", "Gestiones actual": "{:,.0f}", "Ritmo G/día": "{:,.1f}", "Tendencia G 5d": "{:,.1f}",
                         "Proy. gestiones": "{:,.0f}", "Necesario G/día": "{:,.1f}",
                         "Compromisos actual": "{:,.0f}", "Ritmo C/día": "{:,.1f}", "Tendencia C 5d": "{:,.1f}",
                         "Proy. compromisos": "{:,.0f}", "Necesario C/día": "{:,.1f}",
@@ -15039,13 +15122,17 @@ elif menu == "⚙️ Configuración":
             )
 
         with c3:
-            nueva_meta_r = st.number_input(
-                "Meta mensual de recuperación por operador (USD)",
-                min_value=1,
-                value=int(
-                    st.session_state.meta_recuperacion_cfg
-                ),
-                step=1000,
+            obj_cfg_v101 = objetivo_recuperacion_oficial(fecha_local_actual())
+            nueva_meta_r = float(obj_cfg_v101["individual_equivalente"])
+            st.markdown(
+                f"""
+                <div style="border:1px solid #DDE6F0;border-radius:10px;padding:10px 12px;background:#F8FAFC;min-height:58px;">
+                    <div style="font-size:9px;color:#71849A;font-weight:800;">OBJETIVO GENERAL RECUPERACIÓN</div>
+                    <div style="font-size:16px;color:#183B5B;font-weight:900;margin-top:5px;">{formato_usd(obj_cfg_v101['total'])}</div>
+                    <div style="font-size:9px;color:#71849A;margin-top:3px;">MILOTE + NM INVERSIONES</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         with c4:
@@ -15295,6 +15382,50 @@ elif menu == "⚙️ Configuración":
         if st.button("💾 Aplicar disponibilidad", key="guardar_disp_v100"):
             st.session_state.indisponibilidad_operadores_v100[usuario_disp_v100] = list(seleccion_disp_v100)
             st.success("Disponibilidad aplicada a la proyección de cierre.")
+
+        st.markdown("#### ⏱️ Permiso parcial por horas")
+        st.caption("Úsalo cuando el operador trabajará parte del día. Si el día está marcado arriba como no disponible, prevalece la ausencia completa.")
+        fechas_parcial_v102 = [d for d in fechas_mes_v100 if d not in seleccion_disp_v100]
+        if fechas_parcial_v102:
+            cp1, cp2 = st.columns([2, 1])
+            with cp1:
+                fecha_permiso_v102 = st.selectbox(
+                    "Fecha del permiso", fechas_parcial_v102,
+                    format_func=lambda d: d.strftime("%d/%m/%Y"),
+                    key=f"fecha_permiso_v102_{usuario_disp_v100}_{anio_sel}_{mes_sel}",
+                )
+            horario_permiso_v102 = obtener_horario_operador(usuario_disp_v100, fecha_permiso_v102) or {}
+            max_horas_v102 = float(horario_permiso_v102.get("jornada_horas", 1) or 1)
+            parciales_usuario_v102 = st.session_state.permisos_parciales_operadores_v102.get(usuario_disp_v100, {})
+            actual_horas_v102 = float(parciales_usuario_v102.get(fecha_permiso_v102, 0) or 0)
+            with cp2:
+                horas_permiso_v102 = st.number_input(
+                    "Horas no disponibles", min_value=0.0, max_value=max_horas_v102,
+                    value=min(actual_horas_v102, max_horas_v102), step=0.5,
+                    key=f"horas_permiso_v102_{usuario_disp_v100}_{fecha_permiso_v102}",
+                )
+            ca1, ca2 = st.columns(2)
+            with ca1:
+                if st.button("💾 Guardar permiso parcial", key="guardar_permiso_v102"):
+                    st.session_state.permisos_parciales_operadores_v102.setdefault(usuario_disp_v100, {})
+                    if horas_permiso_v102 > 0:
+                        st.session_state.permisos_parciales_operadores_v102[usuario_disp_v100][fecha_permiso_v102] = float(horas_permiso_v102)
+                    else:
+                        st.session_state.permisos_parciales_operadores_v102[usuario_disp_v100].pop(fecha_permiso_v102, None)
+                    st.success("Permiso parcial aplicado a la capacidad y a la proyección de cierre.")
+            with ca2:
+                if st.button("🗑️ Quitar permiso parcial", key="quitar_permiso_v102"):
+                    st.session_state.permisos_parciales_operadores_v102.setdefault(usuario_disp_v100, {}).pop(fecha_permiso_v102, None)
+                    st.success("Permiso parcial eliminado.")
+
+            parciales_mostrar_v102 = st.session_state.permisos_parciales_operadores_v102.get(usuario_disp_v100, {})
+            parciales_mes_v102 = [
+                {"Fecha": d.strftime("%d/%m/%Y"), "Horas no disponibles": h}
+                for d, h in sorted(parciales_mostrar_v102.items())
+                if isinstance(d, date) and d.year == int(anio_sel) and d.month == int(mes_sel) and h > 0
+            ]
+            if parciales_mes_v102:
+                st.dataframe(pd.DataFrame(parciales_mes_v102), use_container_width=True, hide_index=True)
 
         # -------------------------------------------------
         # CÁLCULO DE META DIARIA
