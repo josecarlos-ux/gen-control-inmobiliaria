@@ -1937,10 +1937,14 @@ def nombre_mes_es(numero_mes):
 
 def periodo_recuperacion_actual(fecha_ref=None):
     """
-    Regla definitiva:
-    - Gestiones y Compromisos: siempre mes actual.
-    - Recuperación: días 1–5 sigue cerrando el mes anterior.
-    - Recuperación: desde día 6 corresponde al mes actual.
+    Regla definitiva de cierre:
+    - Gestiones y Compromisos: siempre pertenecen al mes de la FECHA DE REGISTRO.
+    - Del 1 al 5 existe una ventana adicional SOLO para Recuperación del mes anterior.
+    - Un pago del 1 al 5 se acredita al mes anterior únicamente si la gestión/compromiso
+      que originó ese pago fue registrada hasta el último día del mes anterior.
+    - Si el registro original fue realizado desde el día 1, su recuperación pertenece
+      al mes actual, aunque el pago ocurra entre el 1 y el 5.
+    - Desde el día 6, el cierre anterior queda bloqueado.
     """
     fecha_ref = fecha_ref or fecha_local_actual()
 
@@ -2500,8 +2504,14 @@ def combinar_inicio_mes_v28(resultado_nuevo, resultado_cierre):
     """
     Días 1–5:
     - Gestiones/Compromisos: toma el reporte NUEVO del mes actual.
-    - Recuperación: conserva el último cierre del mes anterior,
-      salvo que el reporte nuevo ya traiga una recuperación mayor/actualizada.
+    - Recuperación del cierre anterior: NO se mezcla automáticamente con una recuperación
+      mayor del mes actual. La acreditación al mes anterior exige que el registro original
+      sea del mes anterior. Esto evita sumar a septiembre pagos originados por registros
+      creados desde el 1 de octubre.
+
+    Nota técnica: el reporte agregado de Promesas no contiene por sí solo la fecha original
+    de cada compromiso. Por eso, ante dos acumulados agregados, se conserva el cierre anterior
+    y no se usa max(anterior, nuevo), que podría contaminar el cierre con registros del mes actual.
     """
     if resultado_nuevo is None or resultado_nuevo.empty:
         return resultado_nuevo
@@ -2531,14 +2541,14 @@ def combinar_inicio_mes_v28(resultado_nuevo, resultado_cierre):
         if isinstance(anterior, pd.DataFrame):
             anterior = anterior.iloc[0]
 
-        rec_nueva = float(fila.get("Recuperación acumulada", 0) or 0)
-        rec_anterior = float(anterior.get("Recuperación acumulada", 0) or 0)
-
-        # Durante el cierre se conserva el valor más actualizado disponible.
-        if rec_anterior > rec_nueva:
-            for col in cols_rec:
-                if col in nuevo.columns and col in cierre.columns:
-                    nuevo.at[i, col] = anterior.get(col, nuevo.at[i, col])
+        # V103 · No usar el mayor entre cierre anterior y mes actual.
+        # Un acumulado mayor del mes actual puede contener recuperaciones originadas
+        # por registros creados desde el día 1 y, por regla, NO pertenecen al cierre anterior.
+        # Conservamos el cierre anterior hasta contar con un reporte/detalle cuya fecha
+        # de registro original permita atribuir correctamente los pagos del 1 al 5.
+        for col in cols_rec:
+            if col in nuevo.columns and col in cierre.columns:
+                nuevo.at[i, col] = anterior.get(col, nuevo.at[i, col])
 
     return nuevo
 
@@ -12939,10 +12949,20 @@ elif menu == "📥 Cargar reportes":
     periodo_carga_v27 = periodo_recuperacion_actual()
     if periodo_carga_v27["cierre_anterior"]:
         st.info(
-            f"Del 1 al 5: Gestiones y Compromisos se registran para "
-            f"{nombre_mes_es(fecha_local_actual().month)}; Recuperación se mantiene como "
-            f"{periodo_carga_v27['etiqueta']}.",
+            f"Cierre de recuperación · 1 al 5: Gestiones y Compromisos registrados desde el día 1 "
+            f"pertenecen a {nombre_mes_es(fecha_local_actual().month)}. Solo los pagos del 1 al 5 "
+            f"originados por gestiones/compromisos registrados hasta el último día de "
+            f"{periodo_carga_v27['nombre_mes']} continúan sumando al cierre de "
+            f"{periodo_carga_v27['nombre_mes']}. Los registros creados desde el día 1 no se trasladan "
+            f"al mes anterior.",
             icon="📅",
+        )
+
+    if periodo_carga_v27["cierre_anterior"]:
+        st.caption(
+            "Regla V103: para actualizar el cierre anterior con nuevos pagos del 1 al 5, "
+            "la fuente debe permitir identificar la fecha de registro original del compromiso. "
+            "GEN Control no atribuye automáticamente al mes anterior un aumento agregado que pueda incluir registros del mes actual."
         )
 
     archivos = st.file_uploader(
