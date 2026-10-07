@@ -40,8 +40,8 @@ JORNADA_FIN_HORA = 17
 # NO MODIFICAR SIN AUTORIZACIÓN
 # =========================================================
 
-META_RECUPERACION = 170400
-CANTIDAD_OPERADORES = 8
+META_RECUPERACION = 181000
+CANTIDAD_OPERADORES = 7
 
 # OBJETIVOS OFICIALES DE RECUPERACIÓN 2026 · POR EMPRESA Y MES
 # Fuente: correo de Jefatura de Cobranzas compartido por Coordinación.
@@ -80,11 +80,6 @@ OPERADORES = {
         "nombre_mensaje": "Leen",
         "correo": "lrodriguez@gestionia.bo",
     },
-    "malvarez": {
-        "nombre": "Mirla Anahir Alvarez",
-        "nombre_mensaje": "Anahir",
-        "correo": "malvarez@gestionia.bo",
-    },
     "projas": {
         "nombre": "Percy Daniel Rojas Ortega",
         "nombre_mensaje": "Percy",
@@ -118,14 +113,6 @@ HORARIOS_OPERADORES = {
         3: {"entrada": "09:00", "break_inicio": "13:00", "break_fin": "13:30", "salida": "16:00", "jornada_horas": 7},
         4: {"entrada": "08:30", "break_inicio": "13:00", "break_fin": "13:30", "salida": "15:30", "jornada_horas": 7},
         5: {"entrada": "08:00", "break_inicio": None, "break_fin": None, "salida": "13:00", "jornada_horas": 5},
-    },
-    "malvarez": {
-        0: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
-        1: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
-        2: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
-        3: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
-        4: {"entrada": "08:30", "break_inicio": "12:30", "break_fin": "13:00", "salida": "15:30", "jornada_horas": 7},
-        5: {"entrada": "08:30", "break_inicio": None, "break_fin": None, "salida": "13:30", "jornada_horas": 5},
     },
     "avargas": {
         0: {"entrada": "12:30", "break_inicio": "15:30", "break_fin": "16:00", "salida": "19:30", "jornada_horas": 7},
